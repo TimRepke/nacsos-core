@@ -1,0 +1,10 @@
+[server]
+host = "localhost"
+port = 8080
+
+[db]
+host = "nacsos_postgres"
+port = 5432
+user = "root"
+pw = "root"
+database = "nacsos_core"

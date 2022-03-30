@@ -25,6 +25,7 @@ def get_class_column(obj: type) -> int:
 
         return start_column
 ```
+Keep track of https://github.com/swansonk14/typed-argument-parser/issues/80
 
 For development, it is advised to install `nacsos-data` locally (not from git) via
 ```bash

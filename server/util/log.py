@@ -1,17 +1,17 @@
-import configparser
-import argparse
-import logging
-import logging.config
-import yaml
+from server.util.config import conf
 import math
 import traceback
 from uvicorn.logging import AccessFormatter, DefaultFormatter
+import yaml
+import os
+import logging
+import logging.config
 
 
-def init_logging(logger_name: str = None):
-    logging.config.dictConfig(get_logger_config())
-    if logger_name:
-        return logging.getLogger(logger_name)
+def init_logging():
+    with open(os.environ.get('LOGGING_CONF', 'config/logging.conf'), 'r') as f:
+        config = yaml.safe_load(f.read())
+        logging.config.dictConfig(config)
 
 
 class AccessLogFormatter(AccessFormatter):
@@ -42,7 +42,7 @@ class ColourFormatter(DefaultFormatter):
 
 
 def except2str(e, logger=None):
-    if config.getboolean('server', 'debug_mode'):
+    if conf.server.debug_mode:
         tb = traceback.format_exc()
         if logger:
             logger.error(tb)

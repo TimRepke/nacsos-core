@@ -1,6 +1,7 @@
 [server]
 host = "localhost"
 port = 8080
+hosts = ['0.0.0.0', 'localhost']
 
 [db]
 host = "nacsos_postgres"

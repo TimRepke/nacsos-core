@@ -1,7 +1,7 @@
 from tap import Tap
 from tap.utils import get_class_variables
 from typing import get_type_hints, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import OrderedDict
 import os
 import toml
@@ -13,6 +13,12 @@ NestedConfigDict = dict[str, dict[str, Any]]
 class ServerConfig:
     host: str = 'localhost'  # host to run this server on
     port: int = 8080  # port for this serve to listen at
+    debug_mode: bool = False  # set this to true in order to get more detailed logs
+    hosts: list[str] = field(default_factory=lambda: ['0.0.0.0', 'localhost'])  # list of trusted hosts
+    header_trusted_host: bool = False  # set to true to allow hosts from any origin
+    header_cors: bool = False  # set to true to allow CORS
+    workers: int = 2  # number of worker processes
+    static_files: str = '../nacsos-web/dist/'  # path to the static files to be served
 
 
 @dataclass
@@ -32,10 +38,10 @@ class Config:
 
     DEFAULT_CONFIG_FILE = 'config/default.toml'
 
-    def __init__(self):
+    def __init__(self, cli_args: list[str] = None):
         stored_config = self._read_config_file()
         shlex_config = dict2shlex(stored_config)
-        config = self._read_cli_args(shlex_config)
+        config = self._read_cli_args(shlex_config, cli_args)
 
         self.server: ServerConfig = ServerConfig(**config['server'])
         self.db: DatabaseConfig = DatabaseConfig(**config['db'])
@@ -45,7 +51,7 @@ class Config:
         with open(conf_file, 'r') as f:
             return toml.load(f)
 
-    def _read_cli_args(self, shlex_config: list[str]):
+    def _read_cli_args(self, shlex_config: list[str], cli_args: list[str]):
         """
         This method generates a Tap (typed-argument-parser) instance from the config classes
         and exposes the variables including help (comments) and types to the command line.
@@ -82,7 +88,7 @@ class Config:
                 self.args_from_configs = shlex_config
 
         # parse command line arguments
-        args = ProgrammaticArgumentParser(underscores_to_dashes=True).parse_args()
+        args = ProgrammaticArgumentParser(underscores_to_dashes=True).parse_args(cli_args)
 
         config = {}
         for arg, value in args.as_dict().items():
@@ -102,4 +108,17 @@ def dict2shlex(config: NestedConfigDict) -> list[str]:
             ret.append(f'"{value}"')
     return ret
 
-__all__ = []
+
+conf = Config()
+
+__all__ = ['Config', 'conf']
+
+# if __name__ == '__main__':
+#     from hypercorn.config import Config as HyperConfig
+#
+#     conf = init_config()
+#     config = HyperConfig()
+#     config.workers = conf.server.workers
+#     config.server_names = conf.server.hosts
+#     config.bind = f'{conf.server.host}:{conf.server.port}'
+#     print('test')

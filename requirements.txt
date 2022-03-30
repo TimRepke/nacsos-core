@@ -1,4 +1,4 @@
 fastapi==0.75.0
+hypercorn==0.13.2
 typed-argument-parser==1.7.2
-uvicorn~=0.17.6
 toml==0.10.2

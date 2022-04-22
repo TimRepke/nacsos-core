@@ -1,0 +1,7 @@
+bind = '127.0.0.1:8081'
+debug = true
+access_log_format = '%(s)s | "%(R)s" |  Size: %(b)s | Referrer: "%(f)s"'
+workers = 1
+accesslog = 'hypercorn.access'
+errorlog = 'hypercorn.error'
+logconfig_dict = 'config/logging.conf'

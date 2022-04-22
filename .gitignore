@@ -2,3 +2,6 @@
 config/
 p.py
 __pycache__
+/hypercorn.access
+/hypercorn.error
+.pyc

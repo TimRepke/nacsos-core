@@ -1,124 +1,114 @@
-from tap import Tap
-from tap.utils import get_class_variables
-from typing import get_type_hints, Any
-from dataclasses import dataclass, field
-from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Union
+import secrets
+import json
+import yaml
 import os
-import toml
 
-NestedConfigDict = dict[str, dict[str, Any]]
-
-
-@dataclass
-class ServerConfig:
-    host: str = 'localhost'  # host to run this server on
-    port: int = 8080  # port for this serve to listen at
-    debug_mode: bool = False  # set this to true in order to get more detailed logs
-    hosts: list[str] = field(default_factory=lambda: ['0.0.0.0', 'localhost'])  # list of trusted hosts
-    header_trusted_host: bool = False  # set to true to allow hosts from any origin
-    header_cors: bool = False  # set to true to allow CORS
-    workers: int = 2  # number of worker processes
-    static_files: str = '../nacsos-web/dist/'  # path to the static files to be served
+from pydantic import BaseSettings, BaseModel, PostgresDsn, AnyHttpUrl, EmailStr, validator
 
 
-@dataclass
-class DatabaseConfig:
-    pw: str  # password for the database user
-    user: str = 'nacsos'  # username for the database
-    database: str = 'nacsos_core'  # name of the database
-    host: str = 'localhost'  # host of the db server
-    port: int = 5432  # port of the db server
+# For more information how BaseSettings work, check the documentation:
+# https://pydantic-docs.helpmanual.io/usage/settings/
+
+# This is inspired by
+# https://github.com/tiangolo/full-stack-fastapi-postgresql/blob/490c554e23343eec0736b06e59b2108fdd057fdc/%7B%7Bcookiecutter.project_slug%7D%7D/backend/app/app/core/config.py
 
 
-class Config:
-    _sub_configs = {
-        'server': ServerConfig,
-        'db': DatabaseConfig,
-    }
+class ServerConfig(BaseModel):
+    HOST: str = 'localhost'  # host to run this server on
+    PORT: int = 8080  # port for this serve to listen at
+    DEBUG_MODE: bool = False  # set this to true in order to get more detailed logs
+    WORKERS: int = 2  # number of worker processes
+    STATIC_FILES: str = '../nacsos-web/dist/'  # path to the static files to be served
 
-    DEFAULT_CONFIG_FILE = 'config/default.toml'
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # = 8 days
 
-    def __init__(self, cli_args: list[str] = None):
-        stored_config = self._read_config_file()
-        shlex_config = dict2shlex(stored_config)
-        config = self._read_cli_args(shlex_config, cli_args)
+    HEADER_CORS: bool = False  # set to true to allow CORS
+    HEADER_TRUSTED_HOST: bool = False  # set to true to allow hosts from any origin
+    CORS_ORIGINS: List[AnyHttpUrl] = []  # list of trusted hosts
 
-        self.server: ServerConfig = ServerConfig(**config['server'])
-        self.db: DatabaseConfig = DatabaseConfig(**config['db'])
-
-    def _read_config_file(self) -> NestedConfigDict:
-        conf_file = os.environ.get('NACSOS_CONF', self.DEFAULT_CONFIG_FILE)
-        with open(conf_file, 'r') as f:
-            return toml.load(f)
-
-    def _read_cli_args(self, shlex_config: list[str], cli_args: list[str]):
-        """
-        This method generates a Tap (typed-argument-parser) instance from the config classes
-        and exposes the variables including help (comments) and types to the command line.
-        It then parses all CLI arguments and returns a nested dictionary.
-        :return:
-        """
-
-        # create a typed argument parser by gathering all sub-configs (as argument prefixes)
-        # to expose all config attributes to the command line
-        class ProgrammaticArgumentParser(Tap):
-            def configure(self):
-                class_variables = []
-                annotations = []
-                for cls_name, cls in Config._sub_configs.items():
-                    # append all class attributes, including annotations (e.g. comments)
-                    class_variables += [(f'{cls_name}_{var}', data)
-                                        for var, data in get_class_variables(cls).items()]
-
-                    # append all annotations (e.g. type hints)
-                    annotations += [(f'{cls_name}_{var}', data)
-                                    for var, data in get_type_hints(cls).items()]
-
-                    # transfer default parameters to this instance
-                    for var in get_type_hints(cls).keys():
-                        try:
-                            setattr(self, f'{cls_name}_{var}', getattr(cls, var))
-                        except AttributeError:
-                            # this attribute has no default value
-                            pass
-
-                # inject the gathered class variables and annotations to the tap instance
-                self.class_variables = OrderedDict(class_variables)
-                self._annotations = dict(annotations)
-                self.args_from_configs = shlex_config
-
-        # parse command line arguments
-        args = ProgrammaticArgumentParser(underscores_to_dashes=True).parse_args(cli_args)
-
-        config = {}
-        for arg, value in args.as_dict().items():
-            parts = arg.split('_')
-            if parts[0] not in config:
-                config[parts[0]] = {}
-            config[parts[0]]['_'.join(parts[1:])] = value
-
-        return config
+    @validator("CORS_ORIGINS", pre=True)
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+        if isinstance(v, str) and not v.startswith('['):
+            return [i.strip() for i in v.split(',')]
+        if isinstance(v, str) and v.startswith('['):
+            return json.loads(v)
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
 
 
-def dict2shlex(config: NestedConfigDict) -> list[str]:
-    ret = []
-    for cls_name, attrs in config.items():
-        for attr, value in attrs.items():
-            ret.append(f'--{cls_name}-{attr.replace("_", "-")}')
-            ret.append(f'"{value}"')
-    return ret
+class DatabaseConfig(BaseModel):
+    HOST: str = 'localhost'  # host of the db server
+    PORT: int = 5432  # port of the db server
+    USER: str = 'nacsos'  # username for the database
+    PASSWORD: str  # password for the database user
+    DATABASE: str = 'nacsos_core'  # name of the database
+
+    CONNECTION_STR: Optional[PostgresDsn] = None
+
+    @validator('CONNECTION_STR', pre=True)
+    def build_connection_string(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        if isinstance(v, str):
+            return v
+        return PostgresDsn.build(
+            scheme="postgresql",
+            user=values.get('USER'),
+            password=values.get('PASSWORD'),
+            host=values.get('HOST'),
+            path=f'/{values.get("DATABASE", "")}',
+        )
 
 
-conf = Config()
+class EmailConfig(BaseModel):
+    SMTP_TLS: bool = True
+    SMTP_PORT: Optional[int] = None
+    SMTP_HOST: Optional[str] = None
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SENDER_ADDRESS: Optional[EmailStr] = None
+    SENDER_NAME: Optional[str] = 'NACSOS'
+    ENABLED: bool = False
 
-__all__ = ['Config', 'conf']
+    @validator("ENABLED", pre=True)
+    def get_emails_enabled(cls, v: bool, values: dict[str, Any]) -> bool:
+        return bool(
+            values.get('SMTP_HOST')
+            and values.get('SMTP_PORT')
+            and values.get('SENDER_ADDRESS')
+        )
 
-# if __name__ == '__main__':
-#     from hypercorn.config import Config as HyperConfig
-#
-#     conf = init_config()
-#     config = HyperConfig()
-#     config.workers = conf.server.workers
-#     config.server_names = conf.server.hosts
-#     config.bind = f'{conf.server.host}:{conf.server.port}'
-#     print('test')
+    TEST_USER: EmailStr = 'test@nacsos.eu'
+
+
+class UserConfig(BaseModel):
+    FIRST_SUPERUSER: EmailStr
+    FIRST_SUPERUSER_PASSWORD: str
+    REGISTRATION_ENABLED: bool = False
+
+
+class Settings(BaseSettings):
+    SERVER: ServerConfig
+    DB: DatabaseConfig
+    # EMAIL: EmailConfig
+
+    LOG_CONF_FILE: str = 'config/logging.conf'
+    LOGGING_CONF: Optional[dict] = None
+
+    @validator('LOGGING_CONF', pre=True)
+    def read_logging_config(cls, v: dict, values: dict[str, Any]) -> dict:
+        if isinstance(v, dict):
+            return v
+        with open(values.get('LOG_CONF_FILE'), 'r') as f:
+            return yaml.safe_load(f.read())
+
+    class Config:
+        case_sensitive = True
+        env_nested_delimiter = '__'
+
+
+conf_file = os.environ.get('NACSOS_CONFIG', 'config/default.env')
+settings = Settings(_env_file=conf_file, _env_file_encoding='utf-8')
+
+__all__ = ['settings']

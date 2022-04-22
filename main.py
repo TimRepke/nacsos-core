@@ -1,33 +1,27 @@
 #!/usr/bin/env python3
 
+from server.util.config import settings
+from server.util.logging import get_logger
 
-def run(args=None):
-    import logging
+logger = get_logger('nacsos.main')
+logger.info('Starting up server')
 
-    from server.util.log import init_logging
-    init_logging()
 
-    logger = logging.getLogger('nacsos.main')
-    logger.info('Starting up uvicorn')
-
-    # this should be imported here to ensure config gets initialised first
-    from server.util.config import conf
-
-    # import asyncio
-    # from hypercorn.config import Config
-    # from hypercorn.asyncio import serve
-
-    import uvicorn
+def get_app():
     from server.api.server import Server
-    from server.data.database import init_db
 
     server = Server()
 
-    uvicorn.run(server.app, host=conf.server.host, port=conf.server.port)
-
-    init_db(server.app)
-
     return server.app
 
-if __name__ == '__main__':
-    run()
+
+app = get_app()
+
+# config = Config()
+# config.bind = f'{settings.SERVER.HOST}:{settings.SERVER.PORT}'
+# config.debug = settings.SERVER.DEBUG_MODE
+# config.accesslog = get_logger('hypercorn.access')
+# config.errorlog = get_logger('hypercorn.error')
+# config.logconfig_dict = settings.LOGGING_CONF
+# config.access_log_format = '%(s)s | "%(R)s" |  Size: %(b)s | Referrer: "%(f)s"'
+

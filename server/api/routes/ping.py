@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
-import logging
+from server.util.logging import get_logger
 
-logger = logging.getLogger('nacsos.api.route.ping')
+logger = get_logger('nacsos.api.route.ping')
 router = APIRouter()
 
 logger.debug('Setup nacsos.api.route.ping router')

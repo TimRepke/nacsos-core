@@ -1,10 +1,10 @@
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-import logging
+from server.util.logging import get_logger
 import time
 
-logger = logging.getLogger('nacsos.server.middlewares')
+logger = get_logger('nacsos.server.middlewares')
 try:
     from resource import getrusage, RUSAGE_SELF
 except ImportError as e:

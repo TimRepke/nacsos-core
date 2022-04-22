@@ -5,14 +5,15 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from server.api.middlewares import TimingMiddleware
 
-from server.util.config import conf
+from server.util.config import settings
+from server.util.logging import get_logger
 from server.api.routes import ping
-import logging
+from server.api.routes.admin import users
 import mimetypes
 
 mimetypes.init()
 
-logger = logging.getLogger('nacsos.server')
+logger = get_logger('nacsos.server')
 
 try:
     from resource import getrusage, RUSAGE_SELF
@@ -20,6 +21,7 @@ except ImportError as e:
     logger.warning(e)
 
     RUSAGE_SELF = None
+
 
     def getrusage(*args):
         return 0.0, 0.0
@@ -30,7 +32,7 @@ class APISubRouter:
         self.router = APIRouter()
         self.paths = {
             '/ping': ping,
-            # '/platforms': platforms,
+            '/admin/users': users,
             # '/graph': graph
         }
         for path, router in self.paths.items():
@@ -44,17 +46,16 @@ class Server:
         logger.debug('Setting up server and middlewares')
         mimetypes.add_type('application/javascript', '.js')
 
-        if conf.server.header_trusted_host:
-            self.app.add_middleware(TrustedHostMiddleware, allowed_hosts=conf.server.hosts)
-        if conf.server.header_cors:
-            self.app.add_middleware(CORSMiddleware, allow_origins=conf.server.hosts,
-                                    allow_methods=['GET', 'POST', 'DELETE'])
+        if settings.SERVER.HEADER_TRUSTED_HOST:
+            self.app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.SERVER.CORS_ORIGINS)
+        if settings.SERVER.HEADER_CORS:
+            self.app.add_middleware(CORSMiddleware, allow_origins=settings.SERVER.CORS_ORIGINS,
+                                    allow_methods=['GET', 'POST', 'DELETE', 'POST'])
         self.app.add_middleware(GZipMiddleware, minimum_size=1000)
-        self.app.add_middleware(TimingMiddleware)
+        # self.app.add_middleware(TimingMiddleware)
 
         logger.debug('Setup routers')
         self.api_router = APISubRouter()
         self.app.include_router(self.api_router.router, prefix='/api')
 
-        self.app.mount('/', StaticFiles(directory=conf.server.static_files, html=True), name='static')
-
+        self.app.mount('/', StaticFiles(directory=settings.SERVER.STATIC_FILES, html=True), name='static')

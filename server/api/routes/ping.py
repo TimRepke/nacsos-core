@@ -10,6 +10,7 @@ logger.debug('Setup nacsos.api.route.ping router')
 
 @router.get('/', response_class=PlainTextResponse)
 async def _pong():
+    print('test')
     logger.debug('ping test DEBUG log')
     logger.info('ping test INFO log')
     logger.warning('ping test WARNING log')

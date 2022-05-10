@@ -21,6 +21,7 @@ class ServerConfig(BaseModel):
     WORKERS: int = 2  # number of worker processes
     STATIC_FILES: str = '../nacsos-web/dist/'  # path to the static files to be served
 
+    HASH_ALGORITHM: str = 'HS256'
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # = 8 days
 

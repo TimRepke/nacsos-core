@@ -12,6 +12,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Double-check, that you get the correct version of starlette! https://github.com/tiangolo/fastapi/issues/4800
+
 For development, it is advised to install `nacsos-data` locally (not from git) via
 ```bash
 pip install -e ../nacsos-data/

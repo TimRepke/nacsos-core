@@ -4,7 +4,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from nacsos_data.models.users import User
+from nacsos_data.schemas.users import UserModel
 
 from server.util.security import Token, authenticate_user, get_current_active_user, create_access_token
 from server.util.config import settings
@@ -32,8 +32,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+@router.get("/me", response_model=UserModel)
+async def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
     return current_user
 
 # @router.post("/login/access-token", response_model=Token)

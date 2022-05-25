@@ -1,11 +1,11 @@
 from fastapi import APIRouter
-from nacsos_data.schemas.annotations import AnnotationTaskModel, AnnotationTaskLabel, AnnotationTaskLabelChoice
+from nacsos_data.models.annotations import AnnotationTaskModel, AnnotationTaskLabel, AnnotationTaskLabelChoice
 
 router = APIRouter()
 
 
 @router.get('/task_definition/{task_id}', response_model=AnnotationTaskModel)
-async def get_task_definition(task_id: int) -> AnnotationTaskModel:
+async def get_task_definition(task_id: str) -> AnnotationTaskModel:
     """
     This endpoint returns the detailed definition of an annotation task.
 
@@ -14,7 +14,7 @@ async def get_task_definition(task_id: int) -> AnnotationTaskModel:
     """
     ATLC = AnnotationTaskLabelChoice
     return AnnotationTaskModel(
-        id=task_id, project_id=1, name='Test Task', description='This is a test.',
+        annotation_task_id=task_id, project_id='fancy-uuid', name='Test Task', description='This is a test.',
         labels=[
             AnnotationTaskLabel(name='Relevance', key='rel', kind='bool'),
             AnnotationTaskLabel(name='Claims', key='claim', kind='single', max_repeat=2,
@@ -42,7 +42,7 @@ async def get_task_definition(task_id: int) -> AnnotationTaskModel:
 
 
 @router.get('/project_tasks/{project_id}', response_model=list[AnnotationTaskModel])
-async def get_task_definitions_for_project(project_id: int) -> list[AnnotationTaskModel]:
+async def get_task_definitions_for_project(project_id: str) -> list[AnnotationTaskModel]:
     """
     This endpoint returns the detailed definitions of all annotation tasks associated with a project.
 
@@ -50,9 +50,12 @@ async def get_task_definitions_for_project(project_id: int) -> list[AnnotationTa
     :return: list of annotation tasks
     """
     return [
-        AnnotationTaskModel(id=2, project_id=project_id, name='Annotation Task 1', description='This is a test (1).',
+        AnnotationTaskModel(annotation_task_id='fancy-uuid-2', project_id=project_id, name='Annotation Task 2',
+                            description='This is a test (2).',
                             labels=[AnnotationTaskLabel(name='Relevance', key='rel', kind='bool')]),
-        AnnotationTaskModel(id=3, project_id=project_id, name='Annotation Task 2', description='This is a test (2).',
+        AnnotationTaskModel(annotation_task_id='fancy-uuid-3', project_id=project_id, name='Annotation Task 3',
+                            description='This is a test (3).',
                             labels=[AnnotationTaskLabel(name='Relevance', key='rel', kind='bool')]),
-        AnnotationTaskModel(id=4, project_id=project_id, name='Annotation Task 3', description='This is a test (3).',
+        AnnotationTaskModel(annotation_task_id='fancy-uuid-4', project_id=project_id, name='Annotation Task 4',
+                            description='This is a test (4).',
                             labels=[AnnotationTaskLabel(name='Relevance', key='rel', kind='bool')])]

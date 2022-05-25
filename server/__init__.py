@@ -9,7 +9,7 @@ from .util.middlewares import TimingMiddleware
 from .util.config import settings
 from .util.logging import get_logger
 from .api import router as api_router
-from nacsos_data.db import DatabaseEngine
+from .data import db_engine
 
 import mimetypes
 
@@ -40,13 +40,7 @@ app.include_router(api_router, prefix='/api')
 
 app.mount('/', StaticFiles(directory=settings.SERVER.STATIC_FILES, html=True), name='static')
 
-db_engine = DatabaseEngine(host=settings.DB.HOST,
-                           port=settings.DB.PORT,
-                           user=settings.DB.USER,
-                           password=settings.DB.PASSWORD,
-                           database=settings.DB.DATABASE)
 
-
-# @app.on_event("startup")
-# def on_startup():
-#     db_engine.startup()
+@app.on_event("startup")
+def on_startup():
+    db_engine.startup()

@@ -3,6 +3,7 @@ from .routes import ping
 from .routes import admin
 from .routes import annotations
 from .routes import login
+from .routes import projects
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -18,3 +19,6 @@ router.include_router(annotations.router, prefix='/annotations')
 
 # route for authentication
 router.include_router(login.router, prefix='/login')
+
+# route for project related things
+router.include_router(projects.router, prefix='/projects')

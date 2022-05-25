@@ -1,10 +1,9 @@
-from typing import Any
 from datetime import timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from nacsos_data.schemas.users import UserModel
+from nacsos_data.models.users import UserModel
 
 from server.util.security import Token, authenticate_user, get_current_active_user, create_access_token
 from server.util.config import settings
@@ -18,7 +17,7 @@ logger.info('Setting up login route')
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
+    user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -35,6 +34,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @router.get("/me", response_model=UserModel)
 async def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
     return current_user
+
+# TODO forgot password route
+# TODO update user info (separate route for password updates?) /
+#      only the non-admin stuff, e.g. what users can do themselves
+# TODO (optional) create permanent auth token
+
 
 # @router.post("/login/access-token", response_model=Token)
 # def login_access_token(

@@ -8,8 +8,8 @@ from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel
 from nacsos_data.models.projects import ProjectPermissionsModel
-from nacsos_data.db.crud.users import get_user_by_name as crud_get_user_by_name
-from nacsos_data.db.crud.projects import get_project_permissions_for_user as crud_get_project_permissions_for_user
+from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name
+from nacsos_data.db.crud.projects import read_project_permissions_for_user as crud_get_project_permissions_for_user
 
 from server.data import db_engine
 from server.util.config import settings

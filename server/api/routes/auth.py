@@ -15,23 +15,23 @@ router = APIRouter()
 logger.info('Setting up login route')
 
 
-@router.post("/token", response_model=Token)
+@router.post('/token', response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail='Incorrect username or password',
+            headers={'WWW-Authenticate': 'Bearer'},
         )
     access_token_expires = timedelta(minutes=settings.SERVER.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={'sub': user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {'access_token': access_token, 'token_type': 'bearer'}
 
 
-@router.get("/me", response_model=UserModel)
+@router.get('/me', response_model=UserModel)
 async def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
     return current_user
 
@@ -41,7 +41,7 @@ async def read_users_me(current_user: UserModel = Depends(get_current_active_use
 # TODO (optional) create permanent auth token
 
 
-# @router.post("/login/access-token", response_model=Token)
+# @router.post('/login/access-token", response_model=Token)
 # def login_access_token(
 #     form_data: OAuth2PasswordRequestForm = Depends()
 # ) -> Any:

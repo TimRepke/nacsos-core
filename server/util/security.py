@@ -7,8 +7,8 @@ from fastapi import Depends, HTTPException, status, Path
 from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel
-from nacsos_data.models.projects import ProjectPermissionsModel
-from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name
+from nacsos_data.models.projects import ProjectPermissionsModel, ProjectPermission
+from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name, read_user_by_id
 from nacsos_data.db.crud.projects import read_project_permissions_for_user as crud_get_project_permissions_for_user
 
 from server.data import db_engine
@@ -17,6 +17,11 @@ from server.util.config import settings
 from server.util.logging import get_logger
 
 logger = get_logger('nacsos.util.security')
+
+
+class UserPermissions(BaseModel):
+    user: UserModel
+    permissions: ProjectPermissionsModel
 
 
 class Token(BaseModel):
@@ -29,7 +34,7 @@ class TokenData(BaseModel):
 
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=False)
 
 
 def verify_password(plain_password, hashed_password):
@@ -66,15 +71,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'},
     )
-    try:
-        payload = jwt.decode(token, settings.SERVER.SECRET_KEY, algorithms=[settings.SERVER.HASH_ALGORITHM])
-        username: str = payload.get('sub')
-        if username is None:
+    if settings.USERS.DEFAULT_USER is None:
+        try:
+            if token is None:
+                raise credentials_exception
+            payload = jwt.decode(token, settings.SERVER.SECRET_KEY, algorithms=[settings.SERVER.HASH_ALGORITHM])
+            username: str = payload.get('sub')
+            if username is None:
+                raise credentials_exception
+            token_data = TokenData(username=username)
+        except JWTError:
             raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    user = await crud_get_user_by_name(username=token_data.username, engine=db_engine)
+        user = await crud_get_user_by_name(username=token_data.username, engine=db_engine)
+    else:
+        user = await read_user_by_id(user_id=settings.USERS.DEFAULT_USER, engine=db_engine)
+        logger.warning('Authentication using fake user!')
+
+    logger.debug(f'Current user: user_id: {user.user_id} {user.username}')
+
     if user is None:
         raise credentials_exception
     return user
@@ -106,7 +120,7 @@ async def get_project_permissions_for_user(project_id: str, current_user: UserMo
 
 
 class UserPermissionChecker:
-    def __init__(self, permissions: list[str] | str = None):
+    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission = None):
         self.permissions = permissions
 
         # convert singular permission to list for unified processing later
@@ -115,7 +129,7 @@ class UserPermissionChecker:
 
     async def __call__(self,
                        project_id: str = Path(),
-                       current_user: UserModel = Depends(get_current_active_user)) -> ProjectPermissionsModel:
+                       current_user: UserModel = Depends(get_current_active_user)) -> UserPermissions:
         """
         This function checks the whether a set of required permissions is fulfilled
         for the given project for the currently active user.
@@ -130,10 +144,11 @@ class UserPermissionChecker:
         """
         project_permissions = await get_project_permissions_for_user(project_id=project_id,
                                                                      current_user=current_user)
+        user_permissions = UserPermissions(user=current_user, permissions=project_permissions)
         if project_permissions is not None:
             # no specific permissions were required (only basic access to the project) -> permitted!
             if self.permissions is None:
-                return project_permissions
+                return user_permissions
 
             # check that each required permission is fulfilled
             for permission in self.permissions:
@@ -142,7 +157,7 @@ class UserPermissionChecker:
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=f'User does not have permission "{permission}" for project "{project_id}".',
                     )
-            return project_permissions
+            return user_permissions
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

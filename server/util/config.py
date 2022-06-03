@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict
 import secrets
 import json
 import yaml
@@ -27,10 +27,10 @@ class ServerConfig(BaseModel):
 
     HEADER_CORS: bool = False  # set to true to allow CORS
     HEADER_TRUSTED_HOST: bool = False  # set to true to allow hosts from any origin
-    CORS_ORIGINS: List[AnyHttpUrl] = []  # list of trusted hosts
+    CORS_ORIGINS: list[AnyHttpUrl] = []  # list of trusted hosts
 
     @validator("CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+    def assemble_cors_origins(cls, v: str | list[str]) -> str | list[str]:
         if isinstance(v, str) and not v.startswith('['):
             return [i.strip() for i in v.split(',')]
         if isinstance(v, str) and v.startswith('['):
@@ -47,10 +47,10 @@ class DatabaseConfig(BaseModel):
     PASSWORD: str  # password for the database user
     DATABASE: str = 'nacsos_core'  # name of the database
 
-    CONNECTION_STR: Optional[PostgresDsn] = None
+    CONNECTION_STR: PostgresDsn | None = None
 
     @validator('CONNECTION_STR', pre=True)
-    def build_connection_string(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+    def build_connection_string(cls, v: str | None, values: Dict[str, Any]) -> Any:
         if isinstance(v, str):
             return v
         return PostgresDsn.build(
@@ -64,12 +64,12 @@ class DatabaseConfig(BaseModel):
 
 class EmailConfig(BaseModel):
     SMTP_TLS: bool = True
-    SMTP_PORT: Optional[int] = None
-    SMTP_HOST: Optional[str] = None
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    SENDER_ADDRESS: Optional[EmailStr] = None
-    SENDER_NAME: Optional[str] = 'NACSOS'
+    SMTP_PORT: int | None = None
+    SMTP_HOST: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SENDER_ADDRESS: EmailStr | None = None
+    SENDER_NAME: str | None = 'NACSOS'
     ENABLED: bool = False
 
     @validator("ENABLED", pre=True)
@@ -83,19 +83,21 @@ class EmailConfig(BaseModel):
     TEST_USER: EmailStr = 'test@nacsos.eu'
 
 
-class UserConfig(BaseModel):
-    FIRST_SUPERUSER: EmailStr
-    FIRST_SUPERUSER_PASSWORD: str
-    REGISTRATION_ENABLED: bool = False
+class UsersConfig(BaseModel):
+    # Set a valid user_id to skip authentication
+    # (should only be done in dev environment)
+    DEFAULT_USER: str | None = None
+    REGISTRATION_ENABLED: bool = False  # Set this to true to enable the registration endpoint
 
 
 class Settings(BaseSettings):
     SERVER: ServerConfig
     DB: DatabaseConfig
+    USERS: UsersConfig
     # EMAIL: EmailConfig
 
     LOG_CONF_FILE: str = 'config/logging.conf'
-    LOGGING_CONF: Optional[dict] = None
+    LOGGING_CONF: dict | None = None
 
     @validator('LOGGING_CONF', pre=True)
     def read_logging_config(cls, v: dict, values: dict[str, Any]) -> dict:

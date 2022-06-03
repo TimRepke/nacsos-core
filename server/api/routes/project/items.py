@@ -23,17 +23,15 @@ logger.info('Setting up data route')
 
 @router.get('/list/items', response_model=list[ItemModel])
 async def list_project_items(project_id: str, permission=Depends(UserPermissionChecker('dataset_read'))):
-    if permission:
-        items = await read_all_items_for_project(project_id=project_id, engine=db_engine)
-        return items
+    items = await read_all_items_for_project(project_id=project_id, engine=db_engine)
+    return items
 
 
 @router.get('/detail/{item_id}', response_model=TwitterItemModel)
 async def get_detail_for_item(item_id: str, permission=Depends(UserPermissionChecker('dataset_read'))):
-    if permission:
-        # TODO first check what the correct data format for the project is via Project.type
-        tweets = await read_tweet_by_item_id(item_id=item_id, engine=db_engine)
-        return tweets
+    # TODO first check what the correct data format for the project is via Project.type
+    tweets = await read_tweet_by_item_id(item_id=item_id, engine=db_engine)
+    return tweets
 
 
 @router.get('/twitter/list', response_model=list[TwitterItemModel])

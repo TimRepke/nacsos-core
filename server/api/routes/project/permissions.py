@@ -10,8 +10,6 @@ from server.util.logging import get_logger
 logger = get_logger('nacsos.api.route.project')
 router = APIRouter()
 
-logger.info('Setting up projects route')
-
 
 @router.get('/me', response_model=ProjectPermissionsModel)
 async def get_project_permissions_current_user(permission=Depends(UserPermissionChecker())) \

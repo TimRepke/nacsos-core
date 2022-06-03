@@ -4,7 +4,7 @@ It accesses the database via the `nacsos-data` package and exposes the functiona
 It also serves the web frontend.
 
 ## Installation
-- Requires Python 3.9+, tested with Python 3.10.2
+- Requires Python 3.10+, tested with Python 3.10.2
 
 ```bash
 virtualenv venv

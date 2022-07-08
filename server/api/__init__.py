@@ -12,7 +12,6 @@ router = APIRouter()
 # route for testing / checking the service is reachable
 router.include_router(ping.router, prefix='/ping')
 
-
 # route to fetch, manage, submit item annotations
 router.include_router(annotations.router, prefix='/annotations')
 

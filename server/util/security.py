@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Path
+from fastapi import Depends, HTTPException, status, Path, Header
 from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel
@@ -128,7 +128,7 @@ class UserPermissionChecker:
             self.permissions = [self.permissions]
 
     async def __call__(self,
-                       project_id: str = Path(),
+                       x_project_id: str = Header(),
                        current_user: UserModel = Depends(get_current_active_user)) -> UserPermissions:
         """
         This function checks the whether a set of required permissions is fulfilled
@@ -142,7 +142,7 @@ class UserPermissionChecker:
         :return: `ProjectPermissions` if permissions are fulfilled, exception otherwise
         :raises HTTPException if permissions are not fulfilled
         """
-        project_permissions = await get_project_permissions_for_user(project_id=project_id,
+        project_permissions = await get_project_permissions_for_user(project_id=x_project_id,
                                                                      current_user=current_user)
         user_permissions = UserPermissions(user=current_user, permissions=project_permissions)
         if project_permissions is not None:
@@ -155,11 +155,11 @@ class UserPermissionChecker:
                 if not project_permissions[permission]:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f'User does not have permission "{permission}" for project "{project_id}".',
+                        detail=f'User does not have permission "{permission}" for project "{x_project_id}".',
                     )
             return user_permissions
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f'User does not have permission to access project "{project_id}".',
+            detail=f'User does not have permission to access project "{x_project_id}".',
         )

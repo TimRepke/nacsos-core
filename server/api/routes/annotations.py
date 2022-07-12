@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, Header
 from nacsos_data.models.annotations import AnnotationTaskModel, AnnotationTaskLabel, AnnotationTaskLabelChoice, \
     AssignmentScopeModel, AssignmentModel, AssignmentStatus
 from nacsos_data.models.items import ItemModel
@@ -6,6 +6,7 @@ from nacsos_data.models.items.twitter import TwitterItemModel
 from nacsos_data.db.crud.items.twitter import read_tweet_by_item_id
 from nacsos_data.db.crud.annotations import \
     read_assignments_for_scope_for_user, \
+    read_assignment_scopes_for_project, \
     read_assignment_scopes_for_project_for_user, \
     read_annotations_for_assignment, \
     read_assignment_scope, \
@@ -70,7 +71,7 @@ async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
     task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
 
     annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
-    _, task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
+    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
 
     # FIXME: get any item type, not just tweets
     item = await read_tweet_by_item_id(item_id=assignment.item_id, engine=db_engine)
@@ -89,7 +90,7 @@ async def get_next_open_assignment_for_scope_for_user(assignment_scope_id: str,
     task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
 
     annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
-    _, task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
+    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
 
     # FIXME: get any item type, not just tweets
     item = await read_tweet_by_item_id(item_id=assignment.item_id, engine=db_engine)
@@ -107,7 +108,7 @@ async def get_assignment(assignment_id: str,
     task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
 
     annotations = await read_annotations_for_assignment(assignment_id=assignment_id, engine=db_engine)
-    _, task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
+    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
 
     # FIXME: get any item type, not just tweets
     item = await read_tweet_by_item_id(item_id=assignment.item_id, engine=db_engine)
@@ -122,6 +123,15 @@ async def get_assignment_scopes_for_user(project_id: str,
     scopes = await read_assignment_scopes_for_project_for_user(project_id=project_id,
                                                                user_id=permissions.user.user_id,
                                                                engine=db_engine)
+    return scopes
+
+
+@router.get('/annotate/scopes/', response_model=list[AssignmentScopeModel])
+async def get_assignment_scopes_for_project(permissions=Depends(UserPermissionChecker('annotations_edit'))) \
+        -> list[AssignmentScopeModel]:
+    scopes = await read_assignment_scopes_for_project(project_id=permissions.permissions.project_id,
+                                                      engine=db_engine)
+
     return scopes
 
 

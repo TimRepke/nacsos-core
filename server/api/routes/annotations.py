@@ -23,6 +23,8 @@ from nacsos_data.db.crud.annotations import \
     read_annotation_tasks_for_project, \
     upsert_annotations, \
     read_assignment_scope, \
+    upsert_annotation_task, \
+    delete_annotation_task, \
     upsert_assignment_scope, \
     delete_assignment_scope, \
     read_item_ids_with_assignment_count_for_project, \
@@ -60,6 +62,18 @@ async def get_task_definition(task_id: str) -> AnnotationTaskModel:
     :return: a single annotation task
     """
     return await read_annotation_task(annotation_task_id=task_id, engine=db_engine)
+
+
+@router.put('/tasks/definition/', response_model=str)
+async def put_annotation_task(annotation_task: AnnotationTaskModel,
+                              permissions=Depends(UserPermissionChecker('annotations_edit'))) -> str:
+    key = await upsert_annotation_task(annotation_task=annotation_task, engine=db_engine)
+    return str(key)
+
+
+@router.delete('/tasks/definition/{task_id}')
+async def remove_annotation_task(task_id: str) -> None:
+    await delete_annotation_task(annotation_task_id=task_id, engine=db_engine)
 
 
 @router.get('/tasks/list/{project_id}', response_model=list[AnnotationTaskModel])

@@ -13,16 +13,16 @@ router = APIRouter()
 router.include_router(ping.router, prefix='/ping')
 
 # route to fetch, manage, submit item annotations
-router.include_router(annotations.router, prefix='/annotations')
+router.include_router(annotations.router, prefix='/annotations', tags=['annotations'])
 
 # route for all user-related endpoints (everything not related to authentication)
-router.include_router(users.router, prefix='/users')
+router.include_router(users.router, prefix='/users', tags=['users'])
 
 # route for authentication
-router.include_router(auth.router, prefix='/login')
+router.include_router(auth.router, prefix='/login', tags=['oauth'])
 
 # route for general project things (aka non-project-specific)
-router.include_router(projects.router, prefix='/projects')
+router.include_router(projects.router, prefix='/projects', tags=['projects'])
 
 # route for project related things
-router.include_router(project.router, prefix='/project')
+router.include_router(project.router, prefix='/project', tags=['project'])

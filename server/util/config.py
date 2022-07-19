@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 import secrets
 import json
 import yaml
@@ -50,7 +50,7 @@ class DatabaseConfig(BaseModel):
     CONNECTION_STR: PostgresDsn | None = None
 
     @validator('CONNECTION_STR', pre=True)
-    def build_connection_string(cls, v: str | None, values: Dict[str, Any]) -> Any:
+    def build_connection_string(cls, v: str | None, values: dict[str, Any]) -> Any:
         if isinstance(v, str):
             return v
         return PostgresDsn.build(

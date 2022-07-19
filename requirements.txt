@@ -5,3 +5,4 @@ email-validator==1.2.1
 python-dotenv==0.20.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+PyYAML==6.0

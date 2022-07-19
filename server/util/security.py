@@ -120,8 +120,9 @@ async def get_project_permissions_for_user(project_id: str, current_user: UserMo
 
 
 class UserPermissionChecker:
-    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission = None):
+    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission = None, fulfill_all: bool = True):
         self.permissions = permissions
+        self.fulfill_all = fulfill_all
 
         # convert singular permission to list for unified processing later
         if type(self.permissions) is str:
@@ -150,13 +151,24 @@ class UserPermissionChecker:
             if self.permissions is None:
                 return user_permissions
 
+            any_permission_fulfilled = False
+
             # check that each required permission is fulfilled
             for permission in self.permissions:
-                if not project_permissions[permission]:
+                if self.fulfill_all and not project_permissions[permission]:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=f'User does not have permission "{permission}" for project "{x_project_id}".',
                     )
+                any_permission_fulfilled = any_permission_fulfilled or project_permissions[permission]
+
+            if not any_permission_fulfilled and not self.fulfill_all:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f'User does not have any of the required permissions ({self.permissions}) '
+                           f'for project "{x_project_id}".',
+                )
+
             return user_permissions
 
         raise HTTPException(

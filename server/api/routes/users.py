@@ -44,7 +44,6 @@ async def get_user_by_id(user_id: str,
 async def get_users_by_ids(user_id: list[str] = Query(),
                            permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
-    print(user_id)
     result = await read_users_by_ids(user_ids=user_id, engine=db_engine)
     return result
 

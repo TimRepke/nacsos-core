@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get('/me', response_model=ProjectPermissionsModel)
 async def get_project_permissions_current_user(permission=Depends(UserPermissionChecker())) \
         -> ProjectPermissionsModel:
-    return permission
+    return permission.permissions
 
 
 @router.get('/list', response_model=list[ProjectPermissionsModel])

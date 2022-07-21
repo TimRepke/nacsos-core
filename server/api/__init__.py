@@ -5,6 +5,7 @@ from .routes import annotations
 from .routes import auth
 from .routes import projects
 from .routes import project
+from .routes import imports
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -26,3 +27,6 @@ router.include_router(projects.router, prefix='/projects', tags=['projects'])
 
 # route for project related things
 router.include_router(project.router, prefix='/project', tags=['project'])
+
+# route for project related things
+router.include_router(imports.router, prefix='/imports', tags=['imports'])

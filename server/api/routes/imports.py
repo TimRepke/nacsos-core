@@ -29,7 +29,7 @@ async def get_import_details(import_id: str,
         -> ImportModel:
     import_details = await read_import(import_id=import_id,
                                        engine=db_engine)
-    if import_details.project_id == permissions.permissions.project_id:
+    if str(import_details.project_id) == str(permissions.permissions.project_id):
         return import_details
 
     raise HTTPException(
@@ -46,7 +46,8 @@ async def get_import_details(import_id: str,
 @router.put('/import', response_model=str)
 async def put_import_details(import_details: ImportModel,
                              permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))) -> str:
-    if import_details.project_id == permissions.permissions.project_id:
+    if str(import_details.project_id) == str(permissions.permissions.project_id):
+        logger.debug(import_details)
         key = await upsert_import(import_model=import_details, engine=db_engine)
         return str(key)
 

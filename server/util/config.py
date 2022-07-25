@@ -44,7 +44,7 @@ class DatabaseConfig(BaseModel):
     HOST: str = 'localhost'  # host of the db server
     PORT: int = 5432  # port of the db server
     USER: str = 'nacsos'  # username for the database
-    PASSWORD: str  # password for the database user
+    PASSWORD: str = 'secr€t_passvvord'  # password for the database user
     DATABASE: str = 'nacsos_core'  # name of the database
 
     CONNECTION_STR: PostgresDsn | None = None
@@ -91,9 +91,10 @@ class UsersConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    SERVER: ServerConfig
-    DB: DatabaseConfig
-    USERS: UsersConfig
+    SERVER: ServerConfig = ServerConfig()
+    DB: DatabaseConfig = DatabaseConfig()
+    USERS: UsersConfig = UsersConfig()
+
     # EMAIL: EmailConfig
 
     LOG_CONF_FILE: str = 'config/logging.conf'

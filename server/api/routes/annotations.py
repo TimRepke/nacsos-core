@@ -7,9 +7,9 @@ from nacsos_data.models.annotations import AnnotationTaskModel, \
     AssignmentStatus, \
     AssignmentScopeBaseConfig, \
     AssignmentScopeConfig
-from nacsos_data.models.items import ItemModel
-from nacsos_data.models.items.twitter import TwitterItemModel
-from nacsos_data.db.crud.items.twitter import read_tweet_by_item_id
+from nacsos_data.models.items import AnyItemModel
+from nacsos_data.db.crud.items import read_any_item_by_item_id
+from nacsos_data.db.crud.projects import read_project_by_id
 from nacsos_data.db.crud.annotations import \
     read_assignment, \
     read_assignments_for_scope, \
@@ -50,7 +50,7 @@ class AnnotatedItem(BaseModel):
 
 class AnnotationItem(AnnotatedItem):
     scope: AssignmentScopeModel
-    item: ItemModel | TwitterItemModel
+    item: AnyItemModel
 
 
 @router.get('/tasks/definition/{task_id}', response_model=AnnotationTaskModel)
@@ -87,6 +87,19 @@ async def get_task_definitions_for_project(project_id: str) -> list[AnnotationTa
     return await read_annotation_tasks_for_project(project_id=project_id, engine=db_engine)
 
 
+async def _construct_annotation_item(assignment: AssignmentModel, project_id: str) -> AnnotationItem:
+    scope = await read_assignment_scope(assignment_scope_id=assignment.assignment_scope_id, engine=db_engine)
+    task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
+
+    annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
+    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
+
+    project = await read_project_by_id(project_id=project_id, engine=db_engine)
+    item = await read_any_item_by_item_id(item_id=assignment.item_id, item_type=project.type, engine=db_engine)
+
+    return AnnotationItem(task=task, assignment=assignment, scope=scope, item=item)
+
+
 @router.get('/annotate/next/{assignment_scope_id}/{current_assignment_id}', response_model=AnnotationItem)
 async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
                                                  current_assignment_id: str,
@@ -96,16 +109,7 @@ async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
                                                                assignment_scope_id=assignment_scope_id,
                                                                user_id=permissions.user.user_id,
                                                                engine=db_engine)
-    scope = await read_assignment_scope(assignment_scope_id=assignment_scope_id, engine=db_engine)
-    task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
-
-    annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
-    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
-
-    # FIXME: get any item type, not just tweets
-    item = await read_tweet_by_item_id(item_id=assignment.item_id, engine=db_engine)
-
-    return AnnotationItem(task=task, assignment=assignment, scope=scope, item=item)
+    return _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
 @router.get('/annotate/next/{assignment_scope_id}', response_model=AnnotationItem)
@@ -115,34 +119,19 @@ async def get_next_open_assignment_for_scope_for_user(assignment_scope_id: str,
     assignment = await read_next_open_assignment_for_scope_for_user(assignment_scope_id=assignment_scope_id,
                                                                     user_id=permissions.user.user_id,
                                                                     engine=db_engine)
-    scope = await read_assignment_scope(assignment_scope_id=assignment_scope_id, engine=db_engine)
-    task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
-
-    annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
-    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
-
-    # FIXME: get any item type, not just tweets
-    item = await read_tweet_by_item_id(item_id=assignment.item_id, engine=db_engine)
-
-    return AnnotationItem(task=task, assignment=assignment, scope=scope, item=item)
+    return _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
 @router.get('/annotate/assignment/{assignment_id}', response_model=AnnotationItem)
 async def get_assignment(assignment_id: str,
                          permissions=Depends(UserPermissionChecker('annotations_read'))):
     assignment = await read_assignment(assignment_id=assignment_id, engine=db_engine)
-    assert assignment.user_id == permissions.user.user_id
 
-    scope = await read_assignment_scope(assignment_scope_id=assignment.assignment_scope_id, engine=db_engine)
-    task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
+    if assignment.user_id != permissions.user.user_id:
+        raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED,
+                            detail='You do not have permission to handle this assignment, as it is not yours!')
 
-    annotations = await read_annotations_for_assignment(assignment_id=assignment_id, engine=db_engine)
-    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
-
-    # FIXME: get any item type, not just tweets
-    item = await read_tweet_by_item_id(item_id=assignment.item_id, engine=db_engine)
-
-    return AnnotationItem(task=task, assignment=assignment, scope=scope, item=item)
+    return _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
 @router.get('/annotate/scopes/{project_id}', response_model=list[UserProjectAssignmentScope])

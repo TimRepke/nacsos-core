@@ -109,7 +109,7 @@ async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
                                                                assignment_scope_id=assignment_scope_id,
                                                                user_id=permissions.user.user_id,
                                                                engine=db_engine)
-    return _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
+    return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
 @router.get('/annotate/next/{assignment_scope_id}', response_model=AnnotationItem)
@@ -119,7 +119,7 @@ async def get_next_open_assignment_for_scope_for_user(assignment_scope_id: str,
     assignment = await read_next_open_assignment_for_scope_for_user(assignment_scope_id=assignment_scope_id,
                                                                     user_id=permissions.user.user_id,
                                                                     engine=db_engine)
-    return _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
+    return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
 @router.get('/annotate/assignment/{assignment_id}', response_model=AnnotationItem)
@@ -131,7 +131,7 @@ async def get_assignment(assignment_id: str,
         raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED,
                             detail='You do not have permission to handle this assignment, as it is not yours!')
 
-    return _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
+    return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
 @router.get('/annotate/scopes/{project_id}', response_model=list[UserProjectAssignmentScope])

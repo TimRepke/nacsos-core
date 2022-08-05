@@ -45,7 +45,7 @@ test-job2:
   stage: test
   script:
     - source venv/bin/activate
-    - mypy --config-file=pyproject.toml server
+    - mypy --config-file=pyproject.toml
 
 
 #pages:

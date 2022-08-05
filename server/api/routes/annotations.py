@@ -1,11 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status as http_status, Header
+from fastapi import APIRouter, Depends, HTTPException, status as http_status
 from nacsos_data.models.annotations import AnnotationTaskModel, \
-    AnnotationTaskLabel, \
-    AnnotationTaskLabelChoice, \
     AssignmentScopeModel, \
     AssignmentModel, \
     AssignmentStatus, \
-    AssignmentScopeBaseConfig, \
     AssignmentScopeConfig
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.db.crud.items import read_any_item_by_item_id
@@ -34,7 +31,7 @@ from nacsos_data.db.crud.annotations import \
     UserProjectAssignmentScope, \
     store_assignments
 from nacsos_data.util.annotations.validation import merge_task_and_annotations, annotated_task_to_annotations
-from nacsos_data.util.annotations.assignments.random import AssignmentScopeRandomConfig, random_assignments
+from nacsos_data.util.annotations.assignments.random import random_assignments
 
 from pydantic import BaseModel
 from server.util.security import UserPermissionChecker
@@ -234,12 +231,12 @@ async def save_annotation(annotated_item: AnnotatedItem,
     else:
         raise HTTPException(
             status_code=http_status.HTTP_403_FORBIDDEN,
-            detail=f'The combination of project, assignment, user, task, and item is invalid.',
+            detail='The combination of project, assignment, user, task, and item is invalid.',
         )
 
 
 @router.get('/config/items/', response_model=list[ItemWithCount])
-async def get_annotations(permissions=Depends(UserPermissionChecker('dataset_read'))) \
+async def get_items_with_count(permissions=Depends(UserPermissionChecker('dataset_read'))) \
         -> list[ItemWithCount]:
     items = await read_item_ids_with_assignment_count_for_project(project_id=permissions.permissions.project_id,
                                                                   engine=db_engine)

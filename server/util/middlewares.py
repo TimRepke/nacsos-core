@@ -13,7 +13,7 @@ except ImportError as e:
     RUSAGE_SELF = None
 
 
-    def getrusage(*args):
+    def getrusage(*args):  # noqa:E303
         return 0.0, 0.0
 
 

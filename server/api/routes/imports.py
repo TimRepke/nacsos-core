@@ -38,8 +38,8 @@ async def get_import_details(import_id: str,
 
 
 @router.get('/import/{import_id}/count/', response_model=int)
-async def get_import_details(import_id: str,
-                             permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) -> int:
+async def get_import_counts(import_id: str,
+                            permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) -> int:
     return await read_item_count_for_import(import_id=import_id, engine=db_engine)
 
 

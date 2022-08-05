@@ -4,7 +4,6 @@ import logging
 import logging.config
 
 from uvicorn.logging import DefaultFormatter
-from hypercorn.logging import Logger
 
 from server.util.config import settings
 

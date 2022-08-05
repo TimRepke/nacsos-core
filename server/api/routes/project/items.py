@@ -4,8 +4,6 @@ from nacsos_data.models.projects import ProjectTypeLiteral
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.models.items.twitter import TwitterItemModel
 from nacsos_data.db.crud.items import \
-    create_item, \
-    create_items, \
     read_item_count_for_project
 from nacsos_data.db.crud.items.basic import \
     read_all_basic_items_for_project, \
@@ -15,10 +13,7 @@ from nacsos_data.db.crud.items.twitter import \
     read_all_twitter_items_for_project, \
     read_all_twitter_items_for_project_paged, \
     read_twitter_item_by_item_id, \
-    read_twitter_items_by_author_id, \
-    read_twitter_item_by_twitter_id, \
-    create_twitter_item, \
-    create_twitter_items
+    create_twitter_item
 
 from server.data import db_engine
 from server.util.security import UserPermissionChecker
@@ -42,8 +37,8 @@ async def list_project_data(project_id: str, item_type: ProjectTypeLiteral,
 
 
 @router.get('/{item_type}/list/{page}/{page_size}', response_model=list[AnyItemModel])
-async def list_project_data(project_id: str, item_type: ProjectTypeLiteral, page: int, page_size: int,
-                            permission=Depends(UserPermissionChecker('dataset_read'))):
+async def list_project_data_paged(project_id: str, item_type: ProjectTypeLiteral, page: int, page_size: int,
+                                  permission=Depends(UserPermissionChecker('dataset_read'))):
     if item_type == 'basic':
         return await read_all_basic_items_for_project_paged(project_id=project_id,
                                                             page=page, page_size=page_size, engine=db_engine)

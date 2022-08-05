@@ -5,7 +5,7 @@ from server.util.logging import get_logger
 logger = get_logger('nacsos.main')
 logger.info('Starting up server')
 
-from server import app
+from server import app  # noqa: F401, E402
 
 # config = Config()
 # config.bind = f'{settings.SERVER.HOST}:{settings.SERVER.PORT}'

@@ -23,8 +23,8 @@ async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChe
 
 # FIXME refine required permission
 @router.get('/list/project/{project_id}', response_model=list[UserModel])
-async def get_all_users(project_id: str,
-                        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
+async def get_project_users(project_id: str,
+                            permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
     result = await read_project_users(project_id=project_id, engine=db_engine)
     return result
@@ -46,4 +46,3 @@ async def get_users_by_ids(user_id: list[str] = Query(),
         -> list[UserInDBModel]:
     result = await read_users_by_ids(user_ids=user_id, engine=db_engine)
     return result
-

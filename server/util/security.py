@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Path, Header
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel

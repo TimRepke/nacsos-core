@@ -24,26 +24,28 @@ cache:
     - venv/
 
 build-job:
-    stage: build
-    script:
-        - python -V
-        - pip install virtualenv
-        - virtualenv venv
-        - source venv/bin/activate
-        - pwd
-        - ls -lisah
-        - pip install -r requirements.txt
-        - pip install -r requirements_dev.txt
+  stage: build
+  script:
+    - python -V
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - pwd
+    - ls -lisah
+    - pip install -r requirements.txt
+    - pip install -r requirements_dev.txt
 
 test-job1:
-    stage: test
-    script:
-        - flake8
+  stage: test
+  script:
+    - source venv/bin/activate
+    - flake8
 
 test-job2:
-    stage: test
-    script:
-        - mypy --config-file=pyproject.toml server
+  stage: test
+  script:
+    - source venv/bin/activate
+    - mypy --config-file=pyproject.toml server
 
 
 #pages:

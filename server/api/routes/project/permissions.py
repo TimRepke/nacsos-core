@@ -19,17 +19,19 @@ async def get_project_permissions_current_user(permission=Depends(UserPermission
 
 @router.get('/list', response_model=list[ProjectPermissionsModel])
 async def get_all_project_permissions(project_id: str, permission=Depends(UserPermissionChecker('owner'))) \
-        -> list[ProjectPermissionsModel]:
+        -> list[ProjectPermissionsModel] | None:
     if permission:
         return await read_project_permissions_for_project(project_id=project_id, engine=db_engine)
+    return None
 
 
 @router.get('/{project_permission_id}', response_model=ProjectPermissionsModel)
 async def get_project_permissions_by_id(project_permission_id: str,
                                         permission=Depends(UserPermissionChecker('owner'))) \
-        -> ProjectPermissionsModel:
+        -> ProjectPermissionsModel | None:
     if permission:
         return await read_project_permissions_by_id(permissions_id=project_permission_id, engine=db_engine)
+    return None
 
 # TODO create project permissions (project owner and superuser only)
 # TODO edit project permissions (project owner and superuser only)

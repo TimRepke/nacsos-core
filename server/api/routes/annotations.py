@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status as http_status
-from nacsos_data.models.annotations import AnnotationTaskModel, \
+from nacsos_data.models.annotations import AnnotationSchemeModel, \
     AssignmentScopeModel, \
     AssignmentModel, \
     AssignmentStatus, \
@@ -16,12 +16,12 @@ from nacsos_data.db.crud.annotations import \
     read_annotations_for_assignment, \
     read_next_assignment_for_scope_for_user, \
     read_next_open_assignment_for_scope_for_user, \
-    read_annotation_task, \
-    read_annotation_tasks_for_project, \
+    read_annotation_scheme, \
+    read_annotation_schemes_for_project, \
     upsert_annotations, \
     read_assignment_scope, \
-    upsert_annotation_task, \
-    delete_annotation_task, \
+    upsert_annotation_scheme, \
+    delete_annotation_scheme, \
     upsert_assignment_scope, \
     delete_assignment_scope, \
     read_item_ids_with_assignment_count_for_project, \
@@ -30,7 +30,7 @@ from nacsos_data.db.crud.annotations import \
     AssignmentCounts, \
     UserProjectAssignmentScope, \
     store_assignments
-from nacsos_data.util.annotations.validation import merge_task_and_annotations, annotated_task_to_annotations
+from nacsos_data.util.annotations.validation import merge_scheme_and_annotations, annotated_scheme_to_annotations
 from nacsos_data.util.annotations.assignments.random import random_assignments
 
 from pydantic import BaseModel
@@ -41,7 +41,7 @@ router = APIRouter()
 
 
 class AnnotatedItem(BaseModel):
-    task: AnnotationTaskModel
+    scheme: AnnotationSchemeModel
     assignment: AssignmentModel
 
 
@@ -50,51 +50,51 @@ class AnnotationItem(AnnotatedItem):
     item: AnyItemModel
 
 
-@router.get('/tasks/definition/{task_id}', response_model=AnnotationTaskModel)
-async def get_task_definition(task_id: str) -> AnnotationTaskModel:
+@router.get('/schemes/definition/{annotation_scheme_id}', response_model=AnnotationSchemeModel)
+async def get_scheme_definition(annotation_scheme_id: str) -> AnnotationSchemeModel:
     """
-    This endpoint returns the detailed definition of an annotation task.
+    This endpoint returns the detailed definition of an annotation scheme.
 
-    :param task_id: database id of the annotation task.
-    :return: a single annotation task
+    :param annotation_scheme_id: database id of the annotation scheme.
+    :return: a single annotation scheme
     """
-    return await read_annotation_task(annotation_task_id=task_id, engine=db_engine)
+    return await read_annotation_scheme(annotation_scheme_id=annotation_scheme_id, engine=db_engine)
 
 
-@router.put('/tasks/definition/', response_model=str)
-async def put_annotation_task(annotation_task: AnnotationTaskModel,
-                              permissions=Depends(UserPermissionChecker('annotations_edit'))) -> str:
-    key = await upsert_annotation_task(annotation_task=annotation_task, engine=db_engine)
+@router.put('/schemes/definition/', response_model=str)
+async def put_annotation_scheme(annotation_scheme: AnnotationSchemeModel,
+                                permissions=Depends(UserPermissionChecker('annotations_edit'))) -> str:
+    key = await upsert_annotation_scheme(annotation_scheme=annotation_scheme, engine=db_engine)
     return str(key)
 
 
-@router.delete('/tasks/definition/{task_id}')
-async def remove_annotation_task(task_id: str) -> None:
-    await delete_annotation_task(annotation_task_id=task_id, engine=db_engine)
+@router.delete('/schemes/definition/{scheme_id}')
+async def remove_annotation_scheme(annotation_scheme_id: str) -> None:
+    await delete_annotation_scheme(annotation_scheme_id=annotation_scheme_id, engine=db_engine)
 
 
-@router.get('/tasks/list/{project_id}', response_model=list[AnnotationTaskModel])
-async def get_task_definitions_for_project(project_id: str) -> list[AnnotationTaskModel]:
+@router.get('/schemes/list/{project_id}', response_model=list[AnnotationSchemeModel])
+async def get_scheme_definitions_for_project(project_id: str) -> list[AnnotationSchemeModel]:
     """
-    This endpoint returns the detailed definitions of all annotation tasks associated with a project.
+    This endpoint returns the detailed definitions of all annotation schemes associated with a project.
 
     :param project_id: database id of the project
-    :return: list of annotation tasks
+    :return: list of annotation schemes
     """
-    return await read_annotation_tasks_for_project(project_id=project_id, engine=db_engine)
+    return await read_annotation_schemes_for_project(project_id=project_id, engine=db_engine)
 
 
 async def _construct_annotation_item(assignment: AssignmentModel, project_id: str) -> AnnotationItem:
     scope = await read_assignment_scope(assignment_scope_id=assignment.assignment_scope_id, engine=db_engine)
-    task = await read_annotation_task(annotation_task_id=assignment.task_id, engine=db_engine)
+    scheme = await read_annotation_scheme(annotation_scheme_id=assignment.annotation_scheme_id, engine=db_engine)
 
     annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
-    task = merge_task_and_annotations(annotation_task=task, annotations=annotations)
+    scheme = merge_scheme_and_annotations(annotation_scheme=scheme, annotations=annotations)
 
     project = await read_project_by_id(project_id=project_id, engine=db_engine)
     item = await read_any_item_by_item_id(item_id=assignment.item_id, item_type=project.type, engine=db_engine)
 
-    return AnnotationItem(task=task, assignment=assignment, scope=scope, item=item)
+    return AnnotationItem(scheme=scheme, assignment=assignment, scope=scope, item=item)
 
 
 @router.get('/annotate/next/{assignment_scope_id}/{current_assignment_id}', response_model=AnnotationItem)
@@ -222,8 +222,8 @@ async def save_annotation(annotated_item: AnnotatedItem,
     if permissions.user.user_id == assignment_db.user_id \
             and str(assignment_db.assignment_scope_id) == annotated_item.assignment.assignment_scope_id \
             and str(assignment_db.item_id) == annotated_item.assignment.item_id \
-            and str(assignment_db.task_id) == annotated_item.assignment.task_id:
-        annotations = annotated_task_to_annotations(annotated_item.task)
+            and str(assignment_db.annotation_scheme_id) == annotated_item.assignment.annotation_scheme_id:
+        annotations = annotated_scheme_to_annotations(annotated_item.scheme)
         status = await upsert_annotations(annotations=annotations,
                                           assignment_id=annotated_item.assignment.assignment_id,
                                           engine=db_engine)
@@ -244,7 +244,7 @@ async def get_items_with_count(permissions=Depends(UserPermissionChecker('datase
 
 
 class MakeAssignmentsRequestModel(BaseModel):
-    task_id: str
+    annotation_scheme_id: str
     scope_id: str
     config: AssignmentScopeConfig
     save: bool = False
@@ -257,7 +257,7 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
         print(payload.config)
         try:
             assignments = await random_assignments(assignment_scope_id=payload.scope_id,
-                                                   annotation_task_id=payload.task_id,
+                                                   annotation_scheme_id=payload.annotation_scheme_id,
                                                    project_id=permissions.permissions.project_id,
                                                    config=payload.config,
                                                    engine=db_engine)

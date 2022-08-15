@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from .util.middlewares import TimingMiddleware
+from .util.middlewares import TimingMiddleware, ErrorHandlingMiddleware
 
 from .util.config import settings
 from .util.logging import get_logger
@@ -22,6 +22,7 @@ app = FastAPI()
 logger.debug('Setting up server and middlewares')
 mimetypes.add_type('application/javascript', '.js')
 
+app.add_middleware(ErrorHandlingMiddleware)
 if settings.SERVER.HEADER_TRUSTED_HOST:
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.SERVER.CORS_ORIGINS)
     logger.info(f'TrustedHostMiddleware allows the following hosts: {settings.SERVER.CORS_ORIGINS}')

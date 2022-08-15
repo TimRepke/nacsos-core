@@ -19,6 +19,24 @@ async def _pong():
     return 'pong'
 
 
+class ExampleError(Exception):
+    pass
+
+
+@router.get('/error', response_class=PlainTextResponse)
+async def _err() -> str:
+    raise ExampleError('Error in your face!')
+
+
+class ExampleWarning(Warning):
+    pass
+
+
+@router.get('/warn', response_class=PlainTextResponse)
+async def _warn() -> str:
+    raise ExampleWarning('Warning in your face!')
+
+
 @router.post('/{name}', response_class=PlainTextResponse)
 async def _ping(name: str) -> str:
     return f'Hello {name}'

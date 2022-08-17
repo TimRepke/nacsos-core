@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, status as http_status
 from fastapi.responses import PlainTextResponse
 from server.util.logging import get_logger
+from server.util.security import InsufficientPermissions
 
 logger = get_logger('nacsos.api.route.ping')
 router = APIRouter()
@@ -35,6 +36,11 @@ class ExampleWarning(Warning):
 @router.get('/warn', response_class=PlainTextResponse)
 async def _warn() -> str:
     raise ExampleWarning('Warning in your face!')
+
+
+@router.get('/permission')
+async def perm():
+    raise InsufficientPermissions('You do not have permission to edit this data import.')
 
 
 @router.post('/{name}', response_class=PlainTextResponse)

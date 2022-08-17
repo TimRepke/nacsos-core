@@ -1,5 +1,6 @@
 import time
-from typing import Literal
+import json
+from typing import Literal, Any
 
 from pydantic import BaseModel
 from fastapi import HTTPException, status as http_status
@@ -30,34 +31,45 @@ class ErrorDetail(BaseModel):
     level: Literal['WARNING', 'ERROR']
     # The message/cause of the Warning/Exception
     message: str
+    # attached args
+    args: list[Any]
 
 
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     @classmethod
-    def _resolve_args(cls, ew: Exception | Warning):
+    def _resolve_args(cls, ew: Exception | Warning) -> list[Any]:
         if hasattr(ew, 'args') and ew.args is not None and len(ew.args) > 0:
-            return ' | '.join([str(arg) for arg in ew.args])
-        return repr(ew)
+            ret = []
+            for arg in ew.args:
+                try:
+                    json.dumps(arg)  # test if this is json-serializable
+                    ret.append(arg)
+                except TypeError:
+                    ret.append(repr(arg))
+            return ret
+        return [repr(ew)]
+
+    @classmethod
+    def _resolve_status(cls, ew: Exception | Warning) -> http_status:
+        if hasattr(ew, 'status'):
+            return ew.status
+        return http_status.HTTP_400_BAD_REQUEST
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         try:
             response = await call_next(request)
             return response
-        except Warning as w:
-            logger.exception(w)
-            return await http_exception_handler(request,
-                                                exc=HTTPException(
-                                                    status_code=http_status.HTTP_400_BAD_REQUEST,
-                                                    detail=ErrorDetail(level='WARNING', type=w.__class__.__name__,
-                                                                       message=self._resolve_args(w)).dict()))
-        except Exception as ex:
-            logger.exception(ex)
-            return await http_exception_handler(request,
-                                                exc=HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                                                  detail=ErrorDetail(level='ERROR',
-                                                                                     type=ex.__class__.__name__,
-                                                                                     message=self._resolve_args(
-                                                                                         ex)).dict()))
+        except (Exception, Warning) as ew:
+            logger.exception(ew)
+            return await http_exception_handler(
+                request,
+                exc=HTTPException(
+                    status_code=self._resolve_status(ew),
+                    detail=ErrorDetail(level='WARNING' if isinstance(ew, Warning) else 'ERROR',
+                                       type=ew.__class__.__name__,
+                                       message=str(ew),
+                                       args=self._resolve_args(ew)).dict()
+                ))
 
 
 class TimingMiddleware(BaseHTTPMiddleware):

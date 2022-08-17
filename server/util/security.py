@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status as http_status, Header
 from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel
@@ -17,6 +17,10 @@ from server.util.config import settings
 from server.util.logging import get_logger
 
 logger = get_logger('nacsos.util.security')
+
+
+class InsufficientPermissions(Exception):
+    status = http_status.HTTP_403_FORBIDDEN
 
 
 class UserPermissions(BaseModel):
@@ -67,7 +71,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
+        status_code=http_status.HTTP_401_UNAUTHORIZED,
         detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'},
     )
@@ -96,14 +100,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 async def get_current_active_user(current_user: UserModel = Depends(get_current_user)) -> UserModel:
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Inactive user')
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail='Inactive user')
     return current_user
 
 
 def get_current_active_superuser(current_user: UserModel = Depends(get_current_active_user)) -> UserModel:
     if not current_user.is_superuser:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="The user doesn't have enough privileges"
+            status_code=http_status.HTTP_400_BAD_REQUEST, detail="The user doesn't have enough privileges"
         )
     return current_user
 
@@ -156,22 +160,20 @@ class UserPermissionChecker:
             # check that each required permission is fulfilled
             for permission in self.permissions:
                 if self.fulfill_all and not project_permissions[permission]:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f'User does not have permission "{permission}" for project "{x_project_id}".',
+                    raise InsufficientPermissions(
+                        f'User does not have permission "{permission}" for project "{x_project_id}".'
                     )
                 any_permission_fulfilled = any_permission_fulfilled or project_permissions[permission]
 
             if not any_permission_fulfilled and not self.fulfill_all:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f'User does not have any of the required permissions ({self.permissions}) '
-                           f'for project "{x_project_id}".',
+                raise InsufficientPermissions(
+                    f'User does not have any of the required permissions ({self.permissions}) '
+                    f'for project "{x_project_id}".'
                 )
 
             return user_permissions
 
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail=f'User does not have permission to access project "{x_project_id}".',
         )

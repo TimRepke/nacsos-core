@@ -19,6 +19,7 @@ For development, it is advised to install `nacsos-data` locally (not from git) v
 pip install -e ../nacsos-data/
 ```
 (assuming both projects reside side-by-side, otherwise adapt path accordingly)
+If you do so, please keep in mind to update the requirements!
 
 There needs to be a change to the hypercorn code as per https://gitlab.com/pgjones/hypercorn/-/merge_requests/70/diffs
 

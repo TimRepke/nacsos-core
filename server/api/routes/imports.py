@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import APIRouter, Depends
 
-from nacsos_data.models.imports import ImportModel
+from nacsos_data.models.imports import ImportModel, ImportType
 from nacsos_data.db.crud.imports import \
     read_all_imports_for_project, \
     read_import, upsert_import, \
     read_item_count_for_import
 
 from server.data import db_engine
-from server.util.security import UserPermissionChecker, UserPermissions
+from server.util.pipelines.imports import submit_jsonl_import_task
+from server.util.security import UserPermissionChecker, UserPermissions, InsufficientPermissions
 from server.util.logging import get_logger
 
 logger = get_logger('nacsos.api.route.imports')
@@ -32,9 +33,7 @@ async def get_import_details(import_id: str,
     if str(import_details.project_id) == str(permissions.permissions.project_id):
         return import_details
 
-    raise HTTPException(
-        status_code=http_status.HTTP_403_FORBIDDEN,
-        detail='You do not have permission to access this information.')
+    raise InsufficientPermissions('You do not have permission to access this information.')
 
 
 @router.get('/import/{import_id}/count/', response_model=int)
@@ -51,6 +50,18 @@ async def put_import_details(import_details: ImportModel,
         key = await upsert_import(import_model=import_details, engine=db_engine)
         return str(key)
 
-    raise HTTPException(
-        status_code=http_status.HTTP_403_FORBIDDEN,
-        detail='You do not have permission to edit this data import.')
+    raise InsufficientPermissions('You do not have permission to edit this data import.')
+
+
+@router.post('/import/{import_id}', response_model=str)
+async def trigger_import(import_id: str,
+                         permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
+    import_details = await read_import(import_id=import_id, engine=db_engine)
+
+    if str(import_details.project_id) == str(permissions.permissions.project_id):
+        if import_details.type == ImportType.jsonl:
+            task_id = await submit_jsonl_import_task(import_id=import_id, engine=db_engine)
+        else:
+            raise NotImplementedError(f'No import trigger for "{import_details.type}" implemented yet.')
+    else:
+        raise InsufficientPermissions('You do not have permission to edit this data import.')

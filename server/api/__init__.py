@@ -6,6 +6,7 @@ from .routes import auth
 from .routes import projects
 from .routes import project
 from .routes import imports
+from .routes import events
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -30,3 +31,6 @@ router.include_router(project.router, prefix='/project', tags=['project'])
 
 # route for project related things
 router.include_router(imports.router, prefix='/imports', tags=['imports'])
+
+# route for triggering events in the system
+router.include_router(imports.router, prefix='/events', tags=['events'])

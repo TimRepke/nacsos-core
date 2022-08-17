@@ -8,4 +8,4 @@ passlib[bcrypt]==1.7.4
 PyYAML==6.0
 httpx[http2]==0.23.0
 pymitter==0.4.0
--e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@11f8606148cdf996ac878241080f491fa9b45be5#egg=nacsos_data
+-e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@784586cb24a09295466c055f582bf2f48d952984#egg=nacsos_data

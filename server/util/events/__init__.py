@@ -7,7 +7,8 @@ from . import events
 
 eventbus = EventEmitter(delimiter='_', wildcard=True)
 AnyEvent = Union[events.BaseEvent.get_subclasses()]
-AnyEventType = Literal[tuple(sc._name for sc in events.BaseEvent.get_subclasses())] # noqa PyProtectedMember
+AnyEventType = Literal[tuple(sc.__name__ for sc in events.BaseEvent.get_subclasses())] # noqa PyProtectedMember
+AnyEventLiteral = Literal[tuple(sc._name for sc in events.BaseEvent.get_subclasses())] # noqa PyProtectedMember
 
 # Permanent/global listeners
 eventbus.on(events.PipelineTaskStatusChangedEvent._name, imports.update_import_status)  # noqa PyProtectedMember

@@ -29,6 +29,7 @@ class PipelineTaskStatusChangedEvent(BaseEvent):
     status: TaskStatus
     project_id: str
     user_id: str
+    import_id: str | None = None
     function_name: str  # incl module path
 
 

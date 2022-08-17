@@ -90,10 +90,15 @@ class UsersConfig(BaseModel):
     REGISTRATION_ENABLED: bool = False  # Set this to true to enable the registration endpoint
 
 
+class PipelinesConfig(BaseModel):
+    API_URL: str = 'http://localhost:8000/api'
+
+
 class Settings(BaseSettings):
     SERVER: ServerConfig = ServerConfig()
     DB: DatabaseConfig = DatabaseConfig()
     USERS: UsersConfig = UsersConfig()
+    PIPES: PipelinesConfig = PipelinesConfig()
 
     # EMAIL: EmailConfig
 

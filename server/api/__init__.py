@@ -33,4 +33,4 @@ router.include_router(project.router, prefix='/project', tags=['project'])
 router.include_router(imports.router, prefix='/imports', tags=['imports'])
 
 # route for triggering events in the system
-router.include_router(imports.router, prefix='/events', tags=['events'])
+router.include_router(events.router, prefix='/events', tags=['events'])

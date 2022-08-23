@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, Query
+
+from server.api.errors import DataNotFoundWarning, UserNotFoundError
 from server.util.logging import get_logger
 from nacsos_data.models.users import UserModel, UserInDBModel
 from nacsos_data.db.crud.users import \
@@ -27,7 +29,9 @@ async def get_project_users(project_id: str,
                             permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
     result = await read_project_users(project_id=project_id, engine=db_engine)
-    return result
+    if result is not None:
+        return result
+    raise DataNotFoundWarning(f'Found no users for project with ID {project_id}')
 
 
 # FIXME refine required permission
@@ -36,7 +40,9 @@ async def get_user_by_id(user_id: str,
                          permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> UserInDBModel:
     result = await read_user_by_id(user_id=user_id, engine=db_engine)
-    return result
+    if result is not None:
+        return result
+    raise UserNotFoundError(f'User not found in DB for ID {user_id}')
 
 
 # FIXME refine required permission
@@ -45,4 +51,6 @@ async def get_users_by_ids(user_id: list[str] = Query(),
                            permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
     result = await read_users_by_ids(user_ids=user_id, engine=db_engine)
-    return result
+    if result is not None:
+        return result
+    raise UserNotFoundError(f'Users not found in DB for IDs {user_id}')

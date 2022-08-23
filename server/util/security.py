@@ -11,6 +11,7 @@ from nacsos_data.models.projects import ProjectPermissionsModel, ProjectPermissi
 from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name, read_user_by_id
 from nacsos_data.db.crud.projects import read_project_permissions_for_user as crud_get_project_permissions_for_user
 
+from server.api.errors import MissingInformationError
 from server.data import db_engine
 from server.util.config import settings
 
@@ -58,7 +59,7 @@ async def authenticate_user(username: str, plain_password: str):
     return user
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict[str, str | datetime], expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -75,6 +76,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'},
     )
+    user = None
     if settings.USERS.DEFAULT_USER is None:
         try:
             if token is None:
@@ -86,15 +88,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             token_data = TokenData(username=username)
         except JWTError:
             raise credentials_exception
-        user = await crud_get_user_by_name(username=token_data.username, engine=db_engine)
+        token_user = token_data.username
+        if token_user is not None:
+            user = await crud_get_user_by_name(username=token_user, engine=db_engine)
     else:
         user = await read_user_by_id(user_id=settings.USERS.DEFAULT_USER, engine=db_engine)
         logger.warning('Authentication using fake user!')
 
-    logger.debug(f'Current user: user_id: {user.user_id} {user.username}')
-
     if user is None:
         raise credentials_exception
+    logger.debug(f'Current user: user_id: {user.user_id} {user.username}')
     return user
 
 
@@ -113,10 +116,12 @@ def get_current_active_superuser(current_user: UserModel = Depends(get_current_a
 
 
 async def get_project_permissions_for_user(project_id: str, current_user: UserModel) -> ProjectPermissionsModel | None:
+    if current_user.user_id is None:
+        raise MissingInformationError('The `current_user` is missing the (here) required `user_id` field.')
     if current_user.is_superuser:
         # admin gets to do anything always, so return with simulated full permissions
         return ProjectPermissionsModel.get_virtual_admin(project_id=project_id,
-                                                         user_id=current_user.user_id)
+                                                         user_id=str(current_user.user_id))
 
     return await crud_get_project_permissions_for_user(user_id=current_user.user_id,
                                                        project_id=project_id,
@@ -124,7 +129,9 @@ async def get_project_permissions_for_user(project_id: str, current_user: UserMo
 
 
 class UserPermissionChecker:
-    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission = None, fulfill_all: bool = True):
+    def __init__(self,
+                 permissions: list[ProjectPermission] | ProjectPermission | None = None,
+                 fulfill_all: bool = True):
         self.permissions = permissions
         self.fulfill_all = fulfill_all
 
@@ -159,11 +166,12 @@ class UserPermissionChecker:
 
             # check that each required permission is fulfilled
             for permission in self.permissions:
-                if self.fulfill_all and not project_permissions[permission]:
+                p_permission = getattr(project_permissions, permission, False)
+                if self.fulfill_all and not p_permission:
                     raise InsufficientPermissions(
                         f'User does not have permission "{permission}" for project "{x_project_id}".'
                     )
-                any_permission_fulfilled = any_permission_fulfilled or project_permissions[permission]
+                any_permission_fulfilled = any_permission_fulfilled or p_permission
 
             if not any_permission_fulfilled and not self.fulfill_all:
                 raise InsufficientPermissions(

@@ -1,6 +1,7 @@
 import time
 import json
-from typing import Literal, Any
+from typing import Literal, Any, TypeVar
+from resource import getrusage, RUSAGE_SELF
 
 from pydantic import BaseModel
 from fastapi import HTTPException, status as http_status
@@ -12,16 +13,6 @@ from starlette.responses import Response
 from server.util.logging import get_logger
 
 logger = get_logger('nacsos.server.middlewares')
-try:
-    from resource import getrusage, RUSAGE_SELF
-except ImportError as e:
-    logger.warning(e)
-
-    RUSAGE_SELF = None
-
-
-    def getrusage(*args, **kwargs):  # noqa:E303
-        return 0.0, 0.0
 
 
 class ErrorDetail(BaseModel):
@@ -35,9 +26,12 @@ class ErrorDetail(BaseModel):
     args: list[Any]
 
 
+Error = TypeVar('Error', bound=Warning | Exception)
+
+
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     @classmethod
-    def _resolve_args(cls, ew: Exception | Warning) -> list[Any]:
+    def _resolve_args(cls, ew: Error) -> list[Any]:
         if hasattr(ew, 'args') and ew.args is not None and len(ew.args) > 0:
             ret = []
             for arg in ew.args:
@@ -50,9 +44,11 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         return [repr(ew)]
 
     @classmethod
-    def _resolve_status(cls, ew: Exception | Warning) -> http_status:
+    def _resolve_status(cls, ew: Error) -> int:
         if hasattr(ew, 'status'):
-            return ew.status
+            error_status = getattr(ew, 'status')
+            if type(error_status) == int:
+                return error_status
         return http_status.HTTP_400_BAD_REQUEST
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

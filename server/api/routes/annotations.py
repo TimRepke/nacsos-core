@@ -34,6 +34,9 @@ from nacsos_data.util.annotations.validation import merge_scheme_and_annotations
 from nacsos_data.util.annotations.assignments.random import random_assignments
 
 from pydantic import BaseModel
+
+from server.api.errors import SaveFailedError, AssignmentScopeNotFoundError, NoNextAssignmentWarning, \
+    ProjectNotFoundError, AnnotationSchemeNotFoundError, MissingInformationError
 from server.util.security import UserPermissionChecker
 from server.data import db_engine
 
@@ -58,7 +61,10 @@ async def get_scheme_definition(annotation_scheme_id: str) -> AnnotationSchemeMo
     :param annotation_scheme_id: database id of the annotation scheme.
     :return: a single annotation scheme
     """
-    return await read_annotation_scheme(annotation_scheme_id=annotation_scheme_id, engine=db_engine)
+    scheme = await read_annotation_scheme(annotation_scheme_id=annotation_scheme_id, engine=db_engine)
+    if scheme is not None:
+        return scheme
+    raise AnnotationSchemeNotFoundError(f'No `AnnotationScheme` found in DB for id {annotation_scheme_id}')
 
 
 @router.put('/schemes/definition/', response_model=str)
@@ -85,16 +91,24 @@ async def get_scheme_definitions_for_project(project_id: str) -> list[Annotation
 
 
 async def _construct_annotation_item(assignment: AssignmentModel, project_id: str) -> AnnotationItem:
+    if assignment.assignment_id is None:
+        raise MissingInformationError('No `assignment_id` set for `assignment`.')
     scope = await read_assignment_scope(assignment_scope_id=assignment.assignment_scope_id, engine=db_engine)
     scheme = await read_annotation_scheme(annotation_scheme_id=assignment.annotation_scheme_id, engine=db_engine)
 
+    if scheme is None:
+        raise AnnotationSchemeNotFoundError(f'No annotation scheme found in DB for id '
+                                            f'{assignment.annotation_scheme_id}')
+
     annotations = await read_annotations_for_assignment(assignment_id=assignment.assignment_id, engine=db_engine)
-    scheme = merge_scheme_and_annotations(annotation_scheme=scheme, annotations=annotations)
+    merged_scheme = merge_scheme_and_annotations(annotation_scheme=scheme, annotations=annotations)
 
     project = await read_project_by_id(project_id=project_id, engine=db_engine)
+    if project is None:
+        raise ProjectNotFoundError(f'No project found in DB for id {project_id}')
     item = await read_any_item_by_item_id(item_id=assignment.item_id, item_type=project.type, engine=db_engine)
 
-    return AnnotationItem(scheme=scheme, assignment=assignment, scope=scope, item=item)
+    return AnnotationItem(scheme=merged_scheme, assignment=assignment, scope=scope, item=item)
 
 
 @router.get('/annotate/next/{assignment_scope_id}/{current_assignment_id}', response_model=AnnotationItem)
@@ -106,6 +120,8 @@ async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
                                                                assignment_scope_id=assignment_scope_id,
                                                                user_id=permissions.user.user_id,
                                                                engine=db_engine)
+    if assignment is None:
+        raise NoNextAssignmentWarning(f'Could not determine a next assignment for scope {assignment_scope_id}')
     return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
@@ -152,11 +168,13 @@ async def get_assignment_scopes_for_project(permissions=Depends(UserPermissionCh
 
 @router.get('/annotate/scope/{assignment_scope_id}', response_model=AssignmentScopeModel)
 async def get_assignment_scope(assignment_scope_id: str,
-                               permissions=Depends(UserPermissionChecker(['annotations_read', 'annotations_edit'],
-                                                                         fulfill_all=False))) \
-        -> AssignmentScopeModel:
+                               permissions=Depends(
+                                   UserPermissionChecker(['annotations_read', 'annotations_edit'], fulfill_all=False))
+                               ) -> AssignmentScopeModel:
     scope = await read_assignment_scope(assignment_scope_id=assignment_scope_id, engine=db_engine)
-    return scope
+    if scope is not None:
+        return scope
+    raise AssignmentScopeNotFoundError(f'No assignment scope found in the DB for {assignment_scope_id}')
 
 
 @router.put('/annotate/scope/', response_model=str)
@@ -217,6 +235,9 @@ async def get_annotations(assignment_scope_id: str, permissions=Depends(UserPerm
 async def save_annotation(annotated_item: AnnotatedItem,
                           permissions=Depends(UserPermissionChecker('annotations_read'))) -> AssignmentStatus:
     # double-check, that the supposed assignment actually exists
+    if annotated_item.assignment.assignment_id is None:
+        raise MissingInformationError('Missing `assignment_id` in `annotation_item`!')
+
     assignment_db = await read_assignment(assignment_id=annotated_item.assignment.assignment_id, engine=db_engine)
 
     if permissions.user.user_id == assignment_db.user_id \
@@ -227,7 +248,9 @@ async def save_annotation(annotated_item: AnnotatedItem,
         status = await upsert_annotations(annotations=annotations,
                                           assignment_id=annotated_item.assignment.assignment_id,
                                           engine=db_engine)
-        return status
+        if status is not None:
+            return status
+        raise SaveFailedError('Failed to save annotation!')
     else:
         raise HTTPException(
             status_code=http_status.HTTP_403_FORBIDDEN,

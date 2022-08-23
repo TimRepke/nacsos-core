@@ -8,8 +8,9 @@ from uvicorn.logging import DefaultFormatter
 from server.util.config import settings
 
 
-def get_logger(name=None):
-    logging.config.dictConfig(settings.LOGGING_CONF)
+def get_logger(name: str | None = None):
+    if settings.LOGGING_CONF is not None:
+        logging.config.dictConfig(settings.LOGGING_CONF)
     return logging.getLogger(name)
 
 

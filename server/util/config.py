@@ -34,7 +34,9 @@ class ServerConfig(BaseModel):
         if isinstance(v, str) and not v.startswith('['):
             return [i.strip() for i in v.split(',')]
         if isinstance(v, str) and v.startswith('['):
-            return json.loads(v)
+            ret = json.loads(v)
+            if type(ret) == list:
+                return ret
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
@@ -80,7 +82,7 @@ class EmailConfig(BaseModel):
             and values.get('SENDER_ADDRESS')
         )
 
-    TEST_USER: EmailStr = 'test@nacsos.eu'
+    TEST_USER: EmailStr = EmailStr('test@nacsos.eu')
 
 
 class UsersConfig(BaseModel):
@@ -103,14 +105,18 @@ class Settings(BaseSettings):
     # EMAIL: EmailConfig
 
     LOG_CONF_FILE: str = 'config/logging.conf'
-    LOGGING_CONF: dict | None = None
+    LOGGING_CONF: dict[str, Any] | None = None
 
     @validator('LOGGING_CONF', pre=True)
-    def read_logging_config(cls, v: dict, values: dict[str, Any]) -> dict:
+    def read_logging_config(cls, v: dict[str, Any] | None, values: dict[str, str]) -> dict[str, Any]:
         if isinstance(v, dict):
             return v
-        with open(values.get('LOG_CONF_FILE'), 'r') as f:
-            return yaml.safe_load(f.read())
+        filename = values.get('LOG_CONF_FILE', cls.LOG_CONF_FILE)
+        with open(filename, 'r') as f:
+            ret = yaml.safe_load(f.read())
+            if type(ret) == dict:
+                return ret
+        raise ValueError('Logging config invalid!')
 
     class Config:
         case_sensitive = True

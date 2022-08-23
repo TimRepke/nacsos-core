@@ -9,6 +9,7 @@ from server.util.logging import get_logger
 
 from . import permissions
 from . import items
+from ...errors import ProjectNotFoundError
 
 logger = get_logger('nacsos.api.route.project')
 router = APIRouter()
@@ -18,7 +19,10 @@ logger.info('Setting up projects route')
 
 @router.get('/{project_id}/info/', response_model=ProjectModel)
 async def get_project(project_id: str, permission=Depends(UserPermissionChecker())) -> ProjectModel:
-    return await read_project_by_id(project_id=project_id, engine=db_engine)
+    project = await read_project_by_id(project_id=project_id, engine=db_engine)
+    if project is not None:
+        return project
+    raise ProjectNotFoundError(f'No project found in the database for id {project_id}')
 
 
 # TODO create project (superuser only)

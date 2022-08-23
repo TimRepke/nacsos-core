@@ -2,6 +2,10 @@ class DataNotFoundWarning(Warning):
     pass
 
 
+class ItemNotFoundError(Exception):
+    pass
+
+
 class ProjectNotFoundError(Exception):
     status = 400
 

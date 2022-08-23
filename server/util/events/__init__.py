@@ -7,9 +7,7 @@ from . import events
 
 eventbus = EventEmitter(delimiter='_', wildcard=True)
 if TYPE_CHECKING:
-    from typing import TypeVar
-
-    AnyEvent = TypeVar('AnyEvent', bound=events.BaseEvent)
+    AnyEvent = events.BaseEvent
     AnyEventType = str
     AnyEventLiteral = str
 else:

@@ -15,6 +15,7 @@ from nacsos_data.db.crud.items.twitter import \
     read_twitter_item_by_item_id, \
     create_twitter_item
 
+from server.api.errors import ItemNotFoundError
 from server.data import db_engine
 from server.util.security import UserPermissionChecker
 from server.util.logging import get_logger
@@ -49,15 +50,21 @@ async def list_project_data_paged(project_id: str, item_type: ProjectTypeLiteral
                         detail=f'Paged data listing for {item_type} not implemented (yet).')
 
 
-@router.get('/{item_type}/detail/{item_id}', response_model=AnyItemModel)
+@router.get('/{item_type}/detail/{item_id}', response_model=AnyItemModel)  # type: ignore[arg-type]
 async def get_detail_for_item(item_id: str, item_type: ProjectTypeLiteral,
-                              permission=Depends(UserPermissionChecker('dataset_read'))):
+                              permission=Depends(UserPermissionChecker('dataset_read'))) -> AnyItemModel:
+    result: AnyItemModel | None = None
     if item_type == 'basic':
-        return await read_basic_item_by_item_id(item_id=item_id, engine=db_engine)
-    if item_type == 'twitter':
-        return await read_twitter_item_by_item_id(item_id=item_id, engine=db_engine)
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                        detail=f'Detail getter for {item_type} not implemented (yet).')
+        result = await read_basic_item_by_item_id(item_id=item_id, engine=db_engine)
+    elif item_type == 'twitter':
+        result = await read_twitter_item_by_item_id(item_id=item_id, engine=db_engine)
+    else:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                            detail=f'Detail getter for {item_type} not implemented (yet).')
+
+    if result is not None:
+        return result
+    raise ItemNotFoundError(f'No item found with type {item_type} with the id {item_id}')
 
 
 @router.get('/count', response_model=int)

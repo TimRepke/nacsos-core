@@ -1,3 +1,5 @@
+from typing import Type
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -27,7 +29,7 @@ async def emit(event: Event) -> None:
     """
     logger.info(f'Received external event to be emitted: {event.event}')
 
-    emit_event_type: AnyEvent = getattr(events, event.event, None)
+    emit_event_type: Type[AnyEvent] | None = getattr(events, event.event, None)
 
     if emit_event_type is None:
         raise UnknownEventError(f'Event {event.event} not in {AnyEvent}')
@@ -37,7 +39,6 @@ async def emit(event: Event) -> None:
     emit_event = emit_event_type.parse_obj(event.payload)
     logger.debug(f'Going to emit {emit_event} ({emit_event})')
     await eventbus.emit_async(emit_event._name, emit_event)  # noqa PyProtectedMember
-
 
 # TODO user-configurable triggers (e.g. trigger on event or cron-like)
 #      - create schema, model, crud in nacsos-data (probably could just be a JSONB field in `Project`

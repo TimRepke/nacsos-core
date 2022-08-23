@@ -4,7 +4,7 @@ from nacsos_data.models.projects import ProjectPermissionsModel
 from nacsos_data.db.crud.projects import read_project_permissions_for_project, read_project_permissions_by_id
 
 from server.data import db_engine
-from server.util.security import UserPermissionChecker
+from server.util.security import UserPermissionChecker, UserPermissions
 from server.util.logging import get_logger
 
 logger = get_logger('nacsos.api.route.project')
@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.get('/me', response_model=ProjectPermissionsModel)
-async def get_project_permissions_current_user(permission=Depends(UserPermissionChecker())) \
+async def get_project_permissions_current_user(permission: UserPermissions = Depends(UserPermissionChecker())) \
         -> ProjectPermissionsModel:
     return permission.permissions
 

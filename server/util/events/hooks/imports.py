@@ -30,12 +30,16 @@ async def update_import_status(event: PipelineTaskStatusChangedEvent):
 
                 # Seems like task was started, remember the time
                 if event.status == 'RUNNING' and import_details.time_started is None:
-                    logger.debug(f'Updating import start time for {import_details.import_id}')
+                    logger.debug(  # type: ignore[unreachable]
+                        f'Updating import start time for {import_details.import_id}'
+                    )
                     import_details.time_started = datetime.now()
                     await session.commit()
 
                 elif (event.status == 'COMPLETED' or event.status == 'FAILED' or event.status == 'CANCELLED') \
                         and import_details.time_finished is None:
-                    logger.debug(f'Updating import finish time for {import_details.import_id}')
+                    logger.debug(  # type: ignore[unreachable]
+                        f'Updating import finish time for {import_details.import_id}'
+                    )
                     import_details.time_finished = datetime.now()
                     await session.commit()

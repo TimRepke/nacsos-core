@@ -198,8 +198,8 @@ async def remove_assignment_scope(assignment_scope_id: str,
 async def get_num_assignments_for_scope(assignment_scope_id: str,
                                         permissions=Depends(
                                             UserPermissionChecker(['annotations_read', 'annotations_edit'],
-                                                                  fulfill_all=False))) \
-        -> AssignmentCounts:
+                                                                  fulfill_all=False))
+                                        ) -> AssignmentCounts:
     scope = await read_assignment_counts_for_scope(assignment_scope_id=assignment_scope_id, engine=db_engine)
     return scope
 

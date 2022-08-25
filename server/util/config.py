@@ -111,11 +111,12 @@ class Settings(BaseSettings):
     def read_logging_config(cls, v: dict[str, Any] | None, values: dict[str, str]) -> dict[str, Any]:
         if isinstance(v, dict):
             return v
-        filename = values.get('LOG_CONF_FILE', cls.LOG_CONF_FILE)
-        with open(filename, 'r') as f:
-            ret = yaml.safe_load(f.read())
-            if type(ret) == dict:
-                return ret
+        filename = values.get('LOG_CONF_FILE', None)
+        if filename is not None:
+            with open(filename, 'r') as f:
+                ret = yaml.safe_load(f.read())
+                if type(ret) == dict:
+                    return ret
         raise ValueError('Logging config invalid!')
 
     class Config:

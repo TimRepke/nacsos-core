@@ -75,7 +75,8 @@ async def put_annotation_scheme(annotation_scheme: AnnotationSchemeModel,
 
 
 @router.delete('/schemes/definition/{scheme_id}')
-async def remove_annotation_scheme(annotation_scheme_id: str) -> None:
+async def remove_annotation_scheme(annotation_scheme_id: str,
+                                   permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
     await delete_annotation_scheme(annotation_scheme_id=annotation_scheme_id, engine=db_engine)
 
 
@@ -231,7 +232,7 @@ async def get_annotations(assignment_scope_id: str, permissions=Depends(UserPerm
     return assignments
 
 
-@router.post('/annotate/save')
+@router.post('/annotate/save', response_model=AssignmentStatus)
 async def save_annotation(annotated_item: AnnotatedItem,
                           permissions=Depends(UserPermissionChecker('annotations_read'))) -> AssignmentStatus:
     # double-check, that the supposed assignment actually exists

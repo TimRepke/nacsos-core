@@ -1,0 +1,54 @@
+version = 1
+disable_existing_loggers = false
+[root]
+level = "DEBUG"
+handlers = [ "default",]
+[formatters.default]
+"()" = "server.util.logging.ColourFormatter"
+fmt = "%(asctime)s [%(levelnamec)s] %(name)s: %(message)s"
+use_colors = true
+[formatters.process]
+format = "%(asctime)s [%(levelname)s] %(processName)-10s %(name)s: %(message)s"
+[formatters.access]
+format = "%(asctime)s [   REQ  ] %(name)s: %(message)s"
+[handlers.default]
+level = "DEBUG"
+formatter = "default"
+class = "logging.StreamHandler"
+stream = "ext://sys.stdout"
+[handlers.access]
+level = "DEBUG"
+formatter = "access"
+class = "logging.StreamHandler"
+stream = "ext://sys.stdout"
+[loggers."hypercorn.access"]
+handlers = [ "access",]
+level = "DEBUG"
+propagate = false
+[loggers."hypercorn.error"]
+handlers = [ "default",]
+level = "DEBUG"
+[loggers.aiosqlite]
+level = "ERROR"
+[loggers.databases]
+level = "ERROR"
+[loggers."urllib3.connectionpool"]
+level = "FATAL"
+[loggers."multipart.multipart"]
+level = "INFO"
+[loggers."sqlalchemy.engine.Engine"]
+handlers = [ "default",]
+level = "INFO"
+propagate = false
+[loggers.nacsos]
+handlers = [ "default",]
+level = "DEBUG"
+propagate = false
+[loggers.asyncio]
+handlers = [ "default",]
+level = "INFO"
+propagate = false
+[loggers.nacsos_data]
+handlers = [ "default",]
+level = "DEBUG"
+propagate = false

@@ -1,11 +1,10 @@
 fastapi==0.80
-hypercorn==0.13.2
+hypercorn==0.14.3
 toml==0.10.2
 email-validator==1.2.1
 python-dotenv==0.20.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-PyYAML==6.0
 httpx[http2]==0.23.0
 pymitter==0.4.0
 -e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@b198aec2d46c46b41d7fc3005c8a99d6d74b6eaf#egg=nacsos_data

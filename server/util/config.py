@@ -1,7 +1,7 @@
 from typing import Any
 import secrets
 import json
-import yaml
+import toml
 import os
 
 from pydantic import BaseSettings, BaseModel, PostgresDsn, AnyHttpUrl, EmailStr, validator
@@ -114,7 +114,7 @@ class Settings(BaseSettings):
         filename = values.get('LOG_CONF_FILE', None)
         if filename is not None:
             with open(filename, 'r') as f:
-                ret = yaml.safe_load(f.read())
+                ret = toml.loads(f.read())
                 if type(ret) == dict:
                     return ret
         raise ValueError('Logging config invalid!')

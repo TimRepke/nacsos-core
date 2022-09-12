@@ -12,16 +12,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Double-check, that you get the correct version of starlette! https://github.com/tiangolo/fastapi/issues/4800
-
 For development, it is advised to install `nacsos-data` locally (not from git) via
 ```bash
 pip install -e ../nacsos-data/
 ```
 (assuming both projects reside side-by-side, otherwise adapt path accordingly)
 If you do so, please keep in mind to update the requirements!
-
-There needs to be a change to the hypercorn code as per https://gitlab.com/pgjones/hypercorn/-/merge_requests/70/diffs
 
 ## Running the database with docker
 Start up the database by running docker (or use your local instance)

@@ -121,6 +121,7 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
+        env_prefix = 'NACSOS_'
         env_nested_delimiter = '__'
 
 

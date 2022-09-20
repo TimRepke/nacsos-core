@@ -17,7 +17,7 @@ For development, it is advised to install `nacsos-data` locally (not from git) v
 pip install -e ../nacsos-data/
 ```
 (assuming both projects reside side-by-side, otherwise adapt path accordingly)
-If you do so, please keep in mind to update the requirements!
+If you do so, please keep in mind to update the requirements and temporarily commenting out the respective line in `requirements.txt` when installing the other requirements!
 
 ## Running the database with docker
 Start up the database by running docker (or use your local instance)

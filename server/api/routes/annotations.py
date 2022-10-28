@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
-from nacsos_data.models.annotations import AnnotationSchemeModel, \
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
+from nacsos_data.models.annotations import \
+    AnnotationSchemeModel, \
     AssignmentScopeModel, \
     AssignmentModel, \
     AssignmentStatus, \
-    AssignmentScopeConfig
+    AssignmentScopeConfig, \
+    AnnotationSchemeModelFlat
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.db.crud.items import read_any_item_by_item_id
 from nacsos_data.db.crud.projects import read_project_by_id
@@ -30,7 +32,11 @@ from nacsos_data.db.crud.annotations import \
     AssignmentCounts, \
     UserProjectAssignmentScope, \
     store_assignments
-from nacsos_data.util.annotations.validation import merge_scheme_and_annotations, annotated_scheme_to_annotations
+from nacsos_data.util.annotations.resolve import AnnotationMatrix, AnnotationFilters, get_item_annotation_matrix
+from nacsos_data.util.annotations.validation import \
+    merge_scheme_and_annotations, \
+    annotated_scheme_to_annotations, \
+    flatten_annotation_scheme
 from nacsos_data.util.annotations.assignments.random import random_assignments
 
 from pydantic import BaseModel
@@ -53,16 +59,21 @@ class AnnotationItem(AnnotatedItem):
     item: AnyItemModel
 
 
-@router.get('/schemes/definition/{annotation_scheme_id}', response_model=AnnotationSchemeModel)
-async def get_scheme_definition(annotation_scheme_id: str) -> AnnotationSchemeModel:
+@router.get('/schemes/definition/{annotation_scheme_id}',
+            response_model=AnnotationSchemeModel | AnnotationSchemeModelFlat)
+async def get_scheme_definition(annotation_scheme_id: str,
+                                flat: bool = Query(default=False)) -> AnnotationSchemeModel | AnnotationSchemeModelFlat:
     """
     This endpoint returns the detailed definition of an annotation scheme.
 
     :param annotation_scheme_id: database id of the annotation scheme.
+    :param flat: True to get the flattened scheme
     :return: a single annotation scheme
     """
     scheme = await read_annotation_scheme(annotation_scheme_id=annotation_scheme_id, engine=db_engine)
     if scheme is not None:
+        if flat:
+            return flatten_annotation_scheme(scheme)
         return scheme
     raise AnnotationSchemeNotFoundError(f'No `AnnotationScheme` found in DB for id {annotation_scheme_id}')
 
@@ -296,3 +307,33 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
         await store_assignments(assignments=assignments, engine=db_engine)
 
     return assignments
+
+
+@router.get('/config/resolve/', response_model=AnnotationMatrix)
+async def send_item_annotation_matrix(scheme_id: str | None = None,
+                                      scope_id: str | None = None,
+                                      user_id: str | None = None,
+                                      key: list[str] | None = Query(default=None),
+                                      repeat: int | None = None,
+                                      exclude_key: list[str] | None = Query(default=None),
+                                      permissions=Depends(UserPermissionChecker('annotations_edit'))):
+    if key is not None:
+        key = key[0] if len(key) == 1 else tuple(key)
+    if exclude_key is not None:
+        exclude_key = exclude_key[0] if len(exclude_key) == 1 else tuple(exclude_key)
+    filters = AnnotationFilters(
+        scheme_id=scheme_id,
+        scope_id=scope_id,
+        user_id=user_id,
+        key=key,
+        repeat=repeat,
+        exclude_key=exclude_key
+    )
+    return await get_item_annotation_matrix(engine=db_engine, filters=filters)
+
+
+@router.get('/config/resolved/:bot_annotation_meta_id', response_model=AnnotationMatrix)
+async def send_resolved_annotations(bot_annotation_meta_id: str,
+                                    permissions=Depends(UserPermissionChecker('annotations_edit'))):
+    # TODO implement
+    pass

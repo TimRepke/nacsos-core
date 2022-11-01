@@ -17,7 +17,7 @@ async def get_project_permissions_current_user(permission: UserPermissions = Dep
     return permission.permissions
 
 
-@router.get('/list', response_model=list[ProjectPermissionsModel])
+@router.get('/list/{project_id}', response_model=list[ProjectPermissionsModel])
 async def get_all_project_permissions(project_id: str, permission=Depends(UserPermissionChecker('owner'))) \
         -> list[ProjectPermissionsModel] | None:
     if permission:

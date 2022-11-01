@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from nacsos_data.db.schemas import Project
 
 from nacsos_data.models.projects import ProjectTypeLiteral
 from nacsos_data.models.items import AnyItemModel
@@ -15,7 +16,7 @@ from nacsos_data.db.crud.items.twitter import \
     read_twitter_item_by_item_id, \
     create_twitter_item
 
-from server.api.errors import ItemNotFoundError
+from server.api.errors import ItemNotFoundError, NoDataForKeyError
 from server.data import db_engine
 from server.util.security import UserPermissionChecker
 from server.util.logging import get_logger
@@ -27,8 +28,9 @@ logger.info('Setting up data route')
 
 
 @router.get('/{item_type}/list', response_model=list[AnyItemModel])
-async def list_project_data(project_id: str, item_type: ProjectTypeLiteral,
+async def list_project_data(item_type: ProjectTypeLiteral,
                             permission=Depends(UserPermissionChecker('dataset_read'))):
+    project_id = permission.permissions.project_id
     if item_type == 'basic':
         return await read_all_basic_items_for_project(project_id=project_id, engine=db_engine)
     if item_type == 'twitter':
@@ -38,8 +40,9 @@ async def list_project_data(project_id: str, item_type: ProjectTypeLiteral,
 
 
 @router.get('/{item_type}/list/{page}/{page_size}', response_model=list[AnyItemModel])
-async def list_project_data_paged(project_id: str, item_type: ProjectTypeLiteral, page: int, page_size: int,
+async def list_project_data_paged(item_type: ProjectTypeLiteral, page: int, page_size: int,
                                   permission=Depends(UserPermissionChecker('dataset_read'))):
+    project_id = permission.permissions.project_id
     if item_type == 'basic':
         return await read_all_basic_items_for_project_paged(project_id=project_id,
                                                             page=page, page_size=page_size, engine=db_engine)
@@ -50,9 +53,16 @@ async def list_project_data_paged(project_id: str, item_type: ProjectTypeLiteral
                         detail=f'Paged data listing for {item_type} not implemented (yet).')
 
 
-@router.get('/{item_type}/detail/{item_id}', response_model=AnyItemModel)  # type: ignore[arg-type]
-async def get_detail_for_item(item_id: str, item_type: ProjectTypeLiteral,
+@router.get('/detail/{item_id}', response_model=AnyItemModel)
+async def get_detail_for_item(item_id: str,
+                              item_type: ProjectTypeLiteral | None = Query(default=None),
                               permission=Depends(UserPermissionChecker('dataset_read'))) -> AnyItemModel:
+    if item_type is None:
+        async with db_engine.session() as session:
+            project: Project | None = await session.get(Project, permission.permissions.project_id)
+            assert project is not None
+            item_type = project.type
+
     result: AnyItemModel | None = None
     if item_type == 'basic':
         result = await read_basic_item_by_item_id(item_id=item_id, engine=db_engine)
@@ -68,12 +78,12 @@ async def get_detail_for_item(item_id: str, item_type: ProjectTypeLiteral,
 
 
 @router.get('/count', response_model=int)
-async def count_project_items(project_id: str, permission=Depends(UserPermissionChecker('dataset_read'))) -> int:
-    tweets = await read_item_count_for_project(project_id=project_id, engine=db_engine)
+async def count_project_items(permission=Depends(UserPermissionChecker('dataset_read'))) -> int:
+    tweets = await read_item_count_for_project(project_id=permission.permissions.project_id, engine=db_engine)
     return tweets
 
 
 @router.post('/twitter/add')
-async def add_tweet(project_id: str, tweet: TwitterItemModel,
+async def add_tweet(tweet: TwitterItemModel,
                     permission=Depends(UserPermissionChecker('dataset_edit'))):
-    return await create_twitter_item(tweet=tweet, project_id=project_id, engine=db_engine)
+    return await create_twitter_item(tweet=tweet, project_id=permission.permissions.project_id, engine=db_engine)

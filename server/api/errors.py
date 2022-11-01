@@ -2,6 +2,10 @@ class DataNotFoundWarning(Warning):
     pass
 
 
+class NoDataForKeyError(Exception):
+    pass
+
+
 class ItemNotFoundError(Exception):
     pass
 

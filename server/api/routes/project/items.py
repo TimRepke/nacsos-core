@@ -16,7 +16,7 @@ from nacsos_data.db.crud.items.twitter import \
     read_twitter_item_by_item_id, \
     create_twitter_item
 
-from server.api.errors import ItemNotFoundError, NoDataForKeyError
+from server.api.errors import ItemNotFoundError
 from server.data import db_engine
 from server.util.security import UserPermissionChecker
 from server.util.logging import get_logger

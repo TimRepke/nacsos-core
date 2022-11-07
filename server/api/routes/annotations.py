@@ -10,7 +10,6 @@ from nacsos_data.models.annotations import \
 from nacsos_data.models.bot_annotations import \
     ResolutionMethod, \
     AnnotationFilters, \
-    ResolvedAnnotations, \
     BotAnnotationModel, \
     AnnotationMatrix, \
     BotMetaResolve

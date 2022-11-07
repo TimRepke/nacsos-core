@@ -7,4 +7,4 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 httpx[http2]==0.23.0
 pymitter==0.4.0
--e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@7c43f6c6a3c1a0c9f4acda5549b56f6d1f8451bb#egg=nacsos_data
+-e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@c098cc598a4e40ac576085e3c8f4a1f6e22d177f#egg=nacsos_data

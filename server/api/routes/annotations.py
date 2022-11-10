@@ -11,7 +11,7 @@ from nacsos_data.models.bot_annotations import \
     ResolutionMethod, \
     AnnotationFilters, \
     BotAnnotationModel, \
-    AnnotationMatrix, \
+    AnnotationCollection, \
     BotMetaResolve
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.db.crud.items import read_any_item_by_item_id
@@ -48,6 +48,7 @@ from nacsos_data.util.annotations.validation import \
     flatten_annotation_scheme
 from nacsos_data.util.annotations.assignments.random import random_assignments
 
+from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -321,28 +322,24 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
 
 
 class ResolutionProposalResponse(BaseModel):
-    matrix: AnnotationMatrix
+    collection: AnnotationCollection
     proposal: list[BotAnnotationModel]
 
 
 class SavedResolutionResponse(BaseModel):
-    bot_annotation_metadata_id: str
-    name: str
-    project_id: str
-    annotation_scope_id: str | None = None
-    annotation_scheme_id: str | None = None
-
     meta: BotMetaResolve
     saved: list[BotAnnotationModel]
 
 
 @router.get('/config/resolve/', response_model=ResolutionProposalResponse)
 async def get_item_annotation_matrix(strategy: ResolutionMethod,
-                                     scheme_id: str | None = None,
+                                     scheme_id: str,
                                      scope_id: list[str] | None = Query(default=None),
                                      user_id: list[str] | None = Query(default=None),
                                      key: list[str] | None = Query(default=None),
                                      repeat: list[int] | None = Query(default=None),
+                                     ignore_order: bool | None = Query(default=False),
+                                     ignore_hierarchy: bool | None = Query(default=False),
                                      permissions=Depends(UserPermissionChecker('annotations_edit'))):
     """
     Get all annotations that match the filters (e.g. all annotations made by users in scope with :scope_id).
@@ -358,6 +355,8 @@ async def get_item_annotation_matrix(strategy: ResolutionMethod,
     :param key:
     :param repeat:
     :param permissions:
+    :param ignore_order:
+    :param ignore_hierarchy:
     :return:
     """
     filters = AnnotationFilters(
@@ -367,21 +366,12 @@ async def get_item_annotation_matrix(strategy: ResolutionMethod,
         key=key,
         repeat=repeat,
     )
-    matrix, proposal = await get_resolved_item_annotations(strategy=strategy,
-                                                           filters=AnnotationFilterObject.parse_obj(filters),
-                                                           db_engine=db_engine)
-    return ResolutionProposalResponse(matrix=matrix,
-                                      proposal=[BotAnnotationModel(
-                                          item_id=item_id,
-                                          key=matrix.labels[i][-1].key,
-                                          repeat=matrix.labels[i][-1].repeat,
-                                          value_int=p.v_int,
-                                          value_str=p.v_str,
-                                          value_bool=p.v_bool,
-                                          value_float=p.v_float,
-                                      ) for item_id, annotations in proposal.items()
-                                          for i, p in enumerate(annotations)
-                                          if p is not None])
+    collection, resolved = await get_resolved_item_annotations(strategy=strategy,
+                                                               filters=AnnotationFilterObject.parse_obj(filters),
+                                                               ignore_order=ignore_order,
+                                                               ignore_hierarchy=ignore_hierarchy,
+                                                               db_engine=db_engine)
+    return ResolutionProposalResponse(collection=collection, proposal=resolved)
 
 
 @router.get('/config/resolved/:bot_annotation_meta_id', response_model=SavedResolutionResponse)
@@ -391,15 +381,10 @@ async def get_saved_resolved_annotations(bot_annotation_meta_id: str,
         meta = await session.get(BotAnnotationMetaData, bot_annotation_meta_id)
         if meta is None:
             raise NoDataForKeyError(f'No `BotAnnotationMetaData` for "{bot_annotation_meta_id}"!')
-        annotations = (await session.scalars(
+        bot_annotations = (await session.scalars(
             select(BotAnnotation).where(BotAnnotation.bot_annotation_metadata_id == bot_annotation_meta_id))).all()
 
         return SavedResolutionResponse(
-            bot_annotation_metadata_id=meta.bot_annotation_metadata_id,
-            name=meta.name,
-            project_id=meta.project_id,
-            annotation_scope_id=meta.annotation_scope_id,
-            annotation_scheme_id=meta.annotation_scheme_id,
             meta=meta.meta,
-            saved=annotations
+            saved=[BotAnnotationModel.parse_obj(bot_annotation)for bot_annotation in bot_annotations]
         )

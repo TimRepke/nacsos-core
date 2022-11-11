@@ -1,4 +1,8 @@
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
+
 from nacsos_data.db.schemas import BotAnnotationMetaData, BotAnnotation
 from nacsos_data.models.annotations import \
     AnnotationSchemeModel, \
@@ -6,7 +10,8 @@ from nacsos_data.models.annotations import \
     AssignmentModel, \
     AssignmentStatus, \
     AssignmentScopeConfig, \
-    AnnotationSchemeModelFlat
+    AnnotationSchemeModelFlat, \
+    FlattenedAnnotationSchemeLabel
 from nacsos_data.models.bot_annotations import \
     ResolutionMethod, \
     AnnotationFilters, \
@@ -48,13 +53,14 @@ from nacsos_data.util.annotations.validation import \
     flatten_annotation_scheme
 from nacsos_data.util.annotations.assignments.random import random_assignments
 
-from uuid import UUID
-from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from server.api.errors import SaveFailedError, AssignmentScopeNotFoundError, NoNextAssignmentWarning, \
-    ProjectNotFoundError, AnnotationSchemeNotFoundError, MissingInformationError, NoDataForKeyError
+from server.api.errors import \
+    SaveFailedError, \
+    AssignmentScopeNotFoundError, \
+    NoNextAssignmentWarning, \
+    ProjectNotFoundError, \
+    AnnotationSchemeNotFoundError, \
+    MissingInformationError, \
+    NoDataForKeyError
 from server.util.security import UserPermissionChecker
 from server.data import db_engine
 
@@ -324,6 +330,7 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
 class ResolutionProposalResponse(BaseModel):
     collection: AnnotationCollection
     proposal: list[BotAnnotationModel]
+    scheme_flat: list[FlattenedAnnotationSchemeLabel]
 
 
 class SavedResolutionResponse(BaseModel):
@@ -366,12 +373,17 @@ async def get_item_annotation_matrix(strategy: ResolutionMethod,
         key=key,
         repeat=repeat,
     )
-    collection, resolved = await get_resolved_item_annotations(strategy=strategy,
-                                                               filters=AnnotationFilterObject.parse_obj(filters),
-                                                               ignore_order=ignore_order,
-                                                               ignore_hierarchy=ignore_hierarchy,
-                                                               db_engine=db_engine)
-    return ResolutionProposalResponse(collection=collection, proposal=resolved)
+    if ignore_hierarchy is None:
+        ignore_hierarchy = False
+    if ignore_order is None:
+        ignore_order = False
+    scheme, flat_labels, collection, resolved = \
+        await get_resolved_item_annotations(strategy=strategy,
+                                            filters=AnnotationFilterObject.parse_obj(filters),
+                                            ignore_order=ignore_order,
+                                            ignore_hierarchy=ignore_hierarchy,
+                                            db_engine=db_engine)
+    return ResolutionProposalResponse(collection=collection, proposal=resolved, scheme_flat=flat_labels)
 
 
 @router.get('/config/resolved/:bot_annotation_meta_id', response_model=SavedResolutionResponse)
@@ -386,5 +398,5 @@ async def get_saved_resolved_annotations(bot_annotation_meta_id: str,
 
         return SavedResolutionResponse(
             meta=meta.meta,
-            saved=[BotAnnotationModel.parse_obj(bot_annotation)for bot_annotation in bot_annotations]
+            saved=[BotAnnotationModel.parse_obj(bot_annotation) for bot_annotation in bot_annotations]
         )

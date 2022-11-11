@@ -42,7 +42,7 @@ async def list_project_data(item_type: ItemTypeLiteral,
 async def list_project_data_paged(item_type: ItemTypeLiteral, page: int, page_size: int,
                                   permission=Depends(UserPermissionChecker('dataset_read'))):
     project_id = permission.permissions.project_id
-    if item_type == 'basic':
+    if item_type == 'generic':
         return await read_paged_for_project(Model=GenericItemModel, Schema=GenericItem,
                                             page=page, page_size=page_size,
                                             project_id=project_id, engine=db_engine)

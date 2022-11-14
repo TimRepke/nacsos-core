@@ -17,7 +17,8 @@ from nacsos_data.models.bot_annotations import \
     AnnotationFilters, \
     BotAnnotationModel, \
     AnnotationCollection, \
-    BotMetaResolve
+    BotMetaResolve,\
+    GroupedBotAnnotation
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.db.crud.items import read_any_item_by_item_id
 from nacsos_data.db.crud.projects import read_project_by_id
@@ -110,11 +111,14 @@ async def remove_annotation_scheme(annotation_scheme_id: str,
 
 
 @router.get('/schemes/list/{project_id}', response_model=list[AnnotationSchemeModel])
-async def get_scheme_definitions_for_project(project_id: str) -> list[AnnotationSchemeModel]:
+async def get_scheme_definitions_for_project(project_id: str,
+                                             permissions=Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[AnnotationSchemeModel]:
     """
     This endpoint returns the detailed definitions of all annotation schemes associated with a project.
 
     :param project_id: database id of the project
+    :param permissions:
     :return: list of annotation schemes
     """
     return await read_annotation_schemes_for_project(project_id=project_id, db_engine=db_engine)
@@ -329,25 +333,25 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
 
 class ResolutionProposalResponse(BaseModel):
     collection: AnnotationCollection
-    proposal: list[BotAnnotationModel]
+    proposal: dict[str, list[GroupedBotAnnotation]]
     scheme_flat: list[FlattenedAnnotationSchemeLabel]
 
 
 class SavedResolutionResponse(BaseModel):
     meta: BotMetaResolve
-    saved: list[BotAnnotationModel]
+    saved: dict[str, list[BotAnnotationModel]]
 
 
 @router.get('/config/resolve/', response_model=ResolutionProposalResponse)
-async def get_item_annotation_matrix(strategy: ResolutionMethod,
-                                     scheme_id: str,
-                                     scope_id: list[str] | None = Query(default=None),
-                                     user_id: list[str] | None = Query(default=None),
-                                     key: list[str] | None = Query(default=None),
-                                     repeat: list[int] | None = Query(default=None),
-                                     ignore_order: bool | None = Query(default=False),
-                                     ignore_hierarchy: bool | None = Query(default=False),
-                                     permissions=Depends(UserPermissionChecker('annotations_edit'))):
+async def get_resolved_annotations(strategy: ResolutionMethod,
+                                   scheme_id: str,
+                                   scope_id: list[str] | None = Query(default=None),
+                                   user_id: list[str] | None = Query(default=None),
+                                   key: list[str] | None = Query(default=None),
+                                   repeat: list[int] | None = Query(default=None),
+                                   ignore_order: bool | None = Query(default=False),
+                                   ignore_hierarchy: bool | None = Query(default=False),
+                                   permissions=Depends(UserPermissionChecker('annotations_edit'))):
     """
     Get all annotations that match the filters (e.g. all annotations made by users in scope with :scope_id).
     Annotations are returned in a 3D matrix:
@@ -383,6 +387,7 @@ async def get_item_annotation_matrix(strategy: ResolutionMethod,
                                             ignore_order=ignore_order,
                                             ignore_hierarchy=ignore_hierarchy,
                                             db_engine=db_engine)
+
     return ResolutionProposalResponse(collection=collection, proposal=resolved, scheme_flat=flat_labels)
 
 
@@ -398,5 +403,7 @@ async def get_saved_resolved_annotations(bot_annotation_meta_id: str,
 
         return SavedResolutionResponse(
             meta=meta.meta,
-            saved=[BotAnnotationModel.parse_obj(bot_annotation) for bot_annotation in bot_annotations]
+            # FIXME
+            saved={}
+            # saved=[BotAnnotationModel.parse_obj(bot_annotation) for bot_annotation in bot_annotations]
         )

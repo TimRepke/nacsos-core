@@ -1,9 +1,14 @@
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.orm import load_only
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
-from nacsos_data.db.schemas import BotAnnotationMetaData, BotAnnotation
+from nacsos_data.db.schemas import \
+    BotAnnotationMetaData, \
+    AssignmentScope, \
+    User, \
+    Annotation
 from nacsos_data.models.annotations import \
     AnnotationSchemeModel, \
     AssignmentScopeModel, \
@@ -17,8 +22,9 @@ from nacsos_data.models.bot_annotations import \
     AnnotationFilters, \
     BotAnnotationModel, \
     AnnotationCollection, \
-    BotMetaResolve,\
-    GroupedBotAnnotation
+    BotMetaResolve, \
+    GroupedBotAnnotation, AnnotationCollectionDB, BotKind, BotAnnotationMetaDataBaseModel
+from nacsos_data.models.users import UserModel
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.db.crud.items import read_any_item_by_item_id
 from nacsos_data.db.crud.projects import read_project_by_id
@@ -44,10 +50,11 @@ from nacsos_data.db.crud.annotations import \
     ItemWithCount, \
     AssignmentCounts, \
     UserProjectAssignmentScope, \
-    store_assignments
+    store_assignments, \
+    store_resolved_bot_annotations, update_resolved_bot_annotations
 from nacsos_data.util.annotations.resolve import \
     AnnotationFilterObject, \
-    get_resolved_item_annotations
+    get_resolved_item_annotations, read_bot_annotations
 from nacsos_data.util.annotations.validation import \
     merge_scheme_and_annotations, \
     annotated_scheme_to_annotations, \
@@ -60,8 +67,7 @@ from server.api.errors import \
     NoNextAssignmentWarning, \
     ProjectNotFoundError, \
     AnnotationSchemeNotFoundError, \
-    MissingInformationError, \
-    NoDataForKeyError
+    MissingInformationError
 from server.util.security import UserPermissionChecker
 from server.data import db_engine
 
@@ -79,14 +85,17 @@ class AnnotationItem(AnnotatedItem):
 
 
 @router.get('/schemes/definition/{annotation_scheme_id}',
-            response_model=AnnotationSchemeModel | AnnotationSchemeModelFlat)
+            response_model=AnnotationSchemeModelFlat | AnnotationSchemeModel)
 async def get_scheme_definition(annotation_scheme_id: str,
-                                flat: bool = Query(default=False)) -> AnnotationSchemeModel | AnnotationSchemeModelFlat:
+                                flat: bool = Query(default=False),
+                                permissions=Depends(UserPermissionChecker('annotations_read'))) \
+        -> AnnotationSchemeModelFlat | AnnotationSchemeModel:
     """
     This endpoint returns the detailed definition of an annotation scheme.
 
     :param annotation_scheme_id: database id of the annotation scheme.
     :param flat: True to get the flattened scheme
+    :param permissions:
     :return: a single annotation scheme
     """
     scheme = await read_annotation_scheme(annotation_scheme_id=annotation_scheme_id, db_engine=db_engine)
@@ -331,6 +340,30 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
     return assignments
 
 
+@router.get('/config/scopes/{scheme_id}', response_model=list[AssignmentScopeModel])
+async def get_assignment_scopes_for_scheme(scheme_id: str,
+                                           permissions=Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[AssignmentScopeModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        return [AssignmentScopeModel.parse_obj(scope.__dict__)
+                for scope in (await session.execute(select(AssignmentScope)
+                                                    .where(AssignmentScope.annotation_scheme_id == scheme_id))
+                              ).scalars().all()]
+
+
+@router.get('/config/annotators/{scheme_id}', response_model=list[UserModel])
+async def get_annotators_for_scheme(scheme_id: str,
+                                    permissions=Depends(UserPermissionChecker('annotations_edit'))) \
+        -> list[UserModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        return [UserModel.parse_obj(user.__dict__)
+                for user in (
+                    await session.execute(select(User)
+                                          .join(Annotation)
+                                          .distinct()
+                                          .where(Annotation.annotation_scheme_id == scheme_id))).scalars().all()]
+
+
 class ResolutionProposalResponse(BaseModel):
     collection: AnnotationCollection
     proposal: dict[str, list[GroupedBotAnnotation]]
@@ -338,8 +371,9 @@ class ResolutionProposalResponse(BaseModel):
 
 
 class SavedResolutionResponse(BaseModel):
+    name: str
     meta: BotMetaResolve
-    saved: dict[str, list[BotAnnotationModel]]
+    saved: dict[str, list[GroupedBotAnnotation]]
 
 
 @router.get('/config/resolve/', response_model=ResolutionProposalResponse)
@@ -391,19 +425,78 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
     return ResolutionProposalResponse(collection=collection, proposal=resolved, scheme_flat=flat_labels)
 
 
-@router.get('/config/resolved/:bot_annotation_meta_id', response_model=SavedResolutionResponse)
-async def get_saved_resolved_annotations(bot_annotation_meta_id: str,
-                                         permissions=Depends(UserPermissionChecker('annotations_edit'))):
-    async with db_engine.session() as session:  # type: AsyncSession
-        meta = await session.get(BotAnnotationMetaData, bot_annotation_meta_id)
-        if meta is None:
-            raise NoDataForKeyError(f'No `BotAnnotationMetaData` for "{bot_annotation_meta_id}"!')
-        bot_annotations = (await session.scalars(
-            select(BotAnnotation).where(BotAnnotation.bot_annotation_metadata_id == bot_annotation_meta_id))).all()
+class ResolutionPayload(BaseModel):
+    name: str
+    strategy: ResolutionMethod
+    filters: AnnotationFilters
+    ignore_order: bool
+    ignore_hierarchy: bool
+    collection: AnnotationCollectionDB
+    bot_annotations: list[BotAnnotationModel]
 
+
+@router.put('/config/resolve/', response_model=str)
+async def save_resolved_annotations(data: ResolutionPayload,
+                                    permissions=Depends(UserPermissionChecker('annotations_edit'))):
+    meta_id = await store_resolved_bot_annotations(
+        project_id=permissions.permissions.project_id, name=data.name, algorithm=data.strategy,
+        filters=data.filters, ignore_hierarchy=data.ignore_hierarchy, ignore_repeat=data.ignore_order,
+        collection=data.collection, bot_annotations=data.bot_annotations, db_engine=db_engine)
+    return meta_id
+
+
+@router.put('/config/resolve/update')
+async def update_resolved_annotations(bot_annotation_metadata_id: str,
+                                      name: str,
+                                      bot_annotations: list[BotAnnotationModel],
+                                      permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    await update_resolved_bot_annotations(bot_annotation_metadata_id=bot_annotation_metadata_id,
+                                          name=name, bot_annotations=bot_annotations, db_engine=db_engine)
+
+
+@router.get('/config/resolved-list/', response_model=list[BotAnnotationMetaDataBaseModel])
+async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChecker('annotations_read'))):
+    async with db_engine.session() as session:  # type: AsyncSession
+        exports = (await session.execute(
+            select(BotAnnotationMetaData)
+            .where(BotAnnotationMetaData.project_id == permissions.permissions.project_id,
+                   BotAnnotationMetaData.kind == BotKind.RESOLVE)
+            .options(load_only(BotAnnotationMetaData.bot_annotation_metadata_id,
+                               BotAnnotationMetaData.annotation_scheme_id,
+                               BotAnnotationMetaData.annotation_scope_id,
+                               BotAnnotationMetaData.project_id,
+                               BotAnnotationMetaData.name,
+                               BotAnnotationMetaData.kind,
+                               BotAnnotationMetaData.time_updated,
+                               BotAnnotationMetaData.time_created)))) \
+            .scalars().all()
+        print([BotAnnotationMetaDataBaseModel.parse_obj(e.__dict__) for e in exports])
+        return [BotAnnotationMetaDataBaseModel.parse_obj(e.__dict__) for e in exports]
+
+
+@router.get('/config/resolved/:bot_annotation_meta_id', response_model=SavedResolutionResponse)
+async def get_saved_resolved_annotations(bot_annotation_metadata_id: str,
+                                         permissions=Depends(UserPermissionChecker('annotations_edit'))):
+    bot_annotations = await read_bot_annotations(bot_annotation_metadata_id=bot_annotation_metadata_id,
+                                                 db_engine=db_engine)
+    async with db_engine.session() as session:  # type: AsyncSession
+        meta: BotAnnotationMetaData = (await session.execute(
+            select(BotAnnotationMetaData)
+            .where(BotAnnotationMetaData.bot_annotation_metadata_id == bot_annotation_metadata_id))) \
+            .scalars().one()
         return SavedResolutionResponse(
+            name=meta.name,
             meta=meta.meta,
-            # FIXME
-            saved={}
-            # saved=[BotAnnotationModel.parse_obj(bot_annotation) for bot_annotation in bot_annotations]
+            saved=bot_annotations
         )
+
+
+@router.delete('/config/resolved/:bot_annotation_meta_id')
+async def delete_saved_resolved_annotations(bot_annotation_metadata_id: str,
+                                            permissions=Depends(UserPermissionChecker('annotations_edit'))):
+    async with db_engine.session() as session:  # type: AsyncSession
+        meta: BotAnnotationMetaData = (await session.execute(
+            select(BotAnnotationMetaData)
+            .where(BotAnnotationMetaData.bot_annotation_metadata_id == bot_annotation_metadata_id))) \
+            .scalars().one()
+        await session.delete(meta)

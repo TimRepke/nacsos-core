@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 
 from server.api.errors import DataNotFoundWarning, UserNotFoundError
 from server.util.logging import get_logger
-from nacsos_data.models.users import UserModel, UserInDBModel
+from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
 from nacsos_data.db.crud.users import \
     read_all_users, \
     read_user_by_id, \
@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 # FIXME refine required permission
-@router.get('/list/all', response_model=list[UserModel])
+@router.get('/list/all', response_model=list[UserBaseModel])
 async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
     result = await read_all_users(engine=db_engine)
@@ -24,7 +24,7 @@ async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChe
 
 
 # FIXME refine required permission
-@router.get('/list/project/{project_id}', response_model=list[UserModel])
+@router.get('/list/project/{project_id}', response_model=list[UserBaseModel])
 async def get_project_users(project_id: str,
                             permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:

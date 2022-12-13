@@ -23,6 +23,11 @@ cache:
     - .cache/pip
     - venv/
 
+stages:
+  - build
+  - test
+  - deploy
+
 build-job:
   stage: build
   script:
@@ -48,14 +53,26 @@ test-job2:
     - source venv/bin/activate
     - mypy --config-file=pyproject.toml server
 
-
-#pages:
-#  script:
-#    - pip install sphinx sphinx-rtd-theme
-#    - cd doc ; make html
-#    - mv build/html/ ../public/
-#  artifacts:
-#    paths:
-#      - public
-#  rules:
-#    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+deploy-to-production:
+  stage: deploy
+  script:
+    - echo "Becoming 'nacsos' user"
+    - su - nacsos
+    - cd /home/nacsos/nacsos-core
+    - echo "Stopping NACSOS-core service"
+    - systemctl --user stop nacsos-core
+    - echo "Dropping virtual environment"
+    - rm -rf venv
+    - echo "Fetching updated source"
+    - git stash  # "reset" softly by stashing (in case files changed)
+    - git pull origin production  # pull from origin (production branch)
+    - echo "Creating new virtual environment"
+    - python3.10 -m venv venv
+    - source venv/bin/activate
+    - echo "Installing requirements"
+    - pip install -r requirements.txt
+    - echo "Exiting 'nacsos' user scope"
+    - echo "Starting NACSOS-core service"
+    - systemctl --user start nacsos-core
+  only:
+    - production

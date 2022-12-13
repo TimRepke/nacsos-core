@@ -5,7 +5,7 @@ from nacsos_data.db.crud.imports import \
     read_all_imports_for_project, \
     read_import, upsert_import, \
     read_item_count_for_import
-from nacsos_data.util.pipelines.imports import submit_jsonl_import_task
+from nacsos_data.util.pipelines.imports import submit_jsonl_import_task, submit_wos_import_task
 
 from server.data import db_engine
 from server.util.security import UserPermissionChecker, UserPermissions, InsufficientPermissions
@@ -63,6 +63,10 @@ async def trigger_import(import_id: str,
             await submit_jsonl_import_task(import_id=import_id,
                                            base_url=settings.PIPES.API_URL,
                                            engine=db_engine)
+        elif import_details.type == ImportType.wos:
+            await submit_wos_import_task(import_id=import_id,
+                                         base_url=settings.PIPES.API_URL,
+                                         engine=db_engine)
         else:
             raise NotImplementedError(f'No import trigger for "{import_details.type}" implemented yet.')
     else:

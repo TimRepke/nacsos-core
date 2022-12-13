@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from nacsos_data.models.users import UserModel
+from nacsos_data.db.crud.users import authenticate_user_by_name
 
-from server.util.security import Token, authenticate_user, get_current_active_user, create_access_token
+from server.util.security import Token, get_current_active_user, create_access_token
 from server.util.config import settings
 from server.util.logging import get_logger
+from server.data import db_engine
 
 logger = get_logger('nacsos.api.route.login')
 router = APIRouter()
@@ -17,8 +19,8 @@ logger.info('Setting up login route')
 
 @router.post('/token', response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await authenticate_user(form_data.username, form_data.password)
-    if not user:
+    user = await authenticate_user_by_name(form_data.username, form_data.password, engine=db_engine)
+    if not user or not user.username:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Incorrect username or password',

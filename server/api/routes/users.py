@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status as http_status
 
 from server.api.errors import DataNotFoundWarning, UserNotFoundError
 from server.util.logging import get_logger
 from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
 from nacsos_data.db.crud.users import \
-    read_all_users, \
+    read_users, \
     read_user_by_id, \
     read_users_by_ids, \
-    read_project_users
-from server.util.security import UserPermissionChecker, UserPermissions
+    create_or_update_user
+from server.util.security import UserPermissionChecker, UserPermissions, get_current_active_user
 from server.data import db_engine
 
 logger = get_logger('nacsos.api.route.admin.users')
@@ -19,7 +19,9 @@ router = APIRouter()
 @router.get('/list/all', response_model=list[UserBaseModel])
 async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
-    result = await read_all_users(engine=db_engine)
+    result = await read_users(project_id=None, order_by_username=True, engine=db_engine)
+    if result is None:
+        return []
     return result
 
 
@@ -28,7 +30,7 @@ async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChe
 async def get_project_users(project_id: str,
                             permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserInDBModel]:
-    result = await read_project_users(project_id=project_id, engine=db_engine)
+    result = await read_users(project_id=project_id, order_by_username=True, engine=db_engine)
     if result is not None:
         return result
     raise DataNotFoundWarning(f'Found no users for project with ID {project_id}')
@@ -54,3 +56,15 @@ async def get_users_by_ids(user_id: list[str] = Query(),
     if result is not None:
         return result
     raise UserNotFoundError(f'Users not found in DB for IDs {user_id}')
+
+
+@router.put('/details')
+async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = Depends(get_current_active_user)):
+    # Users can only edit their own info, admins can edit all.
+    if user.user_id != current_user.user_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail='You do not have permission to perform this action.',
+        )
+
+    await create_or_update_user(user, engine=db_engine)

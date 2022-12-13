@@ -2,7 +2,6 @@ from typing import Optional
 from datetime import timedelta, datetime
 from pydantic import BaseModel
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status as http_status, Header
 from fastapi.security import OAuth2PasswordBearer
 
@@ -38,25 +37,7 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 
-pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=False)
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-async def authenticate_user(username: str, plain_password: str):
-    user = await crud_get_user_by_name(username=username, engine=db_engine)
-    if not user:
-        return False
-    if not verify_password(plain_password, user.password):
-        return False
-    return user
 
 
 def create_access_token(data: dict[str, str | datetime], expires_delta: Optional[timedelta] = None):

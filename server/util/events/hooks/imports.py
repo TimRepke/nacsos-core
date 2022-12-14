@@ -14,7 +14,8 @@ async def update_import_status(event: PipelineTaskStatusChangedEvent):
     logger.debug(f'Maybe going to update import status {event}')
     if event.function_name in [
         'nacsos_lib.twitter.import.import_twitter_api',
-        'nacsos_lib.twitter.import.import_twitter_db'
+        'nacsos_lib.twitter.import.import_twitter_db',
+        'nacsos_lib.academic.import.import_wos_file'
     ]:
         async with db_engine.session() as session:
 

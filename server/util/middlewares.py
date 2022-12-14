@@ -62,7 +62,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 # FIXME: The Pydantic Validation Error triggers an exception when logging the error.
                 error_str = str(ew)
                 logger.exception(ew)
-            except Error:
+            except Error:  # type: ignore[misc]
                 logger.error('Some unspecified error occurred...')
 
             return await http_exception_handler(

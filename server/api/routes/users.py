@@ -58,7 +58,7 @@ async def get_users_by_ids(user_id: list[str] = Query(),
     raise UserNotFoundError(f'Users not found in DB for IDs {user_id}')
 
 
-@router.put('/details')
+@router.put('/details', response_model=str)
 async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = Depends(get_current_active_user)):
     # Users can only edit their own info, admins can edit all.
     if user.user_id != current_user.user_id and not current_user.is_superuser:
@@ -67,4 +67,4 @@ async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = D
             detail='You do not have permission to perform this action.',
         )
 
-    await create_or_update_user(user, engine=db_engine)
+    return await create_or_update_user(user, engine=db_engine)

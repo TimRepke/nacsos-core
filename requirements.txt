@@ -5,8 +5,8 @@ email-validator==1.3.0
 python-dotenv==0.21.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-httpx[http2]==0.23.0
+httpx[http2]==0.23.1
 pymitter==0.4.0
 uvicorn==0.20.0
 python-multipart==0.0.5
--e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@198a292a563945011fc2b18295c8ffadd9382fc2#egg=nacsos_data
+-e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@d98b527cada27517332d195028d9bacea93844f5#egg=nacsos_data

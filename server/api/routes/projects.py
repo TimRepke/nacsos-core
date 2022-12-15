@@ -14,7 +14,7 @@ from server.util.security import get_current_active_user, get_current_active_sup
 from server.util.logging import get_logger
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 logger = get_logger('nacsos.api.route.projects')
 router = APIRouter()
@@ -48,4 +48,4 @@ async def create_project(project: ProjectModel,
             project.project_id = str(uuid.uuid4())
         session.add(Project(**project.dict()))
         await session.commit()
-    return project.project_id
+        return str(project.project_id)

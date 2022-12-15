@@ -56,15 +56,25 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         except (Exception, Warning) as ew:
-            logger.exception(ew)
+
+            error_str = 'Unknown error (very serious stuff...)'
+            try:
+                # FIXME: The Pydantic Validation Error triggers an exception when logging the error.
+                error_str = str(ew)
+                logger.exception(ew)
+            except Error:  # type: ignore[misc]
+                logger.error('Some unspecified error occurred...')
+
             return await http_exception_handler(
                 request,
                 exc=HTTPException(
                     status_code=self._resolve_status(ew),
-                    detail=ErrorDetail(level='WARNING' if isinstance(ew, Warning) else 'ERROR',
-                                       type=ew.__class__.__name__,
-                                       message=str(ew),
-                                       args=self._resolve_args(ew)).dict()
+                    detail=ErrorDetail(
+                        level='WARNING' if isinstance(ew, Warning) else 'ERROR',
+                        type=ew.__class__.__name__,
+                        message=error_str,
+                        args=self._resolve_args(ew)
+                    ).dict()
                 ))
 
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem
 
-from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel
+from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel, AnyItemModelList
 from nacsos_data.models.items.twitter import TwitterItemModel
 from nacsos_data.db.crud.items import \
     read_item_count_for_project, \
@@ -25,7 +25,7 @@ router = APIRouter()
 logger.info('Setting up data route')
 
 
-@router.get('/{item_type}/list', response_model=list[AnyItemModel])
+@router.get('/{item_type}/list', response_model=AnyItemModelList)
 async def list_project_data(item_type: ItemTypeLiteral,
                             permission=Depends(UserPermissionChecker('dataset_read'))):
     project_id = permission.permissions.project_id
@@ -41,7 +41,7 @@ async def list_project_data(item_type: ItemTypeLiteral,
                         detail=f'Data listing for {item_type} not implemented (yet).')
 
 
-@router.get('/{item_type}/list/{page}/{page_size}', response_model=list[AnyItemModel])
+@router.get('/{item_type}/list/{page}/{page_size}', response_model=AnyItemModelList)
 async def list_project_data_paged(item_type: ItemTypeLiteral, page: int, page_size: int,
                                   permission=Depends(UserPermissionChecker('dataset_read'))):
     project_id = permission.permissions.project_id

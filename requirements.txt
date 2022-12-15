@@ -1,4 +1,4 @@
-fastapi==0.85.1
+fastapi==0.88.0
 hypercorn==0.14.3
 toml==0.10.2
 email-validator==1.3.0
@@ -9,4 +9,4 @@ httpx[http2]==0.23.0
 pymitter==0.4.0
 uvicorn==0.20.0
 python-multipart==0.0.5
-#-e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@0f8f81c5b0f95591a738ae3082c54e17f1e90c5c#egg=nacsos_data
+-e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@0ef99deeba3ea7f9f7efe4569d8e050e48494ace#egg=nacsos_data

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem
+from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem
 
-from nacsos_data.models.items import AnyItemModel, GenericItemModel
+from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel, AnyItemModelList
 from nacsos_data.models.items.twitter import TwitterItemModel
 from nacsos_data.db.crud.items import \
     read_item_count_for_project, \
@@ -25,12 +25,15 @@ router = APIRouter()
 logger.info('Setting up data route')
 
 
-@router.get('/{item_type}/list', response_model=list[AnyItemModel])
+@router.get('/{item_type}/list', response_model=AnyItemModelList)
 async def list_project_data(item_type: ItemTypeLiteral,
                             permission=Depends(UserPermissionChecker('dataset_read'))):
     project_id = permission.permissions.project_id
     if item_type == 'generic':
         return await read_all_for_project(Model=GenericItemModel, Schema=GenericItem,
+                                          project_id=project_id, engine=db_engine)
+    if item_type == 'academic':
+        return await read_all_for_project(Model=AcademicItemModel, Schema=AcademicItem,
                                           project_id=project_id, engine=db_engine)
     if item_type == 'twitter':
         return await read_all_twitter_items_for_project(project_id=project_id, engine=db_engine)
@@ -38,12 +41,16 @@ async def list_project_data(item_type: ItemTypeLiteral,
                         detail=f'Data listing for {item_type} not implemented (yet).')
 
 
-@router.get('/{item_type}/list/{page}/{page_size}', response_model=list[AnyItemModel])
+@router.get('/{item_type}/list/{page}/{page_size}', response_model=AnyItemModelList)
 async def list_project_data_paged(item_type: ItemTypeLiteral, page: int, page_size: int,
                                   permission=Depends(UserPermissionChecker('dataset_read'))):
     project_id = permission.permissions.project_id
     if item_type == 'generic':
         return await read_paged_for_project(Model=GenericItemModel, Schema=GenericItem,
+                                            page=page, page_size=page_size,
+                                            project_id=project_id, engine=db_engine)
+    if item_type == 'academic':
+        return await read_paged_for_project(Model=AcademicItemModel, Schema=AcademicItem,
                                             page=page, page_size=page_size,
                                             project_id=project_id, engine=db_engine)
     if item_type == 'twitter':

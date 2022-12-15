@@ -9,8 +9,4 @@ httpx[http2]==0.23.0
 pymitter==0.4.0
 uvicorn==0.20.0
 python-multipart==0.0.5
-<<<<<<< HEAD
--e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@0ef99deeba3ea7f9f7efe4569d8e050e48494ace#egg=nacsos_data
-=======
--e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@0b0afcf4dea5a830dd30c8cfd2aa2846d79fe4d0#egg=nacsos_data
->>>>>>> 9248d05 (bump nacsos-data version)
+-e git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@198a292a563945011fc2b18295c8ffadd9382fc2#egg=nacsos_data

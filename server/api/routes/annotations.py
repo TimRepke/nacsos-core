@@ -320,7 +320,6 @@ class MakeAssignmentsRequestModel(BaseModel):
 async def make_assignments(payload: MakeAssignmentsRequestModel,
                            permissions=Depends(UserPermissionChecker('annotations_edit'))):
     if payload.config.config_type == 'random':
-        print(payload.config)
         try:
             assignments = await random_assignments(assignment_scope_id=payload.scope_id,
                                                    annotation_scheme_id=payload.annotation_scheme_id,

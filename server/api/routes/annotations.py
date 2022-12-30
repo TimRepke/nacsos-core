@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import load_only
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
 from nacsos_data.db.schemas import \

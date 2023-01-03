@@ -17,7 +17,7 @@ mimetypes.init()
 
 logger = get_logger('nacsos.server')
 
-app = FastAPI()
+app = FastAPI(openapi_url=settings.SERVER.OPENAPI_FILE)
 
 logger.debug('Setting up server and middlewares')
 mimetypes.add_type('application/javascript', '.js')

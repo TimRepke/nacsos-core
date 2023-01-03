@@ -20,6 +20,7 @@ class ServerConfig(BaseModel):
     DEBUG_MODE: bool = False  # set this to true in order to get more detailed logs
     WORKERS: int = 2  # number of worker processes
     STATIC_FILES: str = '../nacsos-web/dist/'  # path to the static files to be served
+    OPENAPI_FILE: str = '/openapi.json'  # absolute URL path to openapi.json file
 
     HASH_ALGORITHM: str = 'HS256'
     SECRET_KEY: str = secrets.token_urlsafe(32)

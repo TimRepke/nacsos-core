@@ -1,5 +1,6 @@
 .idea
 config/
+venv/
 p.py
 __pycache__
 /hypercorn.access

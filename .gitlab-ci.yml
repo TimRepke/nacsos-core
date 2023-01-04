@@ -57,10 +57,10 @@ deploy-to-production:
   stage: deploy
   script:
     - echo "Becoming 'nacsos' user"
-    - su - nacsos
+    - sudo -u nacsos -s
     - cd /home/nacsos/nacsos-core
     - echo "Stopping NACSOS-core service"
-    - systemctl --user stop nacsos-core
+    - sudo systemctl stop nacsos-core.service
     - echo "Dropping virtual environment"
     - rm -rf venv
     - echo "Fetching updated source"
@@ -71,8 +71,12 @@ deploy-to-production:
     - source venv/bin/activate
     - echo "Installing requirements"
     - pip install -r requirements.txt
-    - echo "Exiting 'nacsos' user scope"
+    - echo "Handling migrations"
+    - pip install alembic
+    - cd venv/src/nacsos-data/
+    - alembic upgrade head
     - echo "Starting NACSOS-core service"
-    - systemctl --user start nacsos-core
+    - sudo systemctl start nacsos-core.service
+  when: manual
   only:
     - production

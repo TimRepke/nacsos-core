@@ -59,6 +59,9 @@ deploy-to-production:
     - echo "Becoming 'nacsos' user"
     - sudo -u nacsos -s
     - cd /home/nacsos/nacsos-core
+    - pwd
+    - whoami
+    - groups
     - echo "Stopping NACSOS-core service"
     - sudo systemctl stop nacsos-core.service
     - echo "Dropping virtual environment"

@@ -51,6 +51,11 @@ deploy-to-production:
   tags:
     - bare-metal
   script:
+    - echo "Current working directory"
+    - pwd
+    - echo "Current user"
+    - whoami
+    - groups
     - echo "Becoming 'nacsos' user"
     - sudo -u nacsos -s
     - cd /home/nacsos/nacsos-core

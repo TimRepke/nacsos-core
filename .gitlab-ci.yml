@@ -57,7 +57,7 @@ deploy-to-production:
     - whoami
     - groups
     - echo "Becoming 'nacsos' user"
-    - sudo -u nacsos -s
+    - sudo -u nacsos bash
     - cd /home/nacsos/nacsos-core
     - pwd
     - whoami

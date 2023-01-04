@@ -52,7 +52,7 @@ deploy-to-production:
     - bare-metal
   script:
     - echo "Run as nacsos user"
-    - sudo -u nacsos bash ./deploy.sh
+    - sudo -u nacsos bash ./deploy.sh $CI_JOB_TOKEN
 #    - echo "Current working directory"
 #    - pwd
 #    - echo "Current user"

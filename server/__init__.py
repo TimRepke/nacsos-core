@@ -43,5 +43,5 @@ app.mount('/', StaticFiles(directory=settings.SERVER.STATIC_FILES, html=True), n
 
 
 @app.on_event("startup")
-def on_startup():
-    db_engine.startup()
+async def on_startup():
+    await db_engine.startup()

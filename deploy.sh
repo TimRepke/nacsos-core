@@ -1,9 +1,10 @@
+#!/bin/bash
+set +x
+
 echo "Current working directory"
 pwd
 ls -lisah
-echo "Current user"
 whoami
-echo "Current groups"
 groups
 
 echo "Changing directory and making sure we landed there"

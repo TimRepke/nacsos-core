@@ -51,35 +51,34 @@ deploy-to-production:
   tags:
     - bare-metal
   script:
-    - echo "Current working directory"
-    - pwd
-    - echo "Current user"
-    - whoami
-    - groups
-    - echo "Becoming 'nacsos' user"
-    - sudo -u nacsos bash
-    - cd /home/nacsos/nacsos-core
-    - pwd
-    - whoami
-    - groups
-    - echo "Stopping NACSOS-core service"
-    - sudo systemctl stop nacsos-core.service
-    - echo "Dropping virtual environment"
-    - rm -rf venv
-    - echo "Fetching updated source"
-    - git stash  # "reset" softly by stashing (in case files changed)
-    - git pull origin production  # pull from origin (production branch)
-    - echo "Creating new virtual environment"
-    - python3.10 -m venv venv
-    - source venv/bin/activate
-    - echo "Installing requirements"
-    - pip install -r requirements.txt
-    - echo "Handling migrations"
-    - pip install alembic
-    - cd venv/src/nacsos-data/
-    - alembic upgrade head
-    - echo "Starting NACSOS-core service"
-    - sudo systemctl start nacsos-core.service
+    - echo "Run as nacsos user"
+    - sudo -u nacsos ./deploy.sh
+#    - echo "Current working directory"
+#    - pwd
+#    - echo "Current user"
+#    - whoami
+#    - groups
+#    - echo "Becoming 'nacsos' user"
+#    - sudo -u nacsos -s
+#    - cd /home/nacsos/nacsos-core
+#    - echo "Stopping NACSOS-core service"
+#    - sudo systemctl stop nacsos-core.service
+#    - echo "Dropping virtual environment"
+#    - rm -rf venv
+#    - echo "Fetching updated source"
+#    - git stash  # "reset" softly by stashing (in case files changed)
+#    - git pull origin production  # pull from origin (production branch)
+#    - echo "Creating new virtual environment"
+#    - python3.10 -m venv venv
+#    - source venv/bin/activate
+#    - echo "Installing requirements"
+#    - pip install -r requirements.txt
+#    - echo "Handling migrations"
+#    - pip install alembic
+#    - cd venv/src/nacsos-data/
+#    - alembic upgrade head
+#    - echo "Starting NACSOS-core service"
+#    - sudo systemctl start nacsos-core.service
   when: manual
   only:
     - production

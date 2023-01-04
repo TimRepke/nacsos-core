@@ -1,28 +1,36 @@
-echo "Stopping NACSOS-core service"
-syetemctl stop nacos-core
+echo "Current working directory"
+pwd
+ls -lisah
+echo "Current user"
+whoami
+echo "Current groups"
+groups
 
-echo "Becoming 'nacsos' user"
-su - nacsos
+echo "Changing directory and making sure we landed there"
 cd /home/nacsos/nacsos-core
+pwd
+ls -lisah
+
+echo "Stopping NACSOS-core service"
+sudo systemctl stop nacsos-core.service
 
 echo "Dropping virtual environment"
 rm -rf venv
 
 echo "Fetching updated source"
-# "reset" softly by stashing (in case files changed)
-git stash
-# pull from origin (production branch)
-git pull origin production
+git stash  # "reset" softly by stashing (in case files changed)
+git pull origin production  # pull from origin (production branch)
 
 echo "Creating new virtual environment"
 python3.10 -m venv venv
 source venv/bin/activate
-
 echo "Installing requirements"
 pip install -r requirements.txt
 
-echo "Exiting 'nacsos' user scope"
-exit
+echo "Handling migrations"
+pip install alembic
+cd venv/src/nacsos-data/
+alembic upgrade head
 
 echo "Starting NACSOS-core service"
-systemctl start nacsos-core
+sudo systemctl start nacsos-core.service

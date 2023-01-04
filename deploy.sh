@@ -1,9 +1,10 @@
+#!/bin/bash
+set -x
+
 echo "Current working directory"
 pwd
 ls -lisah
-echo "Current user"
 whoami
-echo "Current groups"
 groups
 
 echo "Changing directory and making sure we landed there"
@@ -18,6 +19,7 @@ echo "Dropping virtual environment"
 rm -rf venv
 
 echo "Fetching updated source"
+git config url."https://gitlab-ci-token:$1@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
 git stash  # "reset" softly by stashing (in case files changed)
 git pull origin production  # pull from origin (production branch)
 

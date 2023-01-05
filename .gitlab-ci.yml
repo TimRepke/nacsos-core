@@ -70,7 +70,7 @@ deploy-to-production:
     - echo "Dropping virtual environment"
     - rm -rf venv
     - echo "Fetching updated source"
-    - echo "Token: ${CI_JOB_TOKEN}"
+    - echo "Token ${CI_JOB_TOKEN}"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
@@ -78,6 +78,7 @@ deploy-to-production:
     - python3.10 -m venv venv
     - source venv/bin/activate
     - echo "Installing requirements"
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - pip install -r requirements.txt
     - echo "Handling migrations"
     - pip install alembic

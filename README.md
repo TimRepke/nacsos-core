@@ -3,6 +3,10 @@ This repository contains the core data management platform of NACSOS.
 It accesses the database via the `nacsos-data` package and exposes the functionality via an API.
 It also serves the web frontend.
 
+```
+pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
+```
+ 
 ## Installation
 - Requires Python 3.10+, tested with Python 3.10.2
 

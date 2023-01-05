@@ -469,7 +469,7 @@ async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChec
                                BotAnnotationMetaData.time_updated,
                                BotAnnotationMetaData.time_created)))) \
             .scalars().all()
-        print([BotAnnotationMetaDataBaseModel.parse_obj(e.__dict__) for e in exports])
+
         return [BotAnnotationMetaDataBaseModel.parse_obj(e.__dict__) for e in exports]
 
 

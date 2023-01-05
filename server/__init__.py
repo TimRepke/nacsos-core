@@ -17,7 +17,7 @@ mimetypes.init()
 
 logger = get_logger('nacsos.server')
 
-app = FastAPI()
+app = FastAPI(openapi_url=settings.SERVER.OPENAPI_FILE)
 
 logger.debug('Setting up server and middlewares')
 mimetypes.add_type('application/javascript', '.js')
@@ -43,5 +43,5 @@ app.mount('/', StaticFiles(directory=settings.SERVER.STATIC_FILES, html=True), n
 
 
 @app.on_event("startup")
-def on_startup():
-    db_engine.startup()
+async def on_startup():
+    await db_engine.startup()

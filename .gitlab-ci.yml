@@ -51,14 +51,17 @@ deploy-to-production:
   tags:
     - bare-metal
   script:
-#    - echo "Run as nacsos user"
-#    - sudo -u nacsos bash ./deploy.sh $CI_JOB_TOKEN
     - echo "Current working directory and user"
     - pwd
     - whoami
     - groups
-#    - echo "Becoming 'nacsos' user"
-#    - sudo -u nacsos -s
+    - echo $HOME
+    - echo "Reset git config"
+    - rm /home/gitlab-runner/.gitconfig
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - git config --global user.name gitlab-runner
+    - git config --global user.email gitlab-runner@gitlab.pik-potsdam.de
+    - git config --global -l --show-origin
     - echo "Go to deployment location"
     - cd /home/nacsos/nacsos-core
     - ls -lisah
@@ -70,15 +73,12 @@ deploy-to-production:
     - echo "Dropping virtual environment"
     - rm -rf venv
     - echo "Fetching updated source"
-    - echo "Token ${CI_JOB_TOKEN}"
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
     - python3.10 -m venv venv
     - source venv/bin/activate
     - echo "Installing requirements"
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - pip install -r requirements.txt
     - echo "Handling migrations"
     - pip install alembic
@@ -88,6 +88,11 @@ deploy-to-production:
     - sudo chgrp -R nacsos /home/nacsos/nacsos-core
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
+# DEPRECATED
+#    - echo "Run as nacsos user"
+#    - sudo -u nacsos bash ./deploy.sh $CI_JOB_TOKEN
+#    - echo "Becoming 'nacsos' user"
+#    - sudo -u nacsos -s
   when: manual
   only:
     - production

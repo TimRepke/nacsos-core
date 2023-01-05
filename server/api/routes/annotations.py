@@ -1,7 +1,8 @@
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import load_only
-from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
 from nacsos_data.db.schemas import \
@@ -70,6 +71,9 @@ from server.api.errors import \
     MissingInformationError
 from server.util.security import UserPermissionChecker
 from server.data import db_engine
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 router = APIRouter()
 

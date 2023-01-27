@@ -74,10 +74,11 @@ async def trigger_import(import_id: str,
     else:
         raise InsufficientPermissions('You do not have permission to edit this data import.')
 
+
 @router.delete('/import/delete/{import_id}', response_model=str)
 async def delete_import_details(import_id: str,
-                        permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
+                                permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
     import_details = await read_import(import_id=import_id, engine=db_engine)
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
-        await delete_import(import_id=import_details.import_id, engine=db_engine)
+        await delete_import(import_id=import_id, engine=db_engine)
         return f'Successfully deleted import with ID: {import_id}'

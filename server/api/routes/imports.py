@@ -5,7 +5,8 @@ from nacsos_data.db.crud.imports import \
     read_all_imports_for_project, \
     read_import, \
     upsert_import, \
-    read_item_count_for_import
+    read_item_count_for_import, \
+    delete_import
 from nacsos_data.util.pipelines.imports import submit_jsonl_import_task, submit_wos_import_task
 
 from server.data import db_engine
@@ -72,3 +73,11 @@ async def trigger_import(import_id: str,
             raise NotImplementedError(f'No import trigger for "{import_details.type}" implemented yet.')
     else:
         raise InsufficientPermissions('You do not have permission to edit this data import.')
+
+@router.delete('/import/delete/{import_id}', response_model=str)
+async def delete_import_details(import_id: str,
+                        permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
+    import_details = await read_import(import_id=import_id, engine=db_engine)
+    if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
+        await delete_import(import_id=import_details.import_id, engine=db_engine)
+        return f'Successfully deleted import with ID: {import_id}'

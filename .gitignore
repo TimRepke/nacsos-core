@@ -7,3 +7,4 @@ __pycache__
 /hypercorn.error
 .pyc
 server.md
+dump.sql

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     container_name: nacsos_postgres
-    image: postgres:14.2-bullseye
+    image: postgres:15.1-alpine
     restart: always
     environment:
       POSTGRES_USER: root

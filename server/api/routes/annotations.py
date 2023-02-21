@@ -154,7 +154,6 @@ async def _construct_annotation_item(assignment: AssignmentModel, project_id: st
     if project is None:
         raise ProjectNotFoundError(f'No project found in DB for id {project_id}')
     item = await read_any_item_by_item_id(item_id=assignment.item_id, item_type=project.type, engine=db_engine)
-
     return AnnotationItem(scheme=merged_scheme, assignment=assignment, scope=scope, item=item)
 
 

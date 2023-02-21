@@ -13,6 +13,12 @@ cache:
     - .cache/pip
     - venv/
 
+before_script:
+  # Provides credentials to pip to access private GitLab PyPi index.
+  - echo "machine gitlab.pik-potsdam.de" > ~/.netrc
+  - echo "login gitlab-ci-token" >> ~/.netrc
+  - echo "password ${CI_JOB_TOKEN}" >> ~/.netrc
+
 stages:
   - build
   - test
@@ -28,7 +34,7 @@ build-job:
     - source venv/bin/activate
     - pwd
     - ls -lisah
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - pip install -r requirements.txt
     - pip install -r requirements_dev.txt
 
@@ -58,7 +64,7 @@ deploy-to-production:
     - echo $HOME
     - echo "Reset git config"
     - rm /home/gitlab-runner/.gitconfig
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - git config --global user.name gitlab-runner
     - git config --global user.email gitlab-runner@gitlab.pik-potsdam.de
     - git config --global -l --show-origin

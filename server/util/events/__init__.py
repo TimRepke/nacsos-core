@@ -2,7 +2,7 @@ from typing import Union, Literal, TYPE_CHECKING
 
 from pymitter import EventEmitter
 
-from .hooks import imports
+from .hooks import example
 from . import events
 
 eventbus = EventEmitter(delimiter='_', wildcard=True)
@@ -16,6 +16,6 @@ else:
     AnyEventLiteral = Literal[tuple(sc._name for sc in events.BaseEvent.get_subclasses())]  # noqa PyProtectedMember
 
 # Permanent/global listeners
-eventbus.on(events.PipelineTaskStatusChangedEvent._name, imports.update_import_status)  # noqa PyProtectedMember
+eventbus.on(events.ExampleEvent._name, example.test_listener)  # noqa PyProtectedMember
 
 __all__ = ['eventbus', 'events', 'AnyEvent', 'AnyEventType']

@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status as http_status
 
-from server.api.errors import DataNotFoundWarning, UserNotFoundError
-from server.util.logging import get_logger
 from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
 from nacsos_data.db.crud.users import \
     read_users, \
     read_user_by_id, \
     read_users_by_ids, \
     create_or_update_user
-from server.util.security import UserPermissionChecker, UserPermissions, get_current_active_user
+
 from server.data import db_engine
+from server.api.errors import DataNotFoundWarning, UserNotFoundError
+from server.util.logging import get_logger
+from server.util.security import UserPermissionChecker, UserPermissions, get_current_active_user
 
 logger = get_logger('nacsos.api.route.admin.users')
 router = APIRouter()

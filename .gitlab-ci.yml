@@ -50,7 +50,9 @@ test-job2:
   image: python:3.10.9
   script:
     - source venv/bin/activate
-    - mypy --config-file=pyproject.toml server
+    - which python
+    - pip freeze
+    - python -m mypy --config-file=pyproject.toml server
 
 deploy-to-production:
   stage: deploy

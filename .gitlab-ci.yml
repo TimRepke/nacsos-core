@@ -91,9 +91,7 @@ deploy-to-production:
     - echo "Installing requirements"
     - pip install -r requirements.txt
     - echo "Handling migrations"
-    - pip install alembic
-    - cd /home/nacsos/nacsos-core/venv/src/nacsos-data/
-    - alembic upgrade head
+    - nacsos_migrate upgrade --revision head
     - sudo chown -R nacsos /home/nacsos/nacsos-core
     - sudo chgrp -R nacsos /home/nacsos/nacsos-core
     - echo "Starting NACSOS-core service"

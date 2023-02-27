@@ -1,17 +1,17 @@
+import mimetypes
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from .util.middlewares import TimingMiddleware, ErrorHandlingMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from .util.middlewares import TimingMiddleware, ErrorHandlingMiddleware
 from .util.config import settings
 from .util.logging import get_logger
 from .api import router as api_router
 from .data import db_engine
 
-import mimetypes
 
 mimetypes.init()
 

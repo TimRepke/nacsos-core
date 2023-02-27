@@ -154,7 +154,6 @@ async def _construct_annotation_item(assignment: AssignmentModel, project_id: st
     if project is None:
         raise ProjectNotFoundError(f'No project found in DB for id {project_id}')
     item = await read_any_item_by_item_id(item_id=assignment.item_id, item_type=project.type, engine=db_engine)
-
     return AnnotationItem(scheme=merged_scheme, assignment=assignment, scope=scope, item=item)
 
 
@@ -172,13 +171,26 @@ async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
     return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
+class NoAssignments(Warning):
+    pass
+
+
 @router.get('/annotate/next/{assignment_scope_id}', response_model=AnnotationItem)
 async def get_next_open_assignment_for_scope_for_user(assignment_scope_id: str,
                                                       permissions=Depends(UserPermissionChecker('annotations_read'))):
-    # FIXME response for "all done"
     assignment = await read_next_open_assignment_for_scope_for_user(assignment_scope_id=assignment_scope_id,
                                                                     user_id=permissions.user.user_id,
                                                                     db_engine=db_engine)
+    # Either there are no assignments, or everything is done.
+    if assignment is None:
+        assignments = await read_assignments_for_scope_for_user(assignment_scope_id=assignment_scope_id,
+                                                                user_id=permissions.user.user_id,
+                                                                db_engine=db_engine, limit=1)
+        if len(assignments) > 0:
+            assignment = assignments[0]
+        else:
+            raise NoAssignments('This user has no assignments in this scope.')
+
     return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 

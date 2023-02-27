@@ -13,6 +13,12 @@ cache:
     - .cache/pip
     - venv/
 
+before_script:
+  # Provides credentials to pip to access private GitLab PyPi index.
+  - echo "machine gitlab.pik-potsdam.de" > ~/.netrc
+  - echo "login gitlab-ci-token" >> ~/.netrc
+  - echo "password ${CI_JOB_TOKEN}" >> ~/.netrc
+
 stages:
   - build
   - test
@@ -20,7 +26,7 @@ stages:
 
 build-job:
   stage: build
-  image: python:latest
+  image: python:3.10.9
   script:
     - python -V
     - pip install virtualenv
@@ -28,23 +34,25 @@ build-job:
     - source venv/bin/activate
     - pwd
     - ls -lisah
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - pip install -r requirements.txt
     - pip install -r requirements_dev.txt
 
 test-job1:
   stage: test
-  image: python:latest
+  image: python:3.10.9
   script:
     - source venv/bin/activate
     - flake8 --config .flake8
 
 test-job2:
   stage: test
-  image: python:latest
+  image: python:3.10.9
   script:
     - source venv/bin/activate
-    - mypy --config-file=pyproject.toml server
+    - which python
+    - pip freeze
+    - python -m mypy --config-file=pyproject.toml server
 
 deploy-to-production:
   stage: deploy
@@ -58,7 +66,7 @@ deploy-to-production:
     - echo $HOME
     - echo "Reset git config"
     - rm /home/gitlab-runner/.gitconfig
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - git config --global user.name gitlab-runner
     - git config --global user.email gitlab-runner@gitlab.pik-potsdam.de
     - git config --global -l --show-origin
@@ -78,6 +86,8 @@ deploy-to-production:
     - echo "Creating new virtual environment"
     - python3.10 -m venv venv
     - source venv/bin/activate
+    - which python
+    - python -V
     - echo "Installing requirements"
     - pip install -r requirements.txt
     - echo "Handling migrations"

@@ -1,7 +1,7 @@
 flake8==6.0.0
-tox==4.0.11
-pytest==7.2.0
+tox==4.4.6
+pytest==7.2.1
 pytest-cov==4.0.0
-mypy==0.991
-alembic==1.8.1
-types-toml==0.10.8.1
+mypy==1.0.1
+types-toml==0.10.8.5
+types-PyYAML==6.0.12.8

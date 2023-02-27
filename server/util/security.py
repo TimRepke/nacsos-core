@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel
 from nacsos_data.models.projects import ProjectPermissionsModel, ProjectPermission
-from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name, read_user_by_id
+from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name, read_user_by_name
 from nacsos_data.db.crud.projects import read_project_permissions_for_user as crud_get_project_permissions_for_user
 
 from server.api.errors import MissingInformationError
@@ -73,7 +73,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         if token_user is not None:
             user = await crud_get_user_by_name(username=token_user, engine=db_engine)
     else:
-        user = await read_user_by_id(user_id=settings.USERS.DEFAULT_USER, engine=db_engine)
+        user = await read_user_by_name(username=settings.USERS.DEFAULT_USER, engine=db_engine)
         logger.warning('Authentication using fake user!')
 
     if user is None:

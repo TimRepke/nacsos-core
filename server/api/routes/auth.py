@@ -34,7 +34,16 @@ async def read_users_me(current_user: UserModel = Depends(get_current_active_use
 
 @router.get('/logout')
 async def logout(current_user: UserModel = Depends(get_current_active_user)):
-    await auth_helper.clear_tokens_by_user(username=current_user.username)
+    username = current_user.username
+
+    if username is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='RuntimeError(empty username)',
+            headers={'WWW-Authenticate': 'Bearer'},
+        )
+
+    await auth_helper.clear_tokens_by_user(username=username)
 
 # TODO forgot password route
 # TODO update user info (separate route for password updates?) /

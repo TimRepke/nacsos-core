@@ -1,16 +1,10 @@
-from typing import Optional
-from datetime import timedelta, datetime
-from pydantic import BaseModel
-from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status as http_status, Header
 from fastapi.security import OAuth2PasswordBearer
 
-from nacsos_data.models.users import UserModel
-from nacsos_data.models.projects import ProjectPermissionsModel, ProjectPermission
-from nacsos_data.db.crud.users import read_user_by_name as crud_get_user_by_name, read_user_by_name
-from nacsos_data.db.crud.projects import read_project_permissions_for_user as crud_get_project_permissions_for_user
+from nacsos_data.models.users import UserModel, UserInDBModel
+from nacsos_data.models.projects import ProjectPermission
+from nacsos_data.util.auth import Authentication, InsufficientPermissionError, InvalidCredentialsError, UserPermissions
 
-from server.api.errors import MissingInformationError
 from server.data import db_engine
 from server.util.config import settings
 
@@ -23,63 +17,21 @@ class InsufficientPermissions(Exception):
     status = http_status.HTTP_403_FORBIDDEN
 
 
-class UserPermissions(BaseModel):
-    user: UserModel
-    permissions: ProjectPermissionsModel
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-
+auth_helper = Authentication(engine=db_engine,
+                             token_lifetime_minutes=settings.SERVER.ACCESS_TOKEN_EXPIRE_MINUTES,
+                             default_user=settings.USERS.DEFAULT_USER)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=False)
 
 
-def create_access_token(data: dict[str, str | datetime], expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({'exp': expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SERVER.SECRET_KEY, algorithm=settings.SERVER.HASH_ALGORITHM)
-    return encoded_jwt
-
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=http_status.HTTP_401_UNAUTHORIZED,
-        detail='Could not validate credentials',
-        headers={'WWW-Authenticate': 'Bearer'},
-    )
-    user = None
-    if settings.USERS.DEFAULT_USER is None:
-        try:
-            if token is None:
-                raise credentials_exception
-            payload = jwt.decode(token, settings.SERVER.SECRET_KEY, algorithms=[settings.SERVER.HASH_ALGORITHM])
-            username: str = payload.get('sub')
-            if username is None:
-                raise credentials_exception
-            token_data = TokenData(username=username)
-        except JWTError:
-            raise credentials_exception
-        token_user = token_data.username
-        if token_user is not None:
-            user = await crud_get_user_by_name(username=token_user, engine=db_engine)
-    else:
-        user = await read_user_by_name(username=settings.USERS.DEFAULT_USER, engine=db_engine)
-        logger.warning('Authentication using fake user!')
-
-    if user is None:
-        raise credentials_exception
-    logger.debug(f'Current user: user_id: {user.user_id} {user.username}')
-    return user
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDBModel:
+    try:
+        return await auth_helper.get_current_user(token_id=token)
+    except (InvalidCredentialsError, InsufficientPermissionError) as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
+            detail=repr(e),
+            headers={'WWW-Authenticate': 'Bearer'},
+        )
 
 
 async def get_current_active_user(current_user: UserModel = Depends(get_current_user)) -> UserModel:
@@ -94,19 +46,6 @@ def get_current_active_superuser(current_user: UserModel = Depends(get_current_a
             status_code=http_status.HTTP_400_BAD_REQUEST, detail="The user doesn't have enough privileges"
         )
     return current_user
-
-
-async def get_project_permissions_for_user(project_id: str, current_user: UserModel) -> ProjectPermissionsModel | None:
-    if current_user.user_id is None:
-        raise MissingInformationError('The `current_user` is missing the (here) required `user_id` field.')
-    if current_user.is_superuser:
-        # admin gets to do anything always, so return with simulated full permissions
-        return ProjectPermissionsModel.get_virtual_admin(project_id=project_id,
-                                                         user_id=str(current_user.user_id))
-
-    return await crud_get_project_permissions_for_user(user_id=current_user.user_id,
-                                                       project_id=project_id,
-                                                       engine=db_engine)
 
 
 class UserPermissionChecker:
@@ -135,34 +74,16 @@ class UserPermissionChecker:
         :return: `ProjectPermissions` if permissions are fulfilled, exception otherwise
         :raises HTTPException if permissions are not fulfilled
         """
-        project_permissions = await get_project_permissions_for_user(project_id=x_project_id,
-                                                                     current_user=current_user)
-        user_permissions = UserPermissions(user=current_user, permissions=project_permissions)
-        if project_permissions is not None:
-            # no specific permissions were required (only basic access to the project) -> permitted!
-            if self.permissions is None:
-                return user_permissions
+        try:
+            return await auth_helper.check_permissions(project_id=x_project_id,
+                                                       user=current_user,
+                                                       required_permissions=self.permissions,
+                                                       fulfill_all=self.fulfill_all)
 
-            any_permission_fulfilled = False
+        except (InvalidCredentialsError, InsufficientPermissionError) as e:
+            raise InsufficientPermissions(repr(e))
 
-            # check that each required permission is fulfilled
-            for permission in self.permissions:
-                p_permission = getattr(project_permissions, permission, False)
-                if self.fulfill_all and not p_permission:
-                    raise InsufficientPermissions(
-                        f'User does not have permission "{permission}" for project "{x_project_id}".'
-                    )
-                any_permission_fulfilled = any_permission_fulfilled or p_permission
 
-            if not any_permission_fulfilled and not self.fulfill_all:
-                raise InsufficientPermissions(
-                    f'User does not have any of the required permissions ({self.permissions}) '
-                    f'for project "{x_project_id}".'
-                )
-
-            return user_permissions
-
-        raise HTTPException(
-            status_code=http_status.HTTP_403_FORBIDDEN,
-            detail=f'User does not have permission to access project "{x_project_id}".',
-        )
+__all__ = ['InsufficientPermissionError', 'InvalidCredentialsError', 'InsufficientPermissions',
+           'auth_helper', 'oauth2_scheme', 'UserPermissionChecker', 'UserPermissions',
+           'get_current_user', 'get_current_active_user', 'get_current_active_superuser']

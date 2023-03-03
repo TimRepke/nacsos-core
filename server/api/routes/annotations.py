@@ -199,7 +199,7 @@ async def get_assignment(assignment_id: str,
                          permissions=Depends(UserPermissionChecker('annotations_read'))):
     assignment = await read_assignment(assignment_id=assignment_id, db_engine=db_engine)
 
-    if assignment.user_id != permissions.user.user_id:
+    if (assignment is None) or (assignment.user_id != permissions.user.user_id):
         raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED,
                             detail='You do not have permission to handle this assignment, as it is not yours!')
 
@@ -298,6 +298,9 @@ async def save_annotation(annotated_item: AnnotatedItem,
         raise MissingInformationError('Missing `assignment_id` in `annotation_item`!')
 
     assignment_db = await read_assignment(assignment_id=annotated_item.assignment.assignment_id, db_engine=db_engine)
+
+    if assignment_db is None:
+        raise MissingInformationError('No assignment found!')
 
     if permissions.user.user_id == assignment_db.user_id \
             and str(assignment_db.assignment_scope_id) == annotated_item.assignment.assignment_scope_id \

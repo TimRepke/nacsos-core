@@ -1,4 +1,4 @@
-fastapi==0.92.0
+fastapi==0.93.0
 hypercorn==0.14.3
 toml==0.10.2
 email-validator==1.3.1

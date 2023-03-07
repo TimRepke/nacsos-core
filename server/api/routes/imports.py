@@ -60,6 +60,8 @@ async def trigger_import(import_id: str,
                          permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
     import_details = await read_import(import_id=import_id, engine=db_engine)
 
+    print(import_details.__dict__)
+
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
         if import_details.type == ImportType.jsonl:
             return await submit_jsonl_import_task(import_id=import_id,

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from nacsos_data.models.imports import ImportModel, ImportType
 from nacsos_data.db.crud.imports import \
     read_import, \
-    upsert_import,\
+    upsert_import, \
     delete_import, \
     read_all_imports_for_project, \
     read_item_count_for_import
@@ -64,10 +64,12 @@ async def trigger_import(import_id: str,
         if import_details.type == ImportType.jsonl:
             return await submit_jsonl_import_task(import_id=import_id,
                                                   base_url=settings.PIPES.API_URL,
+                                                  auth_token=settings.PIPES.TOKEN,
                                                   engine=db_engine)
         elif import_details.type == ImportType.wos:
             return await submit_wos_import_task(import_id=import_id,
                                                 base_url=settings.PIPES.API_URL,
+                                                auth_token=settings.PIPES.TOKEN,
                                                 engine=db_engine)
         else:
             raise NotImplementedError(f'No import trigger for "{import_details.type}" implemented yet.')

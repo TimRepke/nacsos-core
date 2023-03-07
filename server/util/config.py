@@ -97,6 +97,9 @@ class UsersConfig(BaseModel):
 
 class PipelinesConfig(BaseModel):
     API_URL: str = 'http://localhost:8000/api'
+    USERNAME: str | None = None
+    USER_ID: str | None = None
+    TOKEN: str | None = None
 
 
 class Settings(BaseSettings):

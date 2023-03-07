@@ -140,9 +140,13 @@ async def get_scheme_definitions_for_project(project_id: str,
 async def _construct_annotation_item(assignment: AssignmentModel, project_id: str) -> AnnotationItem:
     if assignment.assignment_id is None:
         raise MissingInformationError('No `assignment_id` set for `assignment`.')
-    scope = await read_assignment_scope(assignment_scope_id=assignment.assignment_scope_id, db_engine=db_engine)
-    scheme = await read_annotation_scheme(annotation_scheme_id=assignment.annotation_scheme_id, db_engine=db_engine)
 
+    scope = await read_assignment_scope(assignment_scope_id=assignment.assignment_scope_id, db_engine=db_engine)
+    if scope is None:
+        raise AnnotationSchemeNotFoundError(f'No annotation scope found in DB for id '
+                                            f'{assignment.assignment_scope_id}')
+
+    scheme = await read_annotation_scheme(annotation_scheme_id=assignment.annotation_scheme_id, db_engine=db_engine)
     if scheme is None:
         raise AnnotationSchemeNotFoundError(f'No annotation scheme found in DB for id '
                                             f'{assignment.annotation_scheme_id}')
@@ -153,7 +157,11 @@ async def _construct_annotation_item(assignment: AssignmentModel, project_id: st
     project = await read_project_by_id(project_id=project_id, engine=db_engine)
     if project is None:
         raise ProjectNotFoundError(f'No project found in DB for id {project_id}')
+
     item = await read_any_item_by_item_id(item_id=assignment.item_id, item_type=project.type, engine=db_engine)
+    if item is None:
+        raise MissingInformationError(f'No item found in DB for id {assignment.item_id}')
+
     return AnnotationItem(scheme=merged_scheme, assignment=assignment, scope=scope, item=item)
 
 

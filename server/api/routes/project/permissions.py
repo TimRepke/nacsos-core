@@ -45,10 +45,7 @@ async def get_all_user_permissions(permission=Depends(UserPermissionChecker('own
                 .options(selectinload(ProjectPermissions.user)))
         result = (await session.execute(stmt)).scalars().all()
 
-        return [UserPermission.parse_obj({
-            'user': row.user.__dict__,
-            **row.__dict__
-        }) for row in result]
+        return [UserPermission(**{**row.__dict__, 'user': row.user.__dict__}) for row in result]  # type: ignore
 
 
 @router.put('/permission', response_model=str)

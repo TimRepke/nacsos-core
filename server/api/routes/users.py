@@ -11,15 +11,14 @@ from nacsos_data.db.crud.users import \
 from server.data import db_engine
 from server.api.errors import DataNotFoundWarning, UserNotFoundError
 from server.util.logging import get_logger
-from server.util.security import UserPermissionChecker, get_current_active_user
+from server.util.security import UserPermissionChecker, get_current_active_user, get_current_active_superuser
 
 logger = get_logger('nacsos.api.route.admin.users')
 router = APIRouter()
 
 
-# FIXME refine required permission
 @router.get('/list/all', response_model=list[UserBaseModel])
-async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
+async def get_all_users(current_user: UserModel = Depends(get_current_active_superuser)) \
         -> list[UserInDBModel]:
     result = await read_users(project_id=None, order_by_username=True, engine=db_engine)
     if result is None:
@@ -27,10 +26,9 @@ async def get_all_users(permissions: UserPermissions = Depends(UserPermissionChe
     return result
 
 
-# FIXME refine required permission
 @router.get('/list/project/{project_id}', response_model=list[UserBaseModel])
 async def get_project_users(project_id: str,
-                            permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
+                            permissions: UserPermissions = Depends(UserPermissionChecker())) \
         -> list[UserInDBModel]:
     result = await read_users(project_id=project_id, order_by_username=True, engine=db_engine)
     if result is not None:

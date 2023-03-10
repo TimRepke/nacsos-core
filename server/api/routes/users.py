@@ -11,14 +11,14 @@ from nacsos_data.db.crud.users import \
 from server.data import db_engine
 from server.api.errors import DataNotFoundWarning, UserNotFoundError
 from server.util.logging import get_logger
-from server.util.security import UserPermissionChecker, get_current_active_user, get_current_active_superuser
+from server.util.security import UserPermissionChecker, get_current_active_user
 
 logger = get_logger('nacsos.api.route.admin.users')
 router = APIRouter()
 
 
 @router.get('/list/all', response_model=list[UserBaseModel])
-async def get_all_users(current_user: UserModel = Depends(get_current_active_superuser)) \
+async def get_all_users(current_user: UserModel = Depends(get_current_active_user)) \
         -> list[UserInDBModel]:
     result = await read_users(project_id=None, order_by_username=True, engine=db_engine)
     if result is None:

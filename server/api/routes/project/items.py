@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem
+from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem, ItemType
 
 from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel, AnyItemModelList
 from nacsos_data.models.items.twitter import TwitterItemModel
@@ -71,10 +71,12 @@ async def get_detail_for_item(item_id: str,
             item_type = project.type
 
     result: AnyItemModel | None = None
-    if item_type == 'basic':
+    if item_type == 'generic':
         result = await read_any_item_by_item_id(item_id=item_id, item_type=item_type, engine=db_engine)
     elif item_type == 'twitter':
         result = await read_twitter_item_by_item_id(item_id=item_id, engine=db_engine)
+    elif item_type == 'academic':
+        result = await read_any_item_by_item_id(item_id=item_id, item_type=ItemType.academic, engine=db_engine)
     else:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED,
                             detail=f'Detail getter for {item_type} not implemented (yet).')

@@ -90,8 +90,8 @@ async def get_detail_for_item(item_id: str,
 @router.get('/text/{item_id}', response_model=str)
 async def get_text_for_item(item_id: str, permission=Depends(UserPermissionChecker('dataset_read'))) -> str:
     async with db_engine.session() as session:
-        stmt = select(Item.text).where(Item.item_id==item_id)
-        text = await session.scalar(stmt)
+        stmt = select(Item.text).where(Item.item_id == item_id)
+        text: str | None = await session.scalar(stmt)
         if text is None:
             raise ItemNotFoundError(f'No text available for item with ID: {item_id}')
         return text

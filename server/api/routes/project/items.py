@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem, ItemType
+from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem, ItemType, Item
 
 from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel, AnyItemModelList
 from nacsos_data.models.items.twitter import TwitterItemModel
@@ -13,6 +13,7 @@ from nacsos_data.db.crud.items.twitter import \
     read_all_twitter_items_for_project_paged, \
     read_twitter_item_by_item_id, \
     import_tweet
+from sqlalchemy import select
 
 from server.api.errors import ItemNotFoundError
 from server.data import db_engine
@@ -84,6 +85,16 @@ async def get_detail_for_item(item_id: str,
     if result is not None:
         return result
     raise ItemNotFoundError(f'No item found with type {item_type} with the id {item_id}')
+
+
+@router.get('/text/{item_id}', response_model=str)
+async def get_text_for_item(item_id: str, permission=Depends(UserPermissionChecker('dataset_read'))) -> str:
+    async with db_engine.session() as session:
+        stmt = select(Item.text).where(Item.item_id == item_id)
+        text: str | None = await session.scalar(stmt)
+        if text is None:
+            raise ItemNotFoundError(f'No text available for item with ID: {item_id}')
+        return text
 
 
 @router.get('/count', response_model=int)

@@ -362,7 +362,7 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
         except ValueError as e:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=str(e))
-    if payload.config.config_type == 'random_exclusion':
+    elif payload.config.config_type == 'random_exclusion':
         try:
             assignments = await random_assignments_with_exclusion(assignment_scope_id=payload.scope_id,
                                                                   annotation_scheme_id=payload.annotation_scheme_id,

@@ -24,7 +24,10 @@ from nacsos_data.models.bot_annotations import \
     BotAnnotationModel, \
     AnnotationCollection, \
     BotMetaResolve, \
-    GroupedBotAnnotation, AnnotationCollectionDB, BotKind, BotAnnotationMetaDataBaseModel
+    GroupedBotAnnotation, \
+    AnnotationCollectionDB, \
+    BotKind, \
+    BotAnnotationMetaDataBaseModel
 from nacsos_data.models.users import UserModel
 from nacsos_data.models.items import AnyItemModel
 from nacsos_data.db.crud.items import read_any_item_by_item_id
@@ -52,15 +55,18 @@ from nacsos_data.db.crud.annotations import \
     AssignmentCounts, \
     UserProjectAssignmentScope, \
     store_assignments, \
-    store_resolved_bot_annotations, update_resolved_bot_annotations
+    store_resolved_bot_annotations, \
+    update_resolved_bot_annotations
 from nacsos_data.util.annotations.resolve import \
     AnnotationFilterObject, \
-    get_resolved_item_annotations, read_bot_annotations
+    get_resolved_item_annotations, \
+    read_bot_annotations
 from nacsos_data.util.annotations.validation import \
     merge_scheme_and_annotations, \
     annotated_scheme_to_annotations, \
     flatten_annotation_scheme
 from nacsos_data.util.annotations.assignments.random import random_assignments
+from nacsos_data.util.annotations.assignments.random_exclusion import random_assignments_with_exclusion
 
 from server.api.errors import \
     SaveFailedError, \
@@ -353,6 +359,16 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
                                                    project_id=permissions.permissions.project_id,
                                                    config=payload.config,
                                                    engine=db_engine)
+        except ValueError as e:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
+                                detail=str(e))
+    if payload.config.config_type == 'random_exclusion':
+        try:
+            assignments = await random_assignments_with_exclusion(assignment_scope_id=payload.scope_id,
+                                                                  annotation_scheme_id=payload.annotation_scheme_id,
+                                                                  project_id=permissions.permissions.project_id,
+                                                                  config=payload.config,
+                                                                  engine=db_engine)
         except ValueError as e:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=str(e))

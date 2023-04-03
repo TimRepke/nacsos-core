@@ -1,18 +1,14 @@
 from typing import TYPE_CHECKING
 
 from nacsos_data.util.auth import UserPermissions
-from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import load_only
-from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
+from fastapi import APIRouter, Depends
 
 from nacsos_data.db.schemas.annotations import AssignmentScope
 from nacsos_data.db.schemas.highlight import Highlighter
 from nacsos_data.models.highlight import HighlighterModel
 
 from server.api.errors import \
-    SaveFailedError, \
-    MissingInformationError, \
     NoDataForKeyError, \
     DataNotFoundWarning
 from server.util.security import UserPermissionChecker, InsufficientPermissions
@@ -74,6 +70,7 @@ async def upsert_highlighter(highlighter: HighlighterModel,
         await session.commit()
 
         return str(highlighter.highlighter_id)
+
 
 @router.get('/{highlighter_id}', response_model=HighlighterModel | None)
 async def get_highlighter(highlighter_id: str,

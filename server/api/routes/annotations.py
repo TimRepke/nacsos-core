@@ -367,7 +367,7 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
             assignments = await random_assignments_with_exclusion(assignment_scope_id=payload.scope_id,
                                                                   annotation_scheme_id=payload.annotation_scheme_id,
                                                                   project_id=permissions.permissions.project_id,
-                                                                  config=payload.config,
+                                                                  config=payload.config,  # type: ignore[arg-type] # FIXME
                                                                   engine=db_engine)
         except ValueError as e:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,

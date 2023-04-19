@@ -1,18 +1,21 @@
 from typing import TYPE_CHECKING
 
-from nacsos_data.util.auth import UserPermissions
-from sqlalchemy import select
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy import func as F
 
-from nacsos_data.db.schemas.annotations import AssignmentScope
-from nacsos_data.db.schemas.highlight import Highlighter
-from nacsos_data.models.highlight import HighlighterModel
-
+from server.data import db_engine
 from server.api.errors import \
     NoDataForKeyError, \
     DataNotFoundWarning
-from server.util.security import UserPermissionChecker, InsufficientPermissions
-from server.data import db_engine
+from server.util.security import \
+    UserPermissionChecker, \
+    InsufficientPermissions
+
+from nacsos_data.util.auth import UserPermissions
+from nacsos_data.db.schemas.annotations import AssignmentScope
+from nacsos_data.db.schemas.highlight import Highlighter
+from nacsos_data.models.highlight import HighlighterModel
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
@@ -20,19 +23,21 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-@router.get('/scope/{assignment_scope_id}', response_model=HighlighterModel | None)
-async def get_scope_highlighter(assignment_scope_id: str,
-                                permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
-        -> HighlighterModel:
+@router.get('/scope/{assignment_scope_id}', response_model=list[HighlighterModel] | None)
+async def get_scope_highlighters(assignment_scope_id: str,
+                                 permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[HighlighterModel]:
     async with db_engine.session() as session:  # type: AsyncSession
+        highlighter_ids = select(F.unnest(AssignmentScope.highlighter_ids).label('highlighter_id')) \
+            .where(AssignmentScope.assignment_scope_id == assignment_scope_id) \
+            .subquery()
         stmt = select(Highlighter) \
-            .join(AssignmentScope,
-                  AssignmentScope.highlighter_id == Highlighter.highlighter_id) \
-            .where(Highlighter.project_id == permissions.permissions.project_id,
-                   AssignmentScope.assignment_scope_id == assignment_scope_id)
-        result = (await session.scalars(stmt)).one_or_none()
-        if result is not None:
-            return HighlighterModel.parse_obj(result.__dict__)
+            .join(highlighter_ids, highlighter_ids.c.highlighter_id == Highlighter.highlighter_id) \
+            .where(Highlighter.project_id == permissions.permissions.project_id)
+
+        result = (await session.scalars(stmt)).all()
+        if result is not None and len(result) > 0:
+            return [HighlighterModel.parse_obj(r.__dict__) for r in result]
         raise DataNotFoundWarning(f'No highlighter in project {permissions.permissions.project_id} '
                                   f'for scope with id {assignment_scope_id}!')
 

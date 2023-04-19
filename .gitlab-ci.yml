@@ -65,7 +65,7 @@ deploy-to-production:
     - groups
     - echo $HOME
     - echo "Reset git config"
-    - rm /home/gitlab-runner/.gitconfig
+    - rm -f /home/gitlab-runner/.gitconfig
     - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - git config --global user.name gitlab-runner
     - git config --global user.email gitlab-runner@gitlab.pik-potsdam.de

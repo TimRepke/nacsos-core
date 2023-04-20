@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status as http_status, Header
+from fastapi import Depends, status as http_status, Header
 from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel, UserInDBModel

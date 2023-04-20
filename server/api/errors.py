@@ -1,5 +1,8 @@
+from fastapi import status as http_status
+
+
 class DataNotFoundWarning(Warning):
-    pass
+    status = http_status.HTTP_204_NO_CONTENT
 
 
 class NoDataForKeyError(Exception):
@@ -23,7 +26,7 @@ class AnnotationSchemeNotFoundError(Exception):
 
 
 class NoNextAssignmentWarning(Warning):
-    pass
+    status = http_status.HTTP_204_NO_CONTENT
 
 
 class AssignmentScopeNotFoundError(Exception):

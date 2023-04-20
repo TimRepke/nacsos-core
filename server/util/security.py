@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status as http_status, Header
+from fastapi import Depends, status as http_status, Header
 from fastapi.security import OAuth2PasswordBearer
 
 from nacsos_data.models.users import UserModel, UserInDBModel
@@ -15,6 +15,12 @@ logger = get_logger('nacsos.util.security')
 
 class InsufficientPermissions(Exception):
     status = http_status.HTTP_403_FORBIDDEN
+    headers = {'WWW-Authenticate': 'Bearer'}
+
+
+class NotAuthenticated(Exception):
+    status = http_status.HTTP_401_UNAUTHORIZED
+    headers = {'WWW-Authenticate': 'Bearer'}
 
 
 auth_helper = Authentication(engine=db_engine,
@@ -26,25 +32,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=Fals
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDBModel:
     try:
         return await auth_helper.get_current_user(token_id=token)
-    except (InvalidCredentialsError, InsufficientPermissionError) as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_401_UNAUTHORIZED,
-            detail=repr(e),
-            headers={'WWW-Authenticate': 'Bearer'},
-        )
+    except InvalidCredentialsError as e:
+        raise NotAuthenticated(str(e))
+    except InsufficientPermissionError as e:
+        raise InsufficientPermissions(str(e))
 
 
 async def get_current_active_user(current_user: UserModel = Depends(get_current_user)) -> UserModel:
     if not current_user.is_active:
-        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail='Inactive user')
+        raise InsufficientPermissions('Inactive user')
     return current_user
 
 
 def get_current_active_superuser(current_user: UserModel = Depends(get_current_active_user)) -> UserModel:
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST, detail="The user doesn't have enough privileges"
-        )
+        raise InsufficientPermissions('The user doesn\'t have enough privileges')
     return current_user
 
 

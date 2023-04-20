@@ -65,16 +65,25 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             except Error:  # type: ignore[misc]
                 logger.error('Some unspecified error occurred...')
 
+            headers: dict[str, Any] | None = None
+            if hasattr(ew, 'headers'):
+                headers = getattr(ew, 'headers')
+
+            level: Literal['WARNING', 'ERROR'] = 'ERROR'
+            if isinstance(ew, Warning):
+                level = 'WARNING'
+
             return await http_exception_handler(
                 request,
                 exc=HTTPException(
                     status_code=self._resolve_status(ew),
                     detail=ErrorDetail(
-                        level='WARNING' if isinstance(ew, Warning) else 'ERROR',
+                        level=level,
                         type=ew.__class__.__name__,
                         message=error_str,
                         args=self._resolve_args(ew)
-                    ).dict()
+                    ).dict(),
+                    headers=headers
                 ))
 
 

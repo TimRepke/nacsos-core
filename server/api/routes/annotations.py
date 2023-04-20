@@ -1,7 +1,8 @@
+import uuid
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, asc, join, and_
 from sqlalchemy.orm import load_only
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
@@ -9,7 +10,7 @@ from nacsos_data.db.schemas import \
     BotAnnotationMetaData, \
     AssignmentScope, \
     User, \
-    Annotation
+    Annotation, Assignment
 from nacsos_data.models.annotations import \
     AnnotationSchemeModel, \
     AssignmentScopeModel, \
@@ -286,6 +287,49 @@ async def get_assignments(assignment_scope_id: str, permissions=Depends(UserPerm
     return assignments
 
 
+class ProgressIndicator(BaseModel):
+    assignment_id: str | uuid.UUID
+    item_id: str | uuid.UUID
+    order: int
+    status: AssignmentStatus
+    value_int: int | None = None
+    value_bool: bool | None = None
+
+
+@router.get('/annotate/assignment/progress/{assignment_scope_id}', response_model=list[ProgressIndicator])
+async def get_assignment_indicators_for_scope_for_user(assignment_scope_id: str,
+                                                       key: str | None = Query(default=None),
+                                                       repeat: int | None = Query(default=None),
+                                                       permissions=Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[ProgressIndicator]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        if key is None:
+            stmt = select(Assignment.assignment_id,
+                          Assignment.item_id,
+                          Assignment.order,
+                          Assignment.status)
+        else:
+            stmt = select(Assignment.assignment_id,
+                          Assignment.item_id,
+                          Assignment.order,
+                          Assignment.status,
+                          Annotation.value_int,
+                          Annotation.value_bool) \
+                .select_from(join(left=Assignment,
+                                  right=Annotation,
+                                  onclause=and_(Assignment.assignment_id == Annotation.assignment_id,
+                                                Annotation.repeat == (1 if repeat is None else repeat),
+                                                Annotation.key == key),
+                                  isouter=True))
+        stmt = stmt \
+            .where(Assignment.user_id == permissions.user.user_id,
+                   Assignment.assignment_scope_id == assignment_scope_id) \
+            .order_by(asc(Assignment.order))
+
+        results = (await session.execute(stmt)).mappings().all()
+        return [ProgressIndicator.parse_obj(r) for r in results]
+
+
 @router.get('/annotate/assignments/scope/{assignment_scope_id}', response_model=list[AssignmentModel])
 async def get_assignments_for_scope(assignment_scope_id: str,
                                     permissions=Depends(UserPermissionChecker('annotations_read'))) \
@@ -364,11 +408,12 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
                                 detail=str(e))
     elif payload.config.config_type == 'random_exclusion':
         try:
-            assignments = await random_assignments_with_exclusion(assignment_scope_id=payload.scope_id,
-                                                                  annotation_scheme_id=payload.annotation_scheme_id,
-                                                                  project_id=permissions.permissions.project_id,
-                                                                  config=payload.config,  # type: ignore[arg-type] # FIXME
-                                                                  engine=db_engine)
+            assignments = await random_assignments_with_exclusion(
+                assignment_scope_id=payload.scope_id,
+                annotation_scheme_id=payload.annotation_scheme_id,
+                project_id=permissions.permissions.project_id,
+                config=payload.config,  # type: ignore[arg-type] # FIXME
+                engine=db_engine)
         except ValueError as e:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=str(e))
@@ -516,7 +561,7 @@ async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChec
         return [BotAnnotationMetaDataBaseModel.parse_obj(e.__dict__) for e in exports]
 
 
-@router.get('/config/resolved/:bot_annotation_meta_id', response_model=SavedResolutionResponse)
+@router.get('/config/resolved/{bot_annotation_meta_id}', response_model=SavedResolutionResponse)
 async def get_saved_resolved_annotations(bot_annotation_metadata_id: str,
                                          permissions=Depends(UserPermissionChecker('annotations_edit'))):
     bot_annotations = await read_bot_annotations(bot_annotation_metadata_id=bot_annotation_metadata_id,
@@ -533,7 +578,7 @@ async def get_saved_resolved_annotations(bot_annotation_metadata_id: str,
         )
 
 
-@router.delete('/config/resolved/:bot_annotation_meta_id')
+@router.delete('/config/resolved/{bot_annotation_meta_id}')
 async def delete_saved_resolved_annotations(bot_annotation_metadata_id: str,
                                             permissions=Depends(UserPermissionChecker('annotations_edit'))):
     async with db_engine.session() as session:  # type: AsyncSession

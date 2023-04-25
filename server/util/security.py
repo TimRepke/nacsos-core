@@ -87,5 +87,5 @@ class UserPermissionChecker:
 
 
 __all__ = ['InsufficientPermissionError', 'InvalidCredentialsError', 'InsufficientPermissions',
-           'auth_helper', 'oauth2_scheme', 'UserPermissionChecker', 'UserPermissions',
+           'auth_helper', 'oauth2_scheme', 'UserPermissionChecker', 'UserPermissions', 'NotAuthenticated',
            'get_current_user', 'get_current_active_user', 'get_current_active_superuser']

@@ -1,10 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import TYPE_CHECKING
+
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from nacsos_data.db.schemas.users import AuthToken
+from sqlalchemy import select
 
 from nacsos_data.models.users import UserModel, AuthTokenModel
 
-from server.util.security import get_current_active_user, auth_helper, InvalidCredentialsError
+from server.api.errors import NoDataForKeyError
+from server.util.security import get_current_active_user, auth_helper, InvalidCredentialsError, NotAuthenticated
 from server.util.logging import get_logger
+from server import db_engine
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 logger = get_logger('nacsos.api.route.login')
 router = APIRouter()
@@ -20,11 +29,35 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         token = await auth_helper.refresh_or_create_token(username=user.username)
         return token
     except InvalidCredentialsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=repr(e),
-            headers={'WWW-Authenticate': 'Bearer'},
-        )
+        raise NotAuthenticated(repr(e))
+
+
+@router.put('/token/{token_id}', response_model=AuthTokenModel)
+async def refresh_token(token_id: str, current_user: UserModel = Depends(get_current_active_user)) -> AuthTokenModel:
+    try:
+        token = await auth_helper.refresh_or_create_token(token_id=token_id,
+                                                          verify_username=current_user.username)
+        return token
+    except (InvalidCredentialsError, AssertionError) as e:
+        raise NotAuthenticated(repr(e))
+
+
+@router.delete('/token/{token_id}')
+async def refresh_token(token_id: str, current_user: UserModel = Depends(get_current_active_user)):
+    await auth_helper.clear_token_by_id(token_id=token_id,
+                                        verify_username=current_user.username)
+
+
+@router.get('/my-tokens', response_model=list[AuthTokenModel])
+async def read_tokens_me(current_user: UserModel = Depends(get_current_active_user)):
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = select(AuthToken) \
+            .where(AuthToken.username == current_user.username) \
+            .order_by(AuthToken.valid_till)
+        tokens = (await session.scalars(stmt)).all()
+        if tokens is None or len(tokens) == 0:
+            raise NoDataForKeyError('No auth token for this user (this error should not exist)')
+        return [AuthTokenModel.parse_obj(token.__dict__) for token in tokens]
 
 
 @router.get('/me', response_model=UserModel)
@@ -37,11 +70,7 @@ async def logout(current_user: UserModel = Depends(get_current_active_user)):
     username = current_user.username
 
     if username is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='RuntimeError(empty username)',
-            headers={'WWW-Authenticate': 'Bearer'},
-        )
+        raise NotAuthenticated('RuntimeError(empty username)')
 
     await auth_helper.clear_tokens_by_user(username=username)
 

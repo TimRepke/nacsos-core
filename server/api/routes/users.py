@@ -1,17 +1,25 @@
+from typing import TYPE_CHECKING
+import uuid
+
 from fastapi import APIRouter, Depends, Query, HTTPException, status as http_status
 
 from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
 from nacsos_data.util.auth import UserPermissions
+from nacsos_data.db.schemas import User
 from nacsos_data.db.crud.users import \
     read_users, \
     read_user_by_id, \
     read_users_by_ids, \
-    create_or_update_user
+    create_or_update_user, get_password_hash
+from sqlalchemy import select
 
 from server.data import db_engine
-from server.api.errors import DataNotFoundWarning, UserNotFoundError
+from server.api.errors import DataNotFoundWarning, UserNotFoundError, UserPermissionError
 from server.util.logging import get_logger
 from server.util.security import UserPermissionChecker, get_current_active_user
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 logger = get_logger('nacsos.api.route.admin.users')
 router = APIRouter()
@@ -62,9 +70,31 @@ async def get_users_by_ids(user_id: list[str] = Query(),
 async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = Depends(get_current_active_user)):
     # Users can only edit their own info, admins can edit all.
     if user.user_id != current_user.user_id and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=http_status.HTTP_403_FORBIDDEN,
-            detail='You do not have permission to perform this action.',
-        )
+        raise UserPermissionError('You do not have permission to perform this action.')
 
     return await create_or_update_user(user, engine=db_engine)
+
+
+@router.put('/my-details', response_model=str)
+async def save_user_self(user: UserInDBModel | UserModel,
+                         current_user: UserModel = Depends(get_current_active_user)):
+    if current_user.user_id != user.user_id:
+        raise UserPermissionError('This is not you!')
+
+    async with db_engine.session() as session:  # type: AsyncSession
+        user_db: User | None = (await session.scalars(select(User).where(User.user_id == user.user_id))).one_or_none()
+
+        password: str | None = getattr(user, 'password', None)
+        if password is not None:
+            user_db.password = get_password_hash(password)
+
+        user_db.email = user.email
+        user_db.full_name = user.full_name
+        user_db.affiliation = user.affiliation
+
+        user_id = str(user_db.user_id)
+
+        # save changes
+        await session.commit()
+
+        return user_id

@@ -43,7 +43,7 @@ async def refresh_token(token_id: str, current_user: UserModel = Depends(get_cur
 
 
 @router.delete('/token/{token_id}')
-async def refresh_token(token_id: str, current_user: UserModel = Depends(get_current_active_user)):
+async def revoke_token(token_id: str, current_user: UserModel = Depends(get_current_active_user)):
     await auth_helper.clear_token_by_id(token_id=token_id,
                                         verify_username=current_user.username)
 

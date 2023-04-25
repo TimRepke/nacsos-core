@@ -2,8 +2,9 @@ import uuid
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select, asc, join, and_
+from sqlalchemy import select, asc, join, and_, text
 from sqlalchemy.orm import load_only
+from sqlalchemy.dialects.postgresql import json
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
 from nacsos_data.db.schemas import \
@@ -287,46 +288,60 @@ async def get_assignments(assignment_scope_id: str, permissions=Depends(UserPerm
     return assignments
 
 
+class ProgressIndicatorLabel(BaseModel):
+    repeat: int
+    value_int: int | None = None
+    value_bool: bool | None = None
+
+
 class ProgressIndicator(BaseModel):
     assignment_id: str | uuid.UUID
     item_id: str | uuid.UUID
     order: int
     status: AssignmentStatus
-    value_int: int | None = None
-    value_bool: bool | None = None
+    labels: dict[str, list[ProgressIndicatorLabel]] | None = None
 
 
 @router.get('/annotate/assignment/progress/{assignment_scope_id}', response_model=list[ProgressIndicator])
 async def get_assignment_indicators_for_scope_for_user(assignment_scope_id: str,
-                                                       key: str | None = Query(default=None),
-                                                       repeat: int | None = Query(default=None),
                                                        permissions=Depends(UserPermissionChecker('annotations_read'))) \
         -> list[ProgressIndicator]:
     async with db_engine.session() as session:  # type: AsyncSession
-        if key is None:
-            stmt = select(Assignment.assignment_id,
-                          Assignment.item_id,
-                          Assignment.order,
-                          Assignment.status)
-        else:
-            stmt = select(Assignment.assignment_id,
-                          Assignment.item_id,
-                          Assignment.order,
-                          Assignment.status,
-                          Annotation.value_int,
-                          Annotation.value_bool) \
-                .select_from(join(left=Assignment,
-                                  right=Annotation,
-                                  onclause=and_(Assignment.assignment_id == Annotation.assignment_id,
-                                                Annotation.repeat == (1 if repeat is None else repeat),
-                                                Annotation.key == key),
-                                  isouter=True))
-        stmt = stmt \
-            .where(Assignment.user_id == permissions.user.user_id,
-                   Assignment.assignment_scope_id == assignment_scope_id) \
-            .order_by(asc(Assignment.order))
+        stmt = text('''
+        WITH tmp as (SELECT assignment.assignment_id,
+                            assignment.item_id,
+                            assignment."order",
+                            assignment.status,
+                            annotation.key,
+                            jsonb_agg(jsonb_build_object('repeat', annotation.repeat,
+                                                         'value_bool', annotation.value_bool,
+                                                         'value_int', annotation.value_int)) as pl
+                     FROM assignment
+                              LEFT OUTER JOIN annotation ON assignment.assignment_id = annotation.assignment_id
+                     WHERE assignment.user_id = :user_id
+                       AND assignment.assignment_scope_id = :scope_id
+                     GROUP BY assignment.assignment_id,
+                              assignment.item_id,
+                              assignment."order",
+                              annotation.key)
+        SELECT assignment_id,
+               item_id,
+               "order",
+               status,
+               jsonb_object_agg(key, pl) filter (where key is not null ) as labels
+        FROM tmp
+        GROUP BY tmp.assignment_id,
+                 tmp.item_id,
+                 tmp."order",
+                 tmp.status
+        ORDER BY tmp."order" ASC;
+        ''')
 
-        results = (await session.execute(stmt)).mappings().all()
+        results = (await session.execute(stmt, {
+            'scope_id': assignment_scope_id,
+            'user_id': permissions.user.user_id
+        })).mappings().all()
+
         return [ProgressIndicator.parse_obj(r) for r in results]
 
 

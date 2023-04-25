@@ -2,15 +2,15 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from nacsos_data.db.schemas.users import AuthToken
 from sqlalchemy import select
 
+from nacsos_data.db.schemas.users import AuthToken
 from nacsos_data.models.users import UserModel, AuthTokenModel
 
 from server.api.errors import NoDataForKeyError
 from server.util.security import get_current_active_user, auth_helper, InvalidCredentialsError, NotAuthenticated
 from server.util.logging import get_logger
-from server import db_engine
+from server.data import db_engine
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401

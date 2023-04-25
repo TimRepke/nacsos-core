@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
-import uuid
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status as http_status
+from fastapi import APIRouter, Depends, Query
 
 from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
 from nacsos_data.util.auth import UserPermissions
@@ -82,7 +81,12 @@ async def save_user_self(user: UserInDBModel | UserModel,
         raise UserPermissionError('This is not you!')
 
     async with db_engine.session() as session:  # type: AsyncSession
-        user_db: User | None = (await session.scalars(select(User).where(User.user_id == str(user.user_id)))).one_or_none()
+        user_db: User | None = (await session.scalars(select(User)
+                                                      .where(User.user_id == str(current_user.user_id)))
+                                ).one_or_none()
+
+        if user_db is None:
+            raise DataNotFoundWarning('User does not exist (this error should never happen)!')
 
         password: str | None = getattr(user, 'password', None)
         if password is not None:

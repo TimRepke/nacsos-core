@@ -2,16 +2,15 @@ import uuid
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select, asc, join, and_, text
+from sqlalchemy import select, text
 from sqlalchemy.orm import load_only
-from sqlalchemy.dialects.postgresql import json
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
 from nacsos_data.db.schemas import \
     BotAnnotationMetaData, \
     AssignmentScope, \
     User, \
-    Annotation, Assignment
+    Annotation
 from nacsos_data.models.annotations import \
     AnnotationSchemeModel, \
     AssignmentScopeModel, \

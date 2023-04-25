@@ -8,9 +8,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from .util.middlewares import TimingMiddleware, ErrorHandlingMiddleware
 from .util.config import settings
+from .data import db_engine
 from .util.logging import get_logger
 from .api import router as api_router
-from .data import db_engine
 
 
 mimetypes.init()

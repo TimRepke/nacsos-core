@@ -78,11 +78,11 @@ async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = D
 @router.put('/my-details', response_model=str)
 async def save_user_self(user: UserInDBModel | UserModel,
                          current_user: UserModel = Depends(get_current_active_user)):
-    if current_user.user_id != user.user_id:
+    if str(current_user.user_id) != str(user.user_id):
         raise UserPermissionError('This is not you!')
 
     async with db_engine.session() as session:  # type: AsyncSession
-        user_db: User | None = (await session.scalars(select(User).where(User.user_id == user.user_id))).one_or_none()
+        user_db: User | None = (await session.scalars(select(User).where(User.user_id == str(user.user_id)))).one_or_none()
 
         password: str | None = getattr(user, 'password', None)
         if password is not None:

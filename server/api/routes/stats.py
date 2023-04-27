@@ -10,6 +10,7 @@ from nacsos_data.db.schemas import Item, Import, AnnotationScheme, AssignmentSco
     AcademicItem, TwitterItem
 from nacsos_data.util.auth import UserPermissions
 
+from server.api.errors import ProjectNotFoundError
 from server.util.security import UserPermissionChecker
 from server.util.logging import get_logger
 from server.data import db_engine
@@ -39,23 +40,23 @@ async def get_basic_stats(
 
     async with db_engine.session() as session:  # type: AsyncSession
         num_items: int = await session.scalar(select(F.count(Item.item_id))
-                                              .where(Item.project_id == project_id))
+                                              .where(Item.project_id == project_id)) or 0
         num_imports: int = await session.scalar(select(F.count(Import.import_id))
-                                                .where(Import.project_id == project_id))
+                                                .where(Import.project_id == project_id)) or 0
         num_schemes: int = await session.scalar(select(F.count(AnnotationScheme.annotation_scheme_id))
-                                                .where(AnnotationScheme.project_id == project_id))
+                                                .where(AnnotationScheme.project_id == project_id)) or 0
         num_scopes: int = await session.scalar(select(F.count(AssignmentScope.assignment_scope_id))
                                                .join(AnnotationScheme,
                                                      AnnotationScheme.annotation_scheme_id == AssignmentScope.annotation_scheme_id)
-                                               .where(AnnotationScheme.project_id == project_id))
+                                               .where(AnnotationScheme.project_id == project_id)) or 0
         num_labels: int = await session.scalar(select(F.count(Annotation.annotation_id))
                                                .join(AnnotationScheme,
                                                      AnnotationScheme.annotation_scheme_id == Annotation.annotation_scheme_id)
-                                               .where(AnnotationScheme.project_id == project_id))
+                                               .where(AnnotationScheme.project_id == project_id)) or 0
         num_labeled_items: int = await session.scalar(select(F.count(F.distinct(Annotation.item_id)))
                                                       .join(AnnotationScheme,
                                                             AnnotationScheme.annotation_scheme_id == Annotation.annotation_scheme_id)
-                                                      .where(AnnotationScheme.project_id == project_id))
+                                                      .where(AnnotationScheme.project_id == project_id)) or 0
 
         return BasicProjectStats(
             num_items=num_items,
@@ -94,7 +95,11 @@ async def get_annotator_ranking(permissions: UserPermissions = Depends(UserPermi
                   AnnotationScheme.annotation_scheme_id == Annotation.annotation_scheme_id) \
             .join(User, User.user_id == Annotation.user_id) \
             .where(AnnotationScheme.project_id == project_id) \
-            .group_by(User) \
+            .group_by(User.user_id,
+                      User.username,
+                      User.full_name,
+                      User.email,
+                      User.affiliation) \
             .order_by(desc('num_labeled_items'))
         result = (await session.execute(stmt)).mappings().all()
 
@@ -117,6 +122,9 @@ async def get_publication_year_histogram(
 
     async with db_engine.session() as session:  # type: AsyncSession
         project = await session.get(Project, project_id)
+
+        if project is None:
+            raise ProjectNotFoundError('This error should never happen.')
 
         if project.type == ItemType.academic:
             table = AcademicItem.__tablename__

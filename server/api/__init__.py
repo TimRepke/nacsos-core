@@ -9,6 +9,7 @@ from .routes import imports
 from .routes import events
 from .routes import highlight
 from .routes import stats
+from .routes import export
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -42,3 +43,6 @@ router.include_router(highlight.router, prefix='/highlighters', tags=['highlight
 
 # route for retrieving project statistics
 router.include_router(stats.router, prefix='/stats', tags=['stats'])
+
+# route for downloading data
+router.include_router(export.router, prefix='/export', tags=['export'])

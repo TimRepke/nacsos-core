@@ -8,4 +8,4 @@ httpx[http2]==0.24.0
 pymitter==0.4.0
 uvicorn==0.22.0
 python-multipart==0.0.6
-nacsos_data[scripts,server] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.5.7
+nacsos_data[scripts,server] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.5.8

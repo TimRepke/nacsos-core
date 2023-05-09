@@ -40,6 +40,7 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
                              func.row_to_json(text('"user".*'))
                          ).label('owners')) \
         .join(User, ProjectPermissions.user_id == User.user_id) \
+        .where(ProjectPermissions.owner == True) \
         .group_by(ProjectPermissions.project_id) \
         .cte()
 

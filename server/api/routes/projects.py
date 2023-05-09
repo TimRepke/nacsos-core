@@ -35,14 +35,18 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
 
     :return: List of projects
     """
-    stmt_owners = select(ProjectPermissions.project_id,
-                         func.array_agg(
-                             func.row_to_json(text('"user".*'))
-                         ).label('owners')) \
-        .join(User, ProjectPermissions.user_id == User.user_id) \
-        .where(ProjectPermissions.owner == True) \
-        .group_by(ProjectPermissions.project_id) \
+    stmt_owners = (
+        select(
+            ProjectPermissions.project_id,
+            func.array_agg(
+                func.row_to_json(text('"user".*'))
+            ).label('owners')
+        )
+        .join(User, ProjectPermissions.user_id == User.user_id)
+        .where(ProjectPermissions.owner == True)  # noqa: E712
+        .group_by(ProjectPermissions.project_id)
         .cte()
+    )
 
     stmt_projects = select(Project, stmt_owners.c.owners) \
         .join(stmt_owners, Project.project_id == stmt_owners.c.project_id)

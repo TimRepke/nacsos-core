@@ -1,4 +1,6 @@
 # NACSOS Core
+[![Volkswagen status](.ci/volkswargen_ci.svg)](https://github.com/auchenberg/volkswagen)
+
 This repository contains the core data management platform of NACSOS.
 It accesses the database via the `nacsos-data` package and exposes the functionality via an API.
 It also serves the web frontend.

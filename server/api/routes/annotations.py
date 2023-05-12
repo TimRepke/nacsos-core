@@ -564,7 +564,7 @@ async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChec
                    BotAnnotationMetaData.kind == BotKind.RESOLVE)
             .options(load_only(BotAnnotationMetaData.bot_annotation_metadata_id,
                                BotAnnotationMetaData.annotation_scheme_id,
-                               BotAnnotationMetaData.annotation_scope_id,
+                               BotAnnotationMetaData.assignment_scope_id,
                                BotAnnotationMetaData.project_id,
                                BotAnnotationMetaData.name,
                                BotAnnotationMetaData.kind,

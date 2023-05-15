@@ -49,7 +49,7 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
     )
 
     stmt_projects = select(Project, stmt_owners.c.owners) \
-        .join(stmt_owners, Project.project_id == stmt_owners.c.project_id)
+        .join(stmt_owners, Project.project_id == stmt_owners.c.project_id, isouter=True)
 
     if current_user.is_superuser:
         # superuser needs no filtering, sees all projects
@@ -70,7 +70,7 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
         return [
             ProjectInfo(owners=[
                 UserBaseModel.parse_obj(owner)
-                for owner in row['owners']
+                for owner in (row['owners'] or [])
             ],
                 **row['Project'].__dict__)
             for row in result.mappings().all()

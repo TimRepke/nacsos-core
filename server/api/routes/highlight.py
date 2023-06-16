@@ -45,7 +45,6 @@ async def get_scope_highlighters(assignment_scope_id: str,
 @router.get('/project', response_model=list[HighlighterModel])
 async def get_project_highlighters(permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
         -> list[HighlighterModel]:
-    print('HERE!')
     async with db_engine.session() as session:  # type: AsyncSession
         stmt = select(Highlighter).where(Highlighter.project_id == permissions.permissions.project_id)
         results = (await session.scalars(stmt)).all()

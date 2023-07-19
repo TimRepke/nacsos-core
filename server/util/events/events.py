@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class BaseEvent(BaseModel):
-    _name = ClassVar[str]
+    name: ClassVar[str]
 
     @classmethod
     def get_subclasses(cls):
@@ -18,9 +18,9 @@ class BaseEvent(BaseModel):
 
 
 class ExampleEvent(BaseEvent):
-    _name = 'Example_*'
+    name = 'Example_*'
     payload_a: str
 
 
 class ExampleSubEvent(ExampleEvent):
-    _name = 'Example_sub'
+    name = 'Example_sub'

@@ -37,7 +37,7 @@ async def get_scope_highlighters(assignment_scope_id: str,
 
         result = (await session.scalars(stmt)).all()
         if result is not None and len(result) > 0:
-            return [HighlighterModel.parse_obj(r.__dict__) for r in result]
+            return [HighlighterModel.model_validate(r.__dict__) for r in result]
         raise DataNotFoundWarning(f'No highlighter in project {permissions.permissions.project_id} '
                                   f'for scope with id {assignment_scope_id}!')
 
@@ -48,7 +48,7 @@ async def get_project_highlighters(permissions: UserPermissions = Depends(UserPe
     async with db_engine.session() as session:  # type: AsyncSession
         stmt = select(Highlighter).where(Highlighter.project_id == permissions.permissions.project_id)
         results = (await session.scalars(stmt)).all()
-        return [HighlighterModel.parse_obj(r.__dict__) for r in results]
+        return [HighlighterModel.model_validate(r.__dict__) for r in results]
 
 
 @router.put('/project', response_model=str)
@@ -68,7 +68,7 @@ async def upsert_highlighter(highlighter: HighlighterModel,
             result.style = highlighter.style
             result.keywords = highlighter.keywords
         else:
-            new_highlighter = Highlighter(**highlighter.dict())
+            new_highlighter = Highlighter(**highlighter.model_dump())
             session.add(new_highlighter)
 
         await session.commit()
@@ -85,6 +85,6 @@ async def get_highlighter(highlighter_id: str,
                                          Highlighter.highlighter_id == highlighter_id)
         result = (await session.scalars(stmt)).one_or_none()
         if result is not None:
-            return HighlighterModel.parse_obj(result.__dict__)
+            return HighlighterModel.model_validate(result.__dict__)
         raise NoDataForKeyError(f'No highlighter in project {permissions.permissions.project_id} '
                                 f'with id {highlighter_id}!')

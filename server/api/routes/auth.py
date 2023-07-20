@@ -57,7 +57,7 @@ async def read_tokens_me(current_user: UserModel = Depends(get_current_active_us
         tokens = (await session.scalars(stmt)).all()
         if tokens is None or len(tokens) == 0:
             raise NoDataForKeyError('No auth token for this user (this error should not exist)')
-        return [AuthTokenModel.parse_obj(token.__dict__) for token in tokens]
+        return [AuthTokenModel.model_validate(token.__dict__) for token in tokens]
 
 
 @router.get('/me', response_model=UserModel)

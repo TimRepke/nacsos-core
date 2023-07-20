@@ -36,7 +36,7 @@ async def emit(event: Event) -> None:
     if not issubclass(emit_event_type, events.BaseEvent):
         raise UnknownEventError(f'Event {event.event} is not a valid subclass of `BaseEvent`')
 
-    emit_event = emit_event_type.parse_obj(event.payload)
+    emit_event = emit_event_type.model_validate(event.payload)
     logger.debug(f'Going to emit {emit_event} ({emit_event})')
     await eventbus.emit_async(emit_event._name, emit_event)  # noqa PyProtectedMember
 

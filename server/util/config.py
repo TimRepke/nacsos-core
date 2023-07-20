@@ -32,7 +32,7 @@ class ServerConfig(BaseModel):
 
     HEADER_CORS: bool = False  # set to true to allow CORS
     HEADER_TRUSTED_HOST: bool = False  # set to true to allow hosts from any origin
-    CORS_ORIGINS: list[AnyHttpUrl] = []  # list of trusted hosts
+    CORS_ORIGINS: list[str] = []  # list of trusted hosts
 
     @field_validator('CORS_ORIGINS', mode='before')
     @classmethod

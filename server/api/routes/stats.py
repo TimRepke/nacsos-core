@@ -103,7 +103,7 @@ async def get_annotator_ranking(permissions: UserPermissions = Depends(UserPermi
             .order_by(desc('num_labeled_items'))
         result = (await session.execute(stmt)).mappings().all()
 
-        return [RankEntry.parse_obj(r) for r in result]
+        return [RankEntry.model_validate(r) for r in result]
 
 
 class HistogramEntry(BaseModel):
@@ -152,4 +152,4 @@ async def get_publication_year_histogram(
             'to_date': to_date,
             'project_id': project_id
         })).mappings().all()
-        return [HistogramEntry.parse_obj(r) for r in result]
+        return [HistogramEntry.model_validate(r) for r in result]

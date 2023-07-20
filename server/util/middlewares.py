@@ -82,7 +82,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                         type=ew.__class__.__name__,
                         message=error_str,
                         args=self._resolve_args(ew)
-                    ).dict(),
+                    ).model_dump(),
                     headers=headers
                 ))
 

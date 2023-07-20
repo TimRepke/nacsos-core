@@ -112,8 +112,8 @@ async def get_export_baseinfo(permissions: UserPermissions = Depends(UserPermiss
     else:
         fields = ['text']
 
-    return ProjectBaseInfo(users=[ProjectBaseInfoEntry.parse_obj(pu) for pu in project_users],
-                           scopes=[ProjectBaseInfoScopeEntry.parse_obj(ps) for ps in project_scopes],
-                           bot_scopes=[ProjectBaseInfoEntry.parse_obj(pbs) for pbs in project_bot_scopes],
+    return ProjectBaseInfo(users=[ProjectBaseInfoEntry.model_validate(pu) for pu in project_users],
+                           scopes=[ProjectBaseInfoScopeEntry.model_validate(ps) for ps in project_scopes],
+                           bot_scopes=[ProjectBaseInfoEntry.model_validate(pbs) for pbs in project_bot_scopes],
                            labels=project_labels,
                            fields=fields)

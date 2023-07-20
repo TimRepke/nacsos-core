@@ -69,7 +69,7 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
 
         return [
             ProjectInfo(owners=[
-                UserBaseModel.parse_obj(owner)
+                UserBaseModel.model_validate(owner)
                 for owner in (row['owners'] or [])
             ],
                 **row['Project'].__dict__)
@@ -83,6 +83,6 @@ async def create_project(project: ProjectModel,
     async with db_engine.session() as session:  # type: AsyncSession
         if project.project_id is None:
             project.project_id = str(uuid.uuid4())
-        session.add(Project(**project.dict()))
+        session.add(Project(**project.model_dump()))
         await session.commit()
         return str(project.project_id)

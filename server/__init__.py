@@ -12,7 +12,6 @@ from .data import db_engine
 from .util.logging import get_logger
 from .api import router as api_router
 
-
 mimetypes.init()
 
 logger = get_logger('nacsos.server')
@@ -31,7 +30,7 @@ if settings.SERVER.HEADER_TRUSTED_HOST:
 if settings.SERVER.HEADER_CORS:
     app.add_middleware(CORSMiddleware,
                        allow_origins=settings.SERVER.CORS_ORIGINS,
-                       allow_methods=['GET', 'POST', 'DELETE', 'POST', 'PUT'],
+                       allow_methods=['GET', 'POST', 'DELETE', 'POST', 'PUT', 'OPTIONS'],
                        allow_headers=['*'],
                        allow_credentials=True)
     logger.info(f'CORSMiddleware will accept the following origins: {settings.SERVER.CORS_ORIGINS}')

@@ -41,7 +41,7 @@ class ServerConfig(BaseModel):
             return [i.strip() for i in v.split(',')]
         if isinstance(v, str) and v.startswith('['):
             ret = json.loads(v)
-            if type(ret) == list:
+            if type(ret) is list:
                 return ret
         elif isinstance(v, (list, str)):
             return v
@@ -50,6 +50,7 @@ class ServerConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     SCHEME: str = 'postgresql'
+    SCHEMA: str = 'public'
     HOST: str = 'localhost'  # host of the db server
     PORT: int = 5432  # port of the db server
     USER: str = 'nacsos'  # username for the database
@@ -113,13 +114,19 @@ class PipelinesConfig(BaseModel):
 
 
 class Settings(BaseSettings):
+    # Basic server hosting settings
     SERVER: ServerConfig = ServerConfig()
+    # Database connection to main database
     DB: DatabaseConfig = DatabaseConfig()
+    # Global user account settings
     USERS: UsersConfig = UsersConfig()
+    # Settings for the nacsos-pipelines API
     PIPES: PipelinesConfig = PipelinesConfig()
 
+    # OpenAlex in PostgreSQL
+    OA_DB: DatabaseConfig = DatabaseConfig()
     # URL including path to OpenAlex collection
-    OPENALEX: AnyHttpUrl = 'http://localhost:8983/solr/openalex'
+    OA_SOLR: AnyHttpUrl = 'http://localhost:8983/solr/openalex'  # type: ignore[assignment]
 
     # EMAIL: EmailConfig
 
@@ -137,7 +144,7 @@ class Settings(BaseSettings):
         if filename is not None:
             with open(filename, 'r') as f:
                 ret = toml.loads(f.read())
-                if type(ret) == dict:
+                if type(ret) is dict:
                     return ret
         raise ValueError('Logging config invalid!')
 

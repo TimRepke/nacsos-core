@@ -1,6 +1,5 @@
 from uuid import uuid4
 from fastapi import APIRouter, Depends
-from nacsos_data.db.crud import upsert_orm
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -53,20 +52,20 @@ async def get_all_user_permissions(permission=Depends(UserPermissionChecker('own
 async def save_project_permission(project_permission: ProjectPermissionsModel,
                                   permission=Depends(UserPermissionChecker('owner'))) -> str:
     async with db_engine.session() as session:
-        logger.debug(f'Updating project permissions')
+        logger.debug('Updating project permissions')
 
         # Some permissions can only be given by superusers of the platform.
         is_su = permission.user.is_superuser
 
         if project_permission.project_permission_id is None:
-            logger.debug(f'No existing project_permissions found, creating new!')
+            logger.debug('No existing project_permissions found, creating new!')
             project_permission.project_permission_id = uuid4()
         else:
             # fetch existing model from the database
             stmt = select(ProjectPermissions).filter_by(project_permission_id=project_permission.project_permission_id)
             existing_perms: ProjectPermissions | None = (await session.scalars(stmt)).one_or_none()
             if existing_perms is not None:
-                logger.debug(f'Existing project_permissions found, attempting to UPDATE!')
+                logger.debug('Existing project_permissions found, attempting to UPDATE!')
 
                 # Assert that the current user is even allowed to hand out these permissions
                 if not is_su and ((project_permission.search_oa is True

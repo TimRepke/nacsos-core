@@ -1,0 +1,53 @@
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+import httpx
+
+from server.util.security import UserPermissionChecker, UserPermissions
+from server.util.logging import get_logger
+from server.util.config import settings
+
+logger = get_logger('nacsos.api.route.search')
+router = APIRouter()
+
+logger.info('Setting up academic search route')
+
+
+class TermStats(BaseModel):
+    term: str
+    df: int
+    ttf: int
+
+
+@router.get('/openalex', response_model=str)
+async def search_openalex(import_id: str,
+                          permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))):
+    # u = settings.OA_SOLR
+    pass
+
+
+@router.post('/terms', response_model=list[TermStats])
+async def term_expansion(term_prefix: str,
+                         limit: int = 20,
+                         permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> list[TermStats]:
+    url = f'{settings.OA_SOLR}/terms' \
+          f'?facet=true' \
+          f'&indent=true' \
+          f'&q.op=OR' \
+          f'&q=*%3A*' \
+          f'&terms.fl=title_abstract' \
+          f'&terms.limit={limit}' \
+          f'&terms.prefix={term_prefix}' \
+          f'&terms.stats=true' \
+          f'&terms.ttf=true' \
+          f'&terms=true' \
+          f'&useParams='
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        terms = response.json()['terms']['title_abstract']
+        return [
+            TermStats(term=terms[i],
+                      df=terms[i + 1]['df'],
+                      ttf=terms[i + 1]['ttf'])
+            for i in range(0, len(terms), 2)
+        ]

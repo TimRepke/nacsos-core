@@ -10,6 +10,7 @@ from .routes import events
 from .routes import highlight
 from .routes import stats
 from .routes import export
+from .routes import search
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -46,3 +47,6 @@ router.include_router(stats.router, prefix='/stats', tags=['stats'])
 
 # route for downloading data
 router.include_router(export.router, prefix='/export', tags=['export'])
+
+# route for searching data (e.g. in openalex)
+router.include_router(search.router, prefix='/search', tags=['search'])

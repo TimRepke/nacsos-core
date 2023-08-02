@@ -118,6 +118,9 @@ class Settings(BaseSettings):
     USERS: UsersConfig = UsersConfig()
     PIPES: PipelinesConfig = PipelinesConfig()
 
+    # URL including path to OpenAlex collection
+    OPENALEX: AnyHttpUrl = 'http://localhost:8983/solr/openalex'
+
     # EMAIL: EmailConfig
 
     LOG_CONF_FILE: str = 'config/logging.conf'

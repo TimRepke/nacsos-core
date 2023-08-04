@@ -60,11 +60,11 @@ class DatabaseConfig(BaseModel):
     CONNECTION_STR: PostgresDsn | None = None
 
     @field_validator('CONNECTION_STR', mode='before')
-    def build_connection_string(cls, v: str | None, info: FieldValidationInfo) -> str:
+    def build_connection_string(cls, v: str | None, info: FieldValidationInfo) -> PostgresDsn:
         assert info.config is not None
 
         if isinstance(v, str):
-            return v
+            raise ValueError('This field will be generated automatically, please do not use it.')
 
         return PostgresDsn.build(
             scheme=info.data.get('SCHEME', 'postgresql'),

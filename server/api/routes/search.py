@@ -4,7 +4,7 @@ import httpx
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 
-from nacsos_data.util.academic.openalex import query_async, SearchResult
+from nacsos_data.util.academic.openalex import query_async, SearchResult, SearchField, DefType, OpType
 
 from server.util.security import UserPermissionChecker, UserPermissions
 from server.util.logging import get_logger
@@ -25,9 +25,11 @@ class TermStats(BaseModel):
 @router.get('/openalex', response_model=SearchResult)
 async def search_openalex(query: str,
                           limit: int = 20,
-                          field: Literal['title', 'abstract', 'title_abstract'] = 'title_abstract',
+                          offset: int = 0,
+                          def_type: DefType = 'lucene',
+                          field: SearchField = 'title_abstract',
                           histogram: bool = False,
-                          op: Literal['OR', 'AND'] = 'AND',
+                          op: OpType = 'AND',
                           histogram_from: int = 1990,
                           histogram_to: int = 2024,
                           permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> SearchResult:
@@ -37,7 +39,9 @@ async def search_openalex(query: str,
                              histogram_to=histogram_to,
                              histogram_from=histogram_from,
                              op=op,
+                             def_type=def_type,
                              field=field,
+                             offset=offset,
                              limit=limit)
 
 

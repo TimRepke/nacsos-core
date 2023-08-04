@@ -1,5 +1,3 @@
-from typing import Literal
-
 import httpx
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends

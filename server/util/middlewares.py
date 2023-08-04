@@ -47,7 +47,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     def _resolve_status(cls, ew: Error) -> int:
         if hasattr(ew, 'status'):
             error_status = getattr(ew, 'status')
-            if type(error_status) == int:
+            if type(error_status) is int:
                 return error_status
         return http_status.HTTP_400_BAD_REQUEST
 
@@ -82,7 +82,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                         type=ew.__class__.__name__,
                         message=error_str,
                         args=self._resolve_args(ew)
-                    ).dict(),
+                    ).model_dump(),
                     headers=headers
                 ))
 

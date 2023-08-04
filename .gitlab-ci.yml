@@ -52,7 +52,7 @@ test-job2:
     - source venv/bin/activate
     - which python
     - pip freeze
-    - python -m mypy --config-file=pyproject.toml server
+    - python -m mypy --config-file=pyproject.toml server --show-traceback --no-incremental
 
 deploy-to-production:
   stage: deploy

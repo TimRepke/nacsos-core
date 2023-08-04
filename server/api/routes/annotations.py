@@ -341,7 +341,7 @@ async def get_assignment_indicators_for_scope_for_user(assignment_scope_id: str,
             'user_id': permissions.user.user_id
         })).mappings().all()
 
-        return [ProgressIndicator.parse_obj(r) for r in results]
+        return [ProgressIndicator.model_validate(r) for r in results]
 
 
 @router.get('/annotate/assignments/scope/{assignment_scope_id}', response_model=list[AssignmentModel])
@@ -446,7 +446,7 @@ async def get_assignment_scopes_for_scheme(scheme_id: str,
                                            permissions=Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AssignmentScopeModel]:
     async with db_engine.session() as session:  # type: AsyncSession
-        return [AssignmentScopeModel.parse_obj(scope.__dict__)
+        return [AssignmentScopeModel.model_validate(scope.__dict__)
                 for scope in (await session.execute(select(AssignmentScope)
                                                     .where(AssignmentScope.annotation_scheme_id == scheme_id))
                               ).scalars().all()]
@@ -457,7 +457,7 @@ async def get_annotators_for_scheme(scheme_id: str,
                                     permissions=Depends(UserPermissionChecker('annotations_edit'))) \
         -> list[UserModel]:
     async with db_engine.session() as session:  # type: AsyncSession
-        return [UserModel.parse_obj(user.__dict__)
+        return [UserModel.model_validate(user.__dict__)
                 for user in (
                     await session.execute(select(User)
                                           .join(Annotation)
@@ -518,7 +518,7 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
         ignore_order = False
     scheme, flat_labels, collection, resolved = \
         await get_resolved_item_annotations(strategy=strategy,
-                                            filters=AnnotationFilterObject.parse_obj(filters),
+                                            filters=AnnotationFilterObject.model_validate(filters),
                                             ignore_order=ignore_order,
                                             ignore_hierarchy=ignore_hierarchy,
                                             db_engine=db_engine)
@@ -572,7 +572,7 @@ async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChec
                                BotAnnotationMetaData.time_created)))) \
             .scalars().all()
 
-        return [BotAnnotationMetaDataBaseModel.parse_obj(e.__dict__) for e in exports]
+        return [BotAnnotationMetaDataBaseModel.model_validate(e.__dict__) for e in exports]
 
 
 @router.get('/config/resolved/{bot_annotation_meta_id}', response_model=SavedResolutionResponse)

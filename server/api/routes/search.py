@@ -20,7 +20,7 @@ class TermStats(BaseModel):
     ttf: int
 
 
-@router.get('/openalex', response_model=SearchResult)
+@router.get('/openalex/select', response_model=SearchResult)
 async def search_openalex(query: str,
                           limit: int = 20,
                           offset: int = 0,
@@ -43,7 +43,7 @@ async def search_openalex(query: str,
                              limit=limit)
 
 
-@router.post('/terms', response_model=list[TermStats])
+@router.get('/openalex/terms', response_model=list[TermStats])
 async def term_expansion(term_prefix: str,
                          limit: int = 20,
                          permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> list[TermStats]:

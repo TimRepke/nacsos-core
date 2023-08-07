@@ -512,13 +512,14 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
         key=key,
         repeat=repeat,
     )
+    print(filters)
     if ignore_hierarchy is None:
         ignore_hierarchy = False
     if ignore_order is None:
         ignore_order = False
     scheme, flat_labels, collection, resolved = \
         await get_resolved_item_annotations(strategy=strategy,
-                                            filters=AnnotationFilterObject.model_validate(filters),
+                                            filters=AnnotationFilterObject.model_validate(filters.model_dump()),
                                             ignore_order=ignore_order,
                                             ignore_hierarchy=ignore_hierarchy,
                                             db_engine=db_engine)

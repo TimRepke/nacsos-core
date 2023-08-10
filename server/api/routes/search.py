@@ -1,4 +1,5 @@
 import httpx
+from nacsos_data.db.crud.items.query.parse import GRAMMAR
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 import sqlalchemy.sql.functions as func
@@ -77,6 +78,11 @@ async def term_expansion(term_prefix: str,
                       ttf=terms[i + 1]['ttf'])
             for i in range(0, len(terms), 2)
         ]
+
+
+@router.get('/nql/grammar', response_model=str)
+async def nql_grammar() -> str:
+    return GRAMMAR
 
 
 class QueryResult(BaseModel):

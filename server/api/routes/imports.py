@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 
-from nacsos_data.models.imports import ImportModel, ImportType
+from nacsos_data.models.imports import ImportModel
 from nacsos_data.db.crud.imports import \
     read_import, \
     upsert_import, \
     delete_import, \
     read_all_imports_for_project, \
     read_item_count_for_import
-from nacsos_data.util.pipelines.imports import submit_jsonl_import_task, submit_wos_import_task
+from nacsos_data.util.pipelines.imports import submit_import_task
 
 from server.data import db_engine
 from server.util.security import UserPermissionChecker, UserPermissions, InsufficientPermissions
@@ -59,22 +59,11 @@ async def put_import_details(import_details: ImportModel,
 async def trigger_import(import_id: str,
                          permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
     import_details = await read_import(import_id=import_id, engine=db_engine)
-
-    print(import_details.__dict__)
-
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
-        if import_details.type == ImportType.jsonl:
-            return await submit_jsonl_import_task(import_id=import_id,
-                                                  base_url=settings.PIPES.API_URL,
-                                                  auth_token=settings.PIPES.TOKEN,
-                                                  engine=db_engine)
-        elif import_details.type == ImportType.wos:
-            return await submit_wos_import_task(import_id=import_id,
-                                                base_url=settings.PIPES.API_URL,
-                                                auth_token=settings.PIPES.TOKEN,
-                                                engine=db_engine)
-        else:
-            raise NotImplementedError(f'No import trigger for "{import_details.type}" implemented yet.')
+        return await submit_import_task(import_details=import_details,
+                                        base_url=settings.PIPES.API_URL,
+                                        auth_token=settings.PIPES.TOKEN,
+                                        engine=db_engine)
 
     raise InsufficientPermissions('You do not have permission to edit this data import.')
 

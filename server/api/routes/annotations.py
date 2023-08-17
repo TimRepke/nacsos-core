@@ -512,7 +512,7 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
         key=key,
         repeat=repeat,
     )
-    print(filters)
+
     if ignore_hierarchy is None:
         ignore_hierarchy = False
     if ignore_order is None:

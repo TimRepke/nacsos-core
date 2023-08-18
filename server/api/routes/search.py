@@ -43,7 +43,7 @@ async def search_openalex(query: str,
                           histogram_to: int = 2024,
                           permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> SearchResult:
     return await query_async(query=query,
-                             openalex_endpoint=f'{settings.OA_SOLR}/select',
+                             openalex_endpoint=str(settings.OA_SOLR),
                              histogram=histogram,
                              histogram_to=histogram_to,
                              histogram_from=histogram_from,

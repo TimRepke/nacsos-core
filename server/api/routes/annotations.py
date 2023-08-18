@@ -57,7 +57,7 @@ from nacsos_data.db.crud.annotations import \
     UserProjectAssignmentScope, \
     store_assignments, \
     store_resolved_bot_annotations, \
-    update_resolved_bot_annotations
+    update_resolved_bot_annotations, read_assignment_overview_for_scope, AssignmentScopeEntry
 from nacsos_data.util.annotations.resolve import \
     AnnotationFilterObject, \
     get_resolved_item_annotations, \
@@ -287,61 +287,12 @@ async def get_assignments(assignment_scope_id: str, permissions=Depends(UserPerm
     return assignments
 
 
-class ProgressIndicatorLabel(BaseModel):
-    repeat: int
-    value_int: int | None = None
-    value_bool: bool | None = None
-
-
-class ProgressIndicator(BaseModel):
-    assignment_id: str | uuid.UUID
-    item_id: str | uuid.UUID
-    order: int
-    status: AssignmentStatus
-    labels: dict[str, list[ProgressIndicatorLabel]] | None = None
-
-
-@router.get('/annotate/assignment/progress/{assignment_scope_id}', response_model=list[ProgressIndicator])
-async def get_assignment_indicators_for_scope_for_user(assignment_scope_id: str,
-                                                       permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[ProgressIndicator]:
-    async with db_engine.session() as session:  # type: AsyncSession
-        stmt = text('''
-        WITH tmp as (SELECT assignment.assignment_id,
-                            assignment.item_id,
-                            assignment."order",
-                            assignment.status,
-                            annotation.key,
-                            jsonb_agg(jsonb_build_object('repeat', annotation.repeat,
-                                                         'value_bool', annotation.value_bool,
-                                                         'value_int', annotation.value_int)) as pl
-                     FROM assignment
-                              LEFT OUTER JOIN annotation ON assignment.assignment_id = annotation.assignment_id
-                     WHERE assignment.user_id = :user_id
-                       AND assignment.assignment_scope_id = :scope_id
-                     GROUP BY assignment.assignment_id,
-                              assignment.item_id,
-                              assignment."order",
-                              annotation.key)
-        SELECT assignment_id,
-               item_id,
-               "order",
-               status,
-               jsonb_object_agg(key, pl) filter (where key is not null ) as labels
-        FROM tmp
-        GROUP BY tmp.assignment_id,
-                 tmp.item_id,
-                 tmp."order",
-                 tmp.status
-        ORDER BY tmp."order" ASC;
-        ''')
-
-        results = (await session.execute(stmt, {
-            'scope_id': assignment_scope_id,
-            'user_id': permissions.user.user_id
-        })).mappings().all()
-
-        return [ProgressIndicator.model_validate(r) for r in results]
+@router.get('/annotate/assignment/progress/{assignment_scope_id}', response_model=list[AssignmentScopeEntry])
+async def get_assignment_indicators_for_scope(assignment_scope_id: str,
+                                              permissions=Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[AssignmentScopeEntry]:
+    return await read_assignment_overview_for_scope(assignment_scope_id=assignment_scope_id,
+                                                    db_engine=db_engine)
 
 
 @router.get('/annotate/assignments/scope/{assignment_scope_id}', response_model=list[AssignmentModel])

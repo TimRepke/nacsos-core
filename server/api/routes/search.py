@@ -1,13 +1,15 @@
+from typing import TYPE_CHECKING
+
 import httpx
-from nacsos_data.db.crud.items.query.parse import GRAMMAR
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 import sqlalchemy.sql.functions as func
-from typing import TYPE_CHECKING
 
-from nacsos_data.util.academic.openalex import query_async, SearchResult, SearchField, DefType, OpType
+from nacsos_data.util.academic.openalex import query_async, SearchResult
 from nacsos_data.db.crud.items import Query
+from nacsos_data.db.crud.items.query.parse import GRAMMAR
 from nacsos_data.models.items import AcademicItemModel
+from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
 
 from server.util.security import UserPermissionChecker, UserPermissions
 from server.util.logging import get_logger

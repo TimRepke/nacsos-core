@@ -1,8 +1,7 @@
-import uuid
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import load_only
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 

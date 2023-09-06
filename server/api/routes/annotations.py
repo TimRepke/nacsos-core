@@ -60,7 +60,7 @@ from nacsos_data.db.crud.annotations import \
 from nacsos_data.util.annotations.resolve import \
     AnnotationFilterObject, \
     get_resolved_item_annotations, \
-    read_bot_annotations
+    read_bot_annotations, ResolutionProposal
 from nacsos_data.util.annotations.validation import \
     merge_scheme_and_annotations, \
     annotated_scheme_to_annotations, \
@@ -415,19 +415,13 @@ async def get_annotators_for_scheme(scheme_id: str,
                                           .where(Annotation.annotation_scheme_id == scheme_id))).scalars().all()]
 
 
-class ResolutionProposalResponse(BaseModel):
-    collection: AnnotationCollection
-    proposal: dict[str, list[GroupedBotAnnotation]]
-    scheme_flat: list[FlattenedAnnotationSchemeLabel]
-
-
 class SavedResolutionResponse(BaseModel):
     name: str
     meta: BotMetaResolve
     saved: dict[str, list[GroupedBotAnnotation]]
 
 
-@router.get('/config/resolve/', response_model=ResolutionProposalResponse)
+@router.get('/config/resolve/', response_model=ResolutionProposal)
 async def get_resolved_annotations(strategy: ResolutionMethod,
                                    scheme_id: str,
                                    scope_id: list[str] | None = Query(default=None),
@@ -436,6 +430,10 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
                                    repeat: list[int] | None = Query(default=None),
                                    ignore_order: bool | None = Query(default=False),
                                    ignore_hierarchy: bool | None = Query(default=False),
+                                   include_empty: bool | None = Query(default=False),
+                                   existing_resolution: str | None = Query(default=None),
+                                   include_new: bool | None = Query(default=False),
+                                   update_existing: bool | None = Query(default=False),
                                    permissions=Depends(UserPermissionChecker('annotations_edit'))):
     """
     Get all annotations that match the filters (e.g. all annotations made by users in scope with :scope_id).
@@ -444,6 +442,10 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
        columns (list index of dict entry): Label (key in scheme + repeat); index map in matrix.keys
        cells: list of annotations by each user for item/Label combination
 
+    :param include_new:
+    :param update_existing:
+    :param existing_resolution:
+    :param include_empty:
     :param strategy
     :param scheme_id:
     :param scope_id:
@@ -467,21 +469,28 @@ async def get_resolved_annotations(strategy: ResolutionMethod,
         ignore_hierarchy = False
     if ignore_order is None:
         ignore_order = False
-    scheme, flat_labels, collection, resolved = \
-        await get_resolved_item_annotations(strategy=strategy,
-                                            filters=AnnotationFilterObject.model_validate(filters.model_dump()),
-                                            ignore_order=ignore_order,
-                                            ignore_hierarchy=ignore_hierarchy,
-                                            db_engine=db_engine)
-
-    return ResolutionProposalResponse(collection=collection, proposal=resolved, scheme_flat=flat_labels)
+    if include_empty is None:
+        include_empty = True
+    if include_new is None:
+        include_new = False
+    if update_existing is None:
+        update_existing = False
+    return await get_resolved_item_annotations(strategy=strategy,
+                                               filters=AnnotationFilterObject.model_validate(filters.model_dump()),
+                                               ignore_order=ignore_order,
+                                               ignore_hierarchy=ignore_hierarchy,
+                                               include_new=include_new,
+                                               include_empty=include_empty,
+                                               update_existing=update_existing,
+                                               existing_resolution=existing_resolution,
+                                               db_engine=db_engine)
 
 
 class ResolutionPayload(BaseModel):
     name: str
     strategy: ResolutionMethod
     filters: AnnotationFilters
-    ignore_order: bool
+    ignore_order: bool  # Refers to `annotation.repeat`, not `assignment.order`!
     ignore_hierarchy: bool
     collection: AnnotationCollectionDB
     bot_annotations: list[BotAnnotationModel]

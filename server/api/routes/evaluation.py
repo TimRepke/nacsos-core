@@ -1,5 +1,4 @@
 import uuid
-from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from nacsos_data.db.crud import upsert_orm
@@ -19,8 +18,7 @@ from server.api.errors import DataNotFoundWarning
 from server.util.logging import get_logger
 from server.util.security import UserPermissionChecker
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger('nacsos.api.route.eval')
 logger.debug('Setup nacsos.api.route.eval router')

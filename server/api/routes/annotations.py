@@ -61,8 +61,8 @@ from nacsos_data.db.crud.annotations import (
     read_resolved_bot_annotation_meta,
     read_resolved_bot_annotations_for_meta
 )
+from nacsos_data.util.annotations import AnnotationFilterObject
 from nacsos_data.util.annotations.resolve import (
-    AnnotationFilterObject,
     get_resolved_item_annotations,
     read_annotation_scheme
 )

@@ -423,7 +423,7 @@ async def get_annotators_for_scheme(scheme_id: str,
                                           .where(Annotation.annotation_scheme_id == scheme_id))).scalars().all()]
 
 
-@router.get('/config/resolve/', response_model=ResolutionProposal)
+@router.post('/config/resolve/', response_model=ResolutionProposal)
 async def get_resolved_annotations(settings: BotMetaResolveBase,
                                    include_empty: bool | None = Query(default=False),
                                    existing_resolution: str | None = Query(default=None),
@@ -455,7 +455,7 @@ async def get_resolved_annotations(settings: BotMetaResolveBase,
                                                    include_new=include_new,
                                                    include_empty=include_empty,
                                                    update_existing=update_existing)
-    filters = AnnotationFilterObject.model_validate(settings.filters)
+    filters = AnnotationFilterObject.model_validate(settings.filters.model_dump())
     return await get_resolved_item_annotations(strategy=settings.algorithm,
                                                filters=filters,
                                                ignore_repeat=settings.ignore_repeat,

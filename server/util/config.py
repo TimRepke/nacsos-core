@@ -6,7 +6,7 @@ import os
 
 from pydantic_settings import SettingsConfigDict, BaseSettings
 from pydantic.networks import PostgresDsn
-from pydantic import field_validator, FieldValidationInfo, AnyHttpUrl, BaseModel, EmailStr
+from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel, EmailStr
 
 
 # For more information how BaseSettings work, check the documentation:
@@ -60,7 +60,7 @@ class DatabaseConfig(BaseModel):
     CONNECTION_STR: PostgresDsn | None = None
 
     @field_validator('CONNECTION_STR', mode='before')
-    def build_connection_string(cls, v: str | None, info: FieldValidationInfo) -> PostgresDsn:
+    def build_connection_string(cls, v: str | None, info: ValidationInfo) -> PostgresDsn:
         assert info.config is not None
 
         if isinstance(v, str):
@@ -88,7 +88,7 @@ class EmailConfig(BaseModel):
 
     @field_validator('ENABLED', mode='before')
     @classmethod
-    def get_emails_enabled(cls, v: str | None, info: FieldValidationInfo) -> bool:
+    def get_emails_enabled(cls, v: str | None, info: ValidationInfo) -> bool:
         assert info.config is not None
         return bool(
             info.data.get('SMTP_HOST')
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
 
     @field_validator('LOGGING_CONF', mode='before')
     @classmethod
-    def get_emails_enabled(cls, v: dict[str, Any] | None, info: FieldValidationInfo) -> dict[str, Any]:
+    def get_emails_enabled(cls, v: dict[str, Any] | None, info: ValidationInfo) -> dict[str, Any]:
         assert info.config is not None
 
         if isinstance(v, dict):

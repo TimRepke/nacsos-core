@@ -141,33 +141,34 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
         if labels is None or len(labels) == 0:
             labels = tracker.labels
 
-        flat_labels = [lab for batch in labels for lab in batch]
+        if labels is not None:
+            flat_labels = [lab for batch in labels for lab in batch]
 
-        recall = compute_recall(labels_=flat_labels)
-        if tracker.recall is None:
-            tracker.recall = recall
-        else:
-            tracker.recall += recall
+            recall = compute_recall(labels_=flat_labels)
+            if tracker.recall is None:
+                tracker.recall = recall
+            else:
+                tracker.recall += recall
 
-        await session.flush()
-
-        # Initialise buscar scores
-        if tracker.buscar is None:
-            tracker.buscar = []
-
-        if batch_size is None:
-            # Use scopes as batches
-            it = calculate_h0s_for_batches(labels=tracker.labels,
-                                           recall_target=tracker.recall_target,
-                                           n_docs=tracker.n_items_total)
-        else:
-            # Ignore the batches derived from scopes and use fixed step sizes
-            it = calculate_h0s(labels_=flat_labels,
-                               batch_size=batch_size,
-                               recall_target=tracker.recall_target,
-                               n_docs=tracker.n_items_total)
-
-        for x, y in it:
-            tracker.buscar = tracker.buscar + [(x, y)]
-            # save after each step, so the user can refresh the page and get data as it becomes available
             await session.flush()
+
+            # Initialise buscar scores
+            if tracker.buscar is None:
+                tracker.buscar = []
+
+            if batch_size is None:
+                # Use scopes as batches
+                it = calculate_h0s_for_batches(labels=tracker.labels,
+                                               recall_target=tracker.recall_target,
+                                               n_docs=tracker.n_items_total)
+            else:
+                # Ignore the batches derived from scopes and use fixed step sizes
+                it = calculate_h0s(labels_=flat_labels,
+                                   batch_size=batch_size,
+                                   recall_target=tracker.recall_target,
+                                   n_docs=tracker.n_items_total)
+
+            for x, y in it:
+                tracker.buscar = tracker.buscar + [(x, y)]
+                # save after each step, so the user can refresh the page and get data as it becomes available
+                await session.flush()

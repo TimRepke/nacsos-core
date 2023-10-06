@@ -18,7 +18,8 @@ logger = get_logger('nacsos.server')
 
 app = FastAPI(openapi_url=settings.SERVER.OPENAPI_FILE,
               openapi_prefix=settings.SERVER.OPENAPI_PREFIX,
-              root_path=settings.SERVER.ROOT_PATH)
+              root_path=settings.SERVER.ROOT_PATH,
+              separate_input_output_schemas=False)
 
 logger.debug('Setting up server and middlewares')
 mimetypes.add_type('application/javascript', '.js')

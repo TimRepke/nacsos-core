@@ -7,4 +7,4 @@ passlib[bcrypt]==1.7.4
 pymitter==0.4.2
 uvicorn==0.23.2
 python-multipart==0.0.6
-nacsos_data[scripts,server,utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.10.1
+nacsos_data[scripts,server,utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.11.0

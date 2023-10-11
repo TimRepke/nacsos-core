@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem, ItemType, Item
+from nacsos_data.db.schemas import Project, ItemTypeLiteral, GenericItem, AcademicItem, ItemType, Item, LexisNexisItem
 
-from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel, AnyItemModelList
+from nacsos_data.models.items import AnyItemModel, GenericItemModel, AcademicItemModel, AnyItemModelList, \
+    LexisNexisItemModel
 from nacsos_data.models.items.twitter import TwitterItemModel
 from nacsos_data.db.crud.items import \
     read_item_count_for_project, \
@@ -36,6 +37,9 @@ async def list_project_data(item_type: ItemTypeLiteral,
     if item_type == 'academic':
         return await read_all_for_project(Model=AcademicItemModel, Schema=AcademicItem,
                                           project_id=project_id, engine=db_engine)
+    if item_type == 'lexis':
+        return await read_all_for_project(Model=LexisNexisItemModel, Schema=LexisNexisItem,
+                                          project_id=project_id, engine=db_engine)
     if item_type == 'twitter':
         return await read_all_twitter_items_for_project(project_id=project_id, engine=db_engine)
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -52,6 +56,10 @@ async def list_project_data_paged(item_type: ItemTypeLiteral, page: int, page_si
                                             project_id=project_id, engine=db_engine)
     if item_type == 'academic':
         return await read_paged_for_project(Model=AcademicItemModel, Schema=AcademicItem,
+                                            page=page, page_size=page_size,
+                                            project_id=project_id, engine=db_engine)
+    if item_type == 'lexis':
+        return await read_paged_for_project(Model=LexisNexisItemModel, Schema=LexisNexisItem,
                                             page=page, page_size=page_size,
                                             project_id=project_id, engine=db_engine)
     if item_type == 'twitter':
@@ -78,6 +86,8 @@ async def get_detail_for_item(item_id: str,
         result = await read_twitter_item_by_item_id(item_id=item_id, engine=db_engine)
     elif item_type == 'academic':
         result = await read_any_item_by_item_id(item_id=item_id, item_type=ItemType.academic, engine=db_engine)
+    elif item_type == 'lexis':
+        result = await read_any_item_by_item_id(item_id=item_id, item_type=ItemType.lexis, engine=db_engine)
     else:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED,
                             detail=f'Detail getter for {item_type} not implemented (yet).')

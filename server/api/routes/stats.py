@@ -6,8 +6,19 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func as F, desc, text
 
-from nacsos_data.db.schemas import Item, Import, AnnotationScheme, AssignmentScope, Annotation, User, Project, ItemType, \
-    AcademicItem, TwitterItem
+from nacsos_data.db.schemas import (
+    Item,
+    Import,
+    AnnotationScheme,
+    AssignmentScope,
+    Annotation,
+    User,
+    Project,
+    ItemType,
+    AcademicItem,
+    TwitterItem,
+    LexisNexisItemSource
+)
 from nacsos_data.util.auth import UserPermissions
 
 from server.api.errors import ProjectNotFoundError
@@ -132,8 +143,11 @@ async def get_publication_year_histogram(
         elif project.type == ItemType.twitter:
             table = TwitterItem.__tablename__
             column = TwitterItem.created_at.name
+        elif project.type == ItemType.lexis:
+            table = LexisNexisItemSource.__tablename__
+            column = LexisNexisItemSource.published_at.name
         else:
-            raise NotImplementedError('Only available for academic and twitter projects!')
+            raise NotImplementedError('Only available for academic, lexisnexis, and twitter projects!')
 
         stmt = text(f'''
             WITH buckets as (SELECT generate_series(:from_date ::timestamp, :to_date ::timestamp, '1 year') as bucket),

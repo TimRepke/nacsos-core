@@ -10,7 +10,7 @@ from nacsos_data.util.annotations.evaluation.buscar import (
     calculate_h0s_for_batches,
     compute_recall,
     calculate_h0s)
-from nacsos_data.util.annotations.evaluation.label_transform import annotations_to_sequence, get_annotations
+from nacsos_data.util.annotations.label_transform import annotations_to_sequence, get_annotations
 from nacsos_data.util.auth import UserPermissions
 from pydantic import BaseModel
 from sqlalchemy import select, String, literal

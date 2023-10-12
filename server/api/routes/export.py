@@ -109,6 +109,8 @@ async def get_export_baseinfo(permissions: UserPermissions = Depends(UserPermiss
         fields = ['text', 'twitter_id', 'created_at', 'twitter_author_id', 'conversation_id']
     elif project.type == ItemType.academic:
         fields = ['text', 'title', 'doi', 'wos_id', 'scopus_id', 'openalex_id', 'publication_year', 'source']
+    elif project.type == ItemType.lexis:
+        fields = ['text', 'teaser', 'author']  # TODO: ideally we would also export the source data
     else:
         fields = ['text']
 

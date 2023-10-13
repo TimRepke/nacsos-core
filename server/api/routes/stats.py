@@ -17,7 +17,7 @@ from nacsos_data.db.schemas import (
     ItemType,
     AcademicItem,
     TwitterItem,
-    LexisNexisItemSource
+    LexisNexisItemSource, LexisNexisItem
 )
 from nacsos_data.util.auth import UserPermissions
 
@@ -138,22 +138,26 @@ async def get_publication_year_histogram(
             raise ProjectNotFoundError('This error should never happen.')
 
         if project.type == ItemType.academic:
-            table = AcademicItem.__tablename__
+            alias = 'itm'
+            from_stmt = f'{AcademicItem.__tablename__} itm'
             column = f'make_timestamp({AcademicItem.publication_year.name},2,2,2,2,2)'
         elif project.type == ItemType.twitter:
-            table = TwitterItem.__tablename__
+            alias = 'itm'
+            from_stmt = f'{TwitterItem.__tablename__} itm'
             column = TwitterItem.created_at.name
         elif project.type == ItemType.lexis:
-            table = LexisNexisItemSource.__tablename__
+            alias = 'jn'
+            from_stmt = (f'{LexisNexisItemSource.__tablename__} itm '
+                         f'LEFT JOIN {LexisNexisItem.__tablename__} jn ON itm.item_id = jn.item_id')
             column = LexisNexisItemSource.published_at.name
         else:
             raise NotImplementedError('Only available for academic, lexisnexis, and twitter projects!')
 
         stmt = text(f'''
             WITH buckets as (SELECT generate_series(:from_date ::timestamp, :to_date ::timestamp, '1 year') as bucket),
-                 items as (SELECT {column} as time_ref, item_id
-                          FROM {table}
-                          WHERE {table}.project_id = :project_id)
+                 items as (SELECT itm.{column} as time_ref, itm.item_id
+                          FROM {from_stmt}
+                          WHERE {alias}.project_id = :project_id)
                 SELECT b.bucket as bucket, count(DISTINCT item_id) as num_items
                 FROM buckets b
                          LEFT OUTER JOIN items ON (items.time_ref >= b.bucket AND items.time_ref < (b.bucket + '1 year'::interval))

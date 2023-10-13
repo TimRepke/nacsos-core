@@ -471,7 +471,7 @@ class SavedResolution(BaseModel):
     proposal: ResolutionProposal
 
 
-@router.get('/config/resolved/{bot_annotation_meta_id}', response_model=SavedResolution)
+@router.get('/config/resolved/{bot_annotation_metadata_id}', response_model=SavedResolution)
 async def get_saved_resolved_annotations(bot_annotation_metadata_id: str,
                                          permissions=Depends(UserPermissionChecker('annotations_edit'))) \
         -> SavedResolution:

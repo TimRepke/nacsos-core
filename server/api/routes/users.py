@@ -1,16 +1,18 @@
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, asc
 
-from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
 from nacsos_data.util.auth import UserPermissions
-from nacsos_data.db.schemas import User
-from nacsos_data.db.crud.users import \
-    read_users, \
-    read_user_by_id, \
-    read_users_by_ids, \
-    create_or_update_user, get_password_hash
-from sqlalchemy import select
+from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
+from nacsos_data.db.schemas import User, AssignmentScope, AnnotationScheme, Assignment
+from nacsos_data.db.crud.users import (
+    read_users,
+    read_user_by_id,
+    read_users_by_ids,
+    create_or_update_user,
+    get_password_hash
+)
 
 from server.data import db_engine
 from server.api.errors import DataNotFoundWarning, UserNotFoundError, UserPermissionError
@@ -31,6 +33,26 @@ async def get_all_users(current_user: UserModel = Depends(get_current_active_use
     if result is None:
         return []
     return result
+
+
+@router.get('/list/project/annotators/{project_id}', response_model=dict[str, UserBaseModel])
+async def get_project_annotator_users(project_id: str,
+                                      permissions: UserPermissions = Depends(UserPermissionChecker())) \
+        -> dict[str, UserBaseModel]:
+    session: AsyncSession
+    async with db_engine.session() as session:
+        stmt = (select(User)
+                .join(Assignment, User.user_id == Assignment.user_id)
+                .join(AssignmentScope, Assignment.assignment_scope_id == AssignmentScope.assignment_scope_id)
+                .join(AnnotationScheme, AssignmentScope.annotation_scheme_id == AnnotationScheme.annotation_scheme_id)
+                .where(AnnotationScheme.project_id == project_id)
+                .order_by(asc(User.username)))
+
+        result = (await session.scalars(stmt)).all()
+        return {
+            str(res.user_id): UserBaseModel(**res.__dict__)
+            for res in result
+        }
 
 
 @router.get('/list/project/{project_id}', response_model=list[UserBaseModel])

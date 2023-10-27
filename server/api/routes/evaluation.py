@@ -3,17 +3,20 @@ from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from nacsos_data.db.crud import upsert_orm
-from nacsos_data.db.schemas import AnnotationTracker, AssignmentScope, AnnotationScheme, BotAnnotationMetaData
+from nacsos_data.db.schemas import AnnotationTracker, AssignmentScope, AnnotationScheme, BotAnnotationMetaData, \
+    AnnotationQuality
+from nacsos_data.models.annotation_quality import AnnotationQualityModel
 from nacsos_data.models.annotation_tracker import AnnotationTrackerModel, DehydratedAnnotationTracker
 from nacsos_data.util.annotations.evaluation import get_new_label_batches
 from nacsos_data.util.annotations.evaluation.buscar import (
     calculate_h0s_for_batches,
     compute_recall,
     calculate_h0s)
+from nacsos_data.util.annotations.evaluation.irr import compute_irr_scores
 from nacsos_data.util.annotations.label_transform import annotations_to_sequence, get_annotations
 from nacsos_data.util.auth import UserPermissions
 from pydantic import BaseModel
-from sqlalchemy import select, String, literal
+from sqlalchemy import select, String, literal, delete
 
 from server.data import db_engine
 from server.api.errors import DataNotFoundWarning
@@ -172,3 +175,36 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
                 tracker.buscar = tracker.buscar + [(x, y)]
                 # save after each step, so the user can refresh the page and get data as it becomes available
                 await session.flush()
+
+
+@router.get('/quality/load/{assignment_scope_id}', response_model=list[AnnotationQualityModel])
+async def get_irr(assignment_scope_id: str,
+                  permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[AnnotationQualityModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        results = (
+            await session.execute(select(AnnotationQuality)
+                                  .where(AnnotationQuality.assignment_scope_id == assignment_scope_id))
+        ).scalars().all()
+
+        return [AnnotationQualityModel(**r.__dict__) for r in results]
+
+
+@router.get('/quality/compute/{assignment_scope_id}', response_model=list[AnnotationQualityModel])
+async def recompute_irr(assignment_scope_id: str,
+                        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[AnnotationQualityModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        # Delete existing metrics
+        await session.execute(delete(AnnotationQuality)
+                              .where(AnnotationQuality.assignment_scope_id == assignment_scope_id))
+        # Compute new metrics
+        metrics = await compute_irr_scores(session=session,
+                                           assignment_scope_id=assignment_scope_id,
+                                           project_id=permissions.permissions.project_id)
+
+        metrics_orm = [AnnotationQuality(**metric.model_dump()) for metric in metrics]
+        session.add_all(metrics_orm)
+        await session.commit()
+
+    return await get_irr(assignment_scope_id, permissions)

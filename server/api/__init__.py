@@ -12,6 +12,7 @@ from .routes import stats
 from .routes import export
 from .routes import search
 from .routes import evaluation
+from .routes import mailing
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -54,3 +55,6 @@ router.include_router(search.router, prefix='/search', tags=['search'])
 
 # route for computing evaluation metrics and other statistics
 router.include_router(evaluation.router, prefix='/eval', tags=['evaluation'])
+
+# route for sending emails
+router.include_router(mailing.router, prefix='/mail', tags=['mailing'])

@@ -21,6 +21,7 @@ class ServerConfig(BaseModel):
     PORT: int = 8080  # port for this serve to listen at
     DEBUG_MODE: bool = False  # set this to true in order to get more detailed logs
     WORKERS: int = 2  # number of worker processes
+    WEB_URL: str = 'https://localhost'  # URL to the web frontend (without trailing /)
     STATIC_FILES: str = '../nacsos-web/dist/'  # path to the static files to be served
     OPENAPI_FILE: str = '/openapi.json'  # absolute URL path to openapi.json file
     OPENAPI_PREFIX: str = ''  # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/
@@ -77,26 +78,14 @@ class DatabaseConfig(BaseModel):
 
 
 class EmailConfig(BaseModel):
+    ENABLED: bool = False
     SMTP_TLS: bool = True
     SMTP_PORT: int | None = None
     SMTP_HOST: str | None = None
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
-    SENDER_ADDRESS: EmailStr | None = None
-    SENDER_NAME: str | None = 'NACSOS'
-    ENABLED: bool = False
-
-    @field_validator('ENABLED', mode='before')
-    @classmethod
-    def get_emails_enabled(cls, v: str | None, info: ValidationInfo) -> bool:
-        assert info.config is not None
-        return bool(
-            info.data.get('SMTP_HOST')
-            and info.data.get('SMTP_PORT')
-            and info.data.get('SENDER_ADDRESS')
-        )
-
-    TEST_USER: EmailStr = 'test@nacsos.eu'
+    SENDER: str | None = 'NACSOS <noreply@mcc-berlin.net>'
+    ADMINS: list[str] | None = None
 
 
 class UsersConfig(BaseModel):
@@ -128,7 +117,7 @@ class Settings(BaseSettings):
     # URL including path to OpenAlex collection
     OA_SOLR: AnyHttpUrl = 'http://localhost:8983/solr/openalex'  # type: ignore[assignment]
 
-    # EMAIL: EmailConfig
+    EMAIL: EmailConfig
 
     LOG_CONF_FILE: str = 'config/logging.conf'
     LOGGING_CONF: dict[str, Any] | None = None

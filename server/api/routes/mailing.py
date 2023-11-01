@@ -62,32 +62,33 @@ async def reset_password(username: str) -> str:
 @router.post('/welcome', response_class=PlainTextResponse)
 async def welcome_mail(username: str,
                        password: str,
-                       superuser: UserModel = Depends(get_current_active_superuser)) -> bool:
+                       superuser: UserModel = Depends(get_current_active_superuser)) -> str:
     user = await read_user_by_name(username, engine=db_engine)
 
     if user is not None and user.email is not None:
         # Create new token
         token = await auth_helper.refresh_or_create_token(username=username,
                                                           token_lifetime_minutes=3 * 60)
-        return await send_message(recipients=[user.email],
-                                  subject='[NACSOS] Welcome to the platform',
-                                  message=f'Dear {user.full_name},\n'
-                                          f'I created an account on our scoping platform for you.\n '
-                                          f'\n'
-                                          f'Username: {user.username}.\n'
-                                          f'Password: {password}\n'
-                                          f'\n'
-                                          f'You can change your password after logging in by opening the user menu at '
-                                          f'the top right and clicking "edit profile".\n'
-                                          f'\n'
-                                          f'You can use the following link within the next 3h to reset your password:\n'
-                                          f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
-                                          f'\n'
-                                          f'We are working on expanding the documentation for the platform here:\n'
-                                          f'https://apsis.mcc-berlin.net/nacsos-docs/'
-                                          f'\n'
-                                          f'Sincerely,\n'
-                                          f'The Platform')
+        await send_message(recipients=[user.email],
+                           subject='[NACSOS] Welcome to the platform',
+                           message=f'Dear {user.full_name},\n'
+                                   f'I created an account on our scoping platform for you.\n '
+                                   f'\n'
+                                   f'Username: {user.username}.\n'
+                                   f'Password: {password}\n'
+                                   f'\n'
+                                   f'You can change your password after logging in by opening the user menu at '
+                                   f'the top right and clicking "edit profile".\n'
+                                   f'\n'
+                                   f'You can use the following link within the next 3h to reset your password:\n'
+                                   f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
+                                   f'\n'
+                                   f'We are working on expanding the documentation for the platform here:\n'
+                                   f'https://apsis.mcc-berlin.net/nacsos-docs/\n'
+                                   f'\n'
+                                   f'Sincerely,\n'
+                                   f'The Platform')
+        return 'OK'
 
 
 @router.post('/assignment-reminder', response_model=list[str])

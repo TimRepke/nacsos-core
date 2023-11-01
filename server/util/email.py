@@ -104,7 +104,10 @@ def send_message_sync(recipients: list[str],
 
 
 def send_email_sync(email: EmailMessage) -> bool:
-    if not settings.EMAIL.ENABLED:
+    host = settings.EMAIL.SMTP_HOST
+    port = settings.EMAIL.SMTP_PORT
+
+    if not settings.EMAIL.ENABLED or host is None or port is None:
         raise EmailNotSentError(f'Mailing system inactive, '
                                 f'email with subject "{email["Subject"]}" not sent to {email["To"]}')
 
@@ -113,16 +116,18 @@ def send_email_sync(email: EmailMessage) -> bool:
         email['From'] = settings.EMAIL.SENDER
 
     try:
+        client: SMTP_SSL | SMTPSync
         if not settings.EMAIL.SMTP_TLS:
-            client = SMTP_SSL(host=settings.EMAIL.SMTP_HOST,
-                              port=settings.EMAIL.SMTP_PORT)
+            client = SMTP_SSL(host=host, port=port)
         else:
-            client = SMTPSync(host=settings.EMAIL.SMTP_HOST,
-                              port=settings.EMAIL.SMTP_PORT)
+            client = SMTPSync(host=host, port=port)
 
         with client as smtp:
-            smtp.login(user=settings.EMAIL.SMTP_USER,
-                       password=settings.EMAIL.SMTP_PASSWORD)
+            user = settings.EMAIL.SMTP_USER
+            password = settings.EMAIL.SMTP_PASSWORD
+            if user is not None and password is not None:
+                smtp.login(user=user, password=password)
+
             smtp.connect()
             logger.info(f'Trying to send email to {email["To"]} with subject "{email["Subject"]}"')
             status = smtp.send_message(email)

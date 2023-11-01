@@ -11,7 +11,7 @@ from nacsos_data.models.users import UserModel
 from nacsos_data.util.auth import UserPermissions
 
 from server.util.config import settings
-from server.util.email import EmailNotSentError, send_message, send_message_sync
+from server.util.email import EmailNotSentError, send_message
 from server.util.logging import get_logger
 from server.util.security import (
     auth_helper,
@@ -89,6 +89,7 @@ async def welcome_mail(username: str,
                                    f'Sincerely,\n'
                                    f'The Platform')
         return 'OK'
+    return 'IGNORE'
 
 
 @router.post('/assignment-reminder', response_model=list[str])

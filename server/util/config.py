@@ -6,7 +6,7 @@ import os
 
 from pydantic_settings import SettingsConfigDict, BaseSettings
 from pydantic.networks import PostgresDsn
-from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel, EmailStr
+from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel
 
 
 # For more information how BaseSettings work, check the documentation:

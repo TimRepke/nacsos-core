@@ -27,7 +27,8 @@ logger.debug('Setup nacsos.api.route.mailing router')
 
 
 @router.post('/reset-password/{username}', response_class=PlainTextResponse)
-async def reset_password(username: str) -> str:
+async def reset_password(username: str,
+                         background_tasks: BackgroundTasks) -> str:
     user = await read_user_by_name(username, engine=db_engine)
 
     if user is not None and user.email is not None:
@@ -38,18 +39,21 @@ async def reset_password(username: str) -> str:
         token = await auth_helper.refresh_or_create_token(username=username,
                                                           token_lifetime_minutes=3 * 60)
         try:
-            await send_message(recipients=[user.email],
-                               subject='[NACSOS] Reset password',
-                               message=f'Dear {user.full_name},\n'
-                                       f'You are receiving this message because you or someone else '
-                                       f'tried to reset your password.\n'
-                                       f'We closed all your active sessions, so you will have to log in again.\n'
-                                       f'\n'
-                                       f'You can use the following link within the next 3h to reset your password:\n'
-                                       f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
-                                       f'\n'
-                                       f'Sincerely,\n'
-                                       f'The Platform')
+            background_tasks.add_task(
+                send_message,
+                sender=None,
+                recipients=[user.email],
+                subject='[NACSOS] Reset password',
+                message=f'Dear {user.full_name},\n'
+                        f'You are receiving this message because you or someone else '
+                        f'tried to reset your password.\n'
+                        f'We closed all your active sessions, so you will have to log in again.\n'
+                        f'\n'
+                        f'You can use the following link within the next 3h to reset your password:\n'
+                        f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
+                        f'\n'
+                        f'Sincerely,\n'
+                        f'The Platform')
         except EmailNotSentError:
             pass
     else:
@@ -62,6 +66,7 @@ async def reset_password(username: str) -> str:
 @router.post('/welcome', response_class=PlainTextResponse)
 async def welcome_mail(username: str,
                        password: str,
+                       background_tasks: BackgroundTasks,
                        superuser: UserModel = Depends(get_current_active_superuser)) -> str:
     user = await read_user_by_name(username, engine=db_engine)
 
@@ -69,25 +74,28 @@ async def welcome_mail(username: str,
         # Create new token
         token = await auth_helper.refresh_or_create_token(username=username,
                                                           token_lifetime_minutes=3 * 60)
-        await send_message(recipients=[user.email],
-                           subject='[NACSOS] Welcome to the platform',
-                           message=f'Dear {user.full_name},\n'
-                                   f'I created an account on our scoping platform for you.\n '
-                                   f'\n'
-                                   f'Username: {user.username}.\n'
-                                   f'Password: {password}\n'
-                                   f'\n'
-                                   f'You can change your password after logging in by opening the user menu at '
-                                   f'the top right and clicking "edit profile".\n'
-                                   f'\n'
-                                   f'You can use the following link within the next 3h to reset your password:\n'
-                                   f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
-                                   f'\n'
-                                   f'We are working on expanding the documentation for the platform here:\n'
-                                   f'https://apsis.mcc-berlin.net/nacsos-docs/\n'
-                                   f'\n'
-                                   f'Sincerely,\n'
-                                   f'The Platform')
+        background_tasks.add_task(
+            send_message,
+            sender=None,
+            recipients=[user.email],
+            subject='[NACSOS] Welcome to the platform',
+            message=f'Dear {user.full_name},\n'
+                    f'I created an account on our scoping platform for you.\n '
+                    f'\n'
+                    f'Username: {user.username}.\n'
+                    f'Password: {password}\n'
+                    f'\n'
+                    f'You can change your password after logging in by opening the user menu at '
+                    f'the top right and clicking "edit profile".\n'
+                    f'\n'
+                    f'You can use the following link within the next 3h to reset your password:\n'
+                    f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
+                    f'\n'
+                    f'We are working on expanding the documentation for the platform here:\n'
+                    f'https://apsis.mcc-berlin.net/nacsos-docs/\n'
+                    f'\n'
+                    f'Sincerely,\n'
+                    f'The Platform')
         return 'OK'
     return 'IGNORE'
 

@@ -80,6 +80,8 @@ class DatabaseConfig(BaseModel):
 class EmailConfig(BaseModel):
     ENABLED: bool = False
     SMTP_TLS: bool = True
+    SMTP_START_TLS: bool | None = None
+    SMTP_CHECK_CERT: bool = True
     SMTP_PORT: int | None = None
     SMTP_HOST: str | None = None
     SMTP_USER: str | None = None

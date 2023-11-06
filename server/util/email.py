@@ -73,7 +73,8 @@ async def send_email(email: EmailMessage) -> bool:
     client = SMTP(hostname=settings.EMAIL.SMTP_HOST,
                   port=settings.EMAIL.SMTP_PORT,
                   use_tls=settings.EMAIL.SMTP_TLS,
-                  start_tls=None,
+                  start_tls=settings.EMAIL.SMTP_START_TLS,
+                  validate_certs=settings.EMAIL.SMTP_CHECK_CERT,
                   username=settings.EMAIL.SMTP_USER,
                   password=settings.EMAIL.SMTP_PASSWORD)
     try:

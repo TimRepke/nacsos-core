@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     # URL including path to OpenAlex collection
     OA_SOLR: AnyHttpUrl = 'http://localhost:8983/solr/openalex'  # type: ignore[assignment]
 
-    EMAIL: EmailConfig
+    EMAIL: EmailConfig = EmailConfig()
 
     LOG_CONF_FILE: str = 'config/logging.conf'
     LOGGING_CONF: dict[str, Any] | None = None

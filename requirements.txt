@@ -1,11 +1,11 @@
 fastapi==0.104.1
-hypercorn==0.14.4
+hypercorn==0.15.0
 toml==0.10.2
-email-validator==2.0.0.post2
+email-validator==2.1.0.post1
 python-dotenv==1.0.0
 passlib[bcrypt]==1.7.4
-pymitter==0.4.2
-uvicorn==0.23.2
+pymitter==0.5.0
+uvicorn==0.24.0.post1
 python-multipart==0.0.6
-aiosmtplib==3.0.0
-nacsos_data[scripts,server,utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.12.3
+aiosmtplib==3.0.1
+nacsos_data[scripts,server,utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.12.4

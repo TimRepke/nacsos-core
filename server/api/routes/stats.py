@@ -140,7 +140,7 @@ async def get_publication_year_histogram(
         if project.type == ItemType.academic:
             alias = 'itm'
             from_stmt = f'{AcademicItem.__tablename__} itm'
-            column = f'make_timestamp({AcademicItem.publication_year.name},2,2,2,2,2)'
+            column = f'make_timestamp(itm.{AcademicItem.publication_year.name},2,2,2,2,2)'
         elif project.type == ItemType.twitter:
             alias = 'itm'
             from_stmt = f'{TwitterItem.__tablename__} itm'
@@ -149,13 +149,13 @@ async def get_publication_year_histogram(
             alias = 'jn'
             from_stmt = (f'{LexisNexisItemSource.__tablename__} itm '
                          f'LEFT JOIN {LexisNexisItem.__tablename__} jn ON itm.item_id = jn.item_id')
-            column = LexisNexisItemSource.published_at.name
+            column = f'itm.{LexisNexisItemSource.published_at.name}'
         else:
             raise NotImplementedError('Only available for academic, lexisnexis, and twitter projects!')
 
         stmt = text(f'''
             WITH buckets as (SELECT generate_series(:from_date ::timestamp, :to_date ::timestamp, '1 year') as bucket),
-                 items as (SELECT itm.{column} as time_ref, itm.item_id
+                 items as (SELECT {column} as time_ref, itm.item_id
                           FROM {from_stmt}
                           WHERE {alias}.project_id = :project_id)
                 SELECT b.bucket as bucket, count(DISTINCT item_id) as num_items

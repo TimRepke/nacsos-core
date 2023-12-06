@@ -31,7 +31,7 @@ class TermStats(BaseModel):
     ttf: int
 
 
-@router.get('/openalex/select', response_model=SearchResult)
+@router.post('/openalex/select', response_model=SearchResult)
 async def search_openalex(query: str,
                           limit: int = 20,
                           offset: int = 0,

@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING
 
 import httpx
+from nacsos_data.db.crud.items.lexis_nexis import lexis_orm_to_model
+from nacsos_data.db.schemas import Project, ItemType
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 import sqlalchemy.sql.functions as func
@@ -8,8 +10,9 @@ import sqlalchemy.sql.functions as func
 from nacsos_data.util.academic.openalex import query_async, SearchResult
 from nacsos_data.db.crud.items import Query
 from nacsos_data.db.crud.items.query.parse import GRAMMAR
-from nacsos_data.models.items import AcademicItemModel
+from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel
 from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
+from sqlalchemy import select
 
 from server.util.security import UserPermissionChecker, UserPermissions
 from server.util.logging import get_logger
@@ -89,20 +92,34 @@ async def nql_grammar() -> str:
 
 class QueryResult(BaseModel):
     n_docs: int
-    docs: list[AcademicItemModel]
+    docs: list[AcademicItemModel] | list[FullLexisNexisItemModel]
 
 
 @router.get('/nql/query', response_model=QueryResult)
 async def nql_query(query: str,
+                    page: int = 1,
                     limit: int = 20,
                     permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> QueryResult:
-    q = Query(query, project_id=permissions.permissions.project_id)
-
     async with db_engine.session() as session:  # type: AsyncSession
+        project_id = permissions.permissions.project_id
+        project_type = (await session.scalar(select(Project.type).where(Project.project_id == project_id)))
+        q = Query(query, project_id=project_id, project_type=project_type)
+
         stmt = q.stmt.subquery()
         cnt_stmt = func.count(stmt.c.item_id)
+
+        if project_type == ItemType.academic:
+            docs = [AcademicItemModel.model_validate(item.__dict__)
+                    for item in (await session.execute(q.stmt
+                                                       .offset((page - 1) * limit)
+                                                       .limit(limit))).scalars().all()]
+        elif project_type == ItemType.lexis:
+            docs = lexis_orm_to_model((await session.execute(q.stmt
+                                                             .offset((page - 1) * limit)
+                                                             .limit(limit))).mappings().all())
+        else:
+            raise NotImplementedError()
         return QueryResult(
             n_docs=(await session.execute(cnt_stmt)).scalar(),  # type: ignore[arg-type]
-            docs=[AcademicItemModel.model_validate(item.__dict__)
-                  for item in (await session.execute(q.stmt.limit(limit))).scalars().all()]
+            docs=docs
         )

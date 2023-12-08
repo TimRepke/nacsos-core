@@ -102,7 +102,12 @@ async def nql_query(query: str,
                     permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> QueryResult:
     async with db_engine.session() as session:  # type: AsyncSession
         project_id = permissions.permissions.project_id
-        project_type = (await session.scalar(select(Project.type).where(Project.project_id == project_id)))
+        project_type: ItemType | None = (
+            await session.scalar(select(Project.type).where(Project.project_id == project_id)))
+
+        if project_type is None:
+            raise KeyError()
+
         q = Query(query, project_id=project_id, project_type=project_type)
 
         stmt = q.stmt.subquery()

@@ -112,7 +112,7 @@ async def nql_query(query: NQLFilter,
 
 @router.post('/nql/count', response_model=int)
 async def nql_query_count(query: NQLFilter,
-                          permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> QueryResult:
+                          permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> int:
     async with db_engine.session() as session:  # type: AsyncSession
         nql = await _get_query(session=session, query=query, project_id=permissions.permissions.project_id)
-        return (await session.execute(func.count(nql.stmt.subquery().c.item_id))).scalar()
+        return (await session.execute(func.count(nql.stmt.subquery().c.item_id))).scalar()  # type: ignore[return-value]

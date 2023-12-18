@@ -2,4 +2,4 @@
 max-line-length = 122
 select = C,E,F,W,B,B9
 ignore = E203, E501, W503, E126
-exclude = __init__.py, venv/, config/
+exclude = __init__.py, venv/, config/, scratch/

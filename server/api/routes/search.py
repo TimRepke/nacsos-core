@@ -1,26 +1,21 @@
-from typing import TYPE_CHECKING
-
 import httpx
-from nacsos_data.db.crud.items.lexis_nexis import lexis_orm_to_model
-from nacsos_data.db.schemas import Project, ItemType
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 import sqlalchemy.sql.functions as func
-
-from nacsos_data.util.academic.openalex import query_async, SearchResult
-from nacsos_data.db.crud.items import Query
-from nacsos_data.db.crud.items.query.parse import GRAMMAR
-from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel
-from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from nacsos_data.db.engine import ensure_session
+from nacsos_data.db.schemas import Project, ItemType
+from nacsos_data.util.nql import NQLQuery, NQLFilter
+from nacsos_data.util.academic.openalex import query_async, SearchResult
+from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel, GenericItemModel
+from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
 
 from server.util.security import UserPermissionChecker, UserPermissions
 from server.util.logging import get_logger
 from server.util.config import settings
 from server.data import db_engine
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 router = APIRouter()
 
@@ -85,46 +80,39 @@ async def term_expansion(term_prefix: str,
         ]
 
 
-@router.get('/nql/grammar', response_model=str)
-async def nql_grammar() -> str:
-    return GRAMMAR
-
-
 class QueryResult(BaseModel):
     n_docs: int
-    docs: list[AcademicItemModel] | list[FullLexisNexisItemModel]
+    docs: list[AcademicItemModel] | list[FullLexisNexisItemModel] | list[GenericItemModel]
 
 
-@router.get('/nql/query', response_model=QueryResult)
-async def nql_query(query: str,
+@ensure_session
+async def _get_query(session: AsyncSession, query: NQLFilter, project_id: str) -> NQLQuery:
+    project_type: ItemType | None = (
+        await session.scalar(select(Project.type).where(Project.project_id == project_id)))
+
+    if project_type is None:
+        raise KeyError(f'Found no matching project for {project_id}. This should NEVER happen!')
+
+    return NQLQuery(query, project_id=str(project_id), project_type=project_type)
+
+
+@router.post('/nql/query', response_model=QueryResult)
+async def nql_query(query: NQLFilter,
                     page: int = 1,
                     limit: int = 20,
                     permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> QueryResult:
     async with db_engine.session() as session:  # type: AsyncSession
-        project_id = permissions.permissions.project_id
-        project_type: ItemType | None = (
-            await session.scalar(select(Project.type).where(Project.project_id == project_id)))
+        nql = await _get_query(session=session, query=query, project_id=permissions.permissions.project_id)
 
-        if project_type is None:
-            raise KeyError()
+        n_docs = (await session.execute(func.count(nql.stmt.subquery().c.item_id))).scalar()
+        docs = await nql.results_async(session=session, limit=limit, offset=(page - 1) * limit)
 
-        q = Query(query, project_id=project_id, project_type=project_type)
+        return QueryResult(n_docs=n_docs, docs=docs)  # type: ignore[arg-type]
 
-        stmt = q.stmt.subquery()
-        cnt_stmt = func.count(stmt.c.item_id)
 
-        if project_type == ItemType.academic:
-            docs = [AcademicItemModel.model_validate(item.__dict__)
-                    for item in (await session.execute(q.stmt
-                                                       .offset((page - 1) * limit)
-                                                       .limit(limit))).scalars().all()]
-        elif project_type == ItemType.lexis:
-            docs = lexis_orm_to_model((await session.execute(q.stmt
-                                                             .offset((page - 1) * limit)
-                                                             .limit(limit))).mappings().all())
-        else:
-            raise NotImplementedError()
-        return QueryResult(
-            n_docs=(await session.execute(cnt_stmt)).scalar(),  # type: ignore[arg-type]
-            docs=docs
-        )
+@router.post('/nql/count', response_model=int)
+async def nql_query_count(query: NQLFilter,
+                          permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> int:
+    async with db_engine.session() as session:  # type: AsyncSession
+        nql = await _get_query(session=session, query=query, project_id=permissions.permissions.project_id)
+        return (await session.execute(func.count(nql.stmt.subquery().c.item_id))).scalar()  # type: ignore[return-value]

@@ -161,7 +161,7 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
 
             if batch_size is None:
                 # Use scopes as batches
-                it = calculate_h0s_for_batches(labels=tracker.labels,
+                it = calculate_h0s_for_batches(labels=labels,
                                                recall_target=tracker.recall_target,
                                                n_docs=tracker.n_items_total)
             else:

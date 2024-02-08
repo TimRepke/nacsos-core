@@ -161,7 +161,7 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
 
             if batch_size is None:
                 # Use scopes as batches
-                it = calculate_h0s_for_batches(labels=labels,
+                it = calculate_h0s_for_batches(labels=tracker.labels,
                                                recall_target=tracker.recall_target,
                                                n_docs=tracker.n_items_total)
             else:
@@ -190,8 +190,10 @@ async def get_irr(assignment_scope_id: str,
         return [AnnotationQualityModel(**r.__dict__) for r in results]
 
 
-@router.get('/quality/compute/{assignment_scope_id}', response_model=list[AnnotationQualityModel])
+@router.get('/quality/compute', response_model=list[AnnotationQualityModel])
 async def recompute_irr(assignment_scope_id: str,
+                        bot_annotation_metadata_id: str | None = None,
+                        relevance_rule: str | None = None,
                         permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AnnotationQualityModel]:
     async with db_engine.session() as session:  # type: AsyncSession

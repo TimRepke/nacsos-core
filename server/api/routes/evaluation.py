@@ -193,7 +193,6 @@ async def get_irr(assignment_scope_id: str,
 @router.get('/quality/compute', response_model=list[AnnotationQualityModel])
 async def recompute_irr(assignment_scope_id: str,
                         bot_annotation_metadata_id: str | None = None,
-                        relevance_rule: str | None = None,
                         permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AnnotationQualityModel]:
     async with db_engine.session() as session:  # type: AsyncSession
@@ -203,6 +202,7 @@ async def recompute_irr(assignment_scope_id: str,
         # Compute new metrics
         metrics = await compute_irr_scores(session=session,
                                            assignment_scope_id=assignment_scope_id,
+                                           resolution_id=bot_annotation_metadata_id,
                                            project_id=permissions.permissions.project_id)
 
         metrics_orm = [AnnotationQuality(**metric.model_dump()) for metric in metrics]

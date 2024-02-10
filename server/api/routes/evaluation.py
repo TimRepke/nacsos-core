@@ -7,6 +7,7 @@ from nacsos_data.db.schemas import AnnotationTracker, AssignmentScope, Annotatio
     AnnotationQuality
 from nacsos_data.models.annotation_quality import AnnotationQualityModel
 from nacsos_data.models.annotation_tracker import AnnotationTrackerModel, DehydratedAnnotationTracker
+from nacsos_data.models.bot_annotations import BotAnnotationMetaDataBaseModel
 from nacsos_data.util.annotations.evaluation import get_new_label_batches
 from nacsos_data.util.annotations.evaluation.buscar import (
     calculate_h0s_for_batches,
@@ -60,6 +61,17 @@ async def get_project_scopes(permissions: UserPermissions = Depends(UserPermissi
         resolution_scopes = [LabelScope.model_validate(r) for r in rslt]
 
         return assignment_scopes + resolution_scopes
+
+
+@router.get('/resolutions', response_model=list[BotAnnotationMetaDataBaseModel])
+async def get_resolutions_for_scope(assignment_scope_id: str,
+                                    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[BotAnnotationMetaDataBaseModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = (select(BotAnnotationMetaData)
+                .where(BotAnnotationMetaData.assignment_scope_id == assignment_scope_id))
+        rslt = (await session.execute(stmt)).scalars().all()
+        return [BotAnnotationMetaDataBaseModel.model_validate(r.__dict__) for r in rslt]
 
 
 async def read_tracker(session: AsyncSession, tracker_id: str | uuid.UUID,

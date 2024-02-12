@@ -61,7 +61,6 @@ from nacsos_data.db.crud.annotations import (
     read_resolved_bot_annotation_meta,
     read_resolved_bot_annotations_for_meta
 )
-from nacsos_data.util.annotations import AnnotationFilterObject
 from nacsos_data.util.annotations.resolve import (
     get_resolved_item_annotations,
     read_annotation_scheme
@@ -73,7 +72,6 @@ from nacsos_data.util.annotations.validation import (
 )
 from nacsos_data.util.annotations.assignments.random import random_assignments
 from nacsos_data.util.annotations.assignments.random_exclusion import random_assignments_with_exclusion
-from nacsos_data.util.annotations.assignments.random_nql import random_assignments_with_nql
 
 from server.api.errors import (
     SaveFailedError,
@@ -390,17 +388,6 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
         except ValueError as e:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=str(e))
-    elif payload.config.config_type == 'random_nql':
-        try:
-            assignments = await random_assignments_with_nql(
-                assignment_scope_id=payload.scope_id,
-                annotation_scheme_id=payload.annotation_scheme_id,
-                project_id=permissions.permissions.project_id,
-                config=payload.config,  # type: ignore[arg-type] # FIXME
-                engine=db_engine)
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
     else:
         raise HTTPException(status_code=http_status.HTTP_501_NOT_IMPLEMENTED,
                             detail=f'Method "{payload.config.config_type}" is unknown.')
@@ -435,12 +422,13 @@ async def get_annotators_for_scheme(scheme_id: str,
                                           .where(Annotation.annotation_scheme_id == scheme_id))).scalars().all()]
 
 
-@router.post('/config/resolve/', response_model=ResolutionProposal)
+@router.post('/config/resolve', response_model=ResolutionProposal)
 async def get_resolved_annotations(settings: BotMetaResolveBase,
-                                   include_empty: bool | None = Query(default=False),
-                                   existing_resolution: str | None = Query(default=None),
-                                   include_new: bool | None = Query(default=False),
-                                   update_existing: bool | None = Query(default=False),
+                                   assignment_scope_id: str | None = None,
+                                   bot_annotation_metadat_id: str | None = None,
+                                   include_empty: bool = False,
+                                   include_new: bool = False,
+                                   update_existing: bool = False,
                                    permissions=Depends(UserPermissionChecker('annotations_edit'))) \
         -> ResolutionProposal:
     """
@@ -448,28 +436,30 @@ async def get_resolved_annotations(settings: BotMetaResolveBase,
 
     :param include_new:
     :param update_existing:
-    :param existing_resolution:
+    :param assignment_scope_id:
+    :param bot_annotation_metadat_id:
     :param include_empty:
     :param settings
     :param permissions:
     :return:
     """
     if include_empty is None:
-        include_empty = True
+        include_empty = True  # type: ignore[unreachable]
     if include_new is None:
-        include_new = False
+        include_new = False  # type: ignore[unreachable]
     if update_existing is None:
-        update_existing = False
+        update_existing = False  # type: ignore[unreachable]
 
-    if existing_resolution is not None:
+    if bot_annotation_metadat_id is not None:
         return await read_resolved_bot_annotations(db_engine=db_engine,
-                                                   existing_resolution=existing_resolution,
+                                                   existing_resolution=bot_annotation_metadat_id,
                                                    include_new=include_new,
                                                    include_empty=include_empty,
                                                    update_existing=update_existing)
-    filters = AnnotationFilterObject.model_validate(settings.filters.model_dump())
+    if assignment_scope_id is None:
+        raise ValueError('Missing assignment scope')
     return await get_resolved_item_annotations(strategy=settings.algorithm,
-                                               filters=filters,
+                                               assignment_scope_id=assignment_scope_id,
                                                ignore_repeat=settings.ignore_repeat,
                                                ignore_hierarchy=settings.ignore_hierarchy,
                                                include_new=include_new,
@@ -502,12 +492,15 @@ async def get_saved_resolved_annotations(bot_annotation_metadata_id: str,
 async def save_resolved_annotations(settings: BotMetaResolveBase,
                                     matrix: ResolutionMatrix,
                                     name: str,
+                                    assignment_scope_id: str,
+                                    annotation_scheme_id: str,
                                     permissions=Depends(UserPermissionChecker('annotations_edit'))):
     meta_id = await store_resolved_bot_annotations(db_engine=db_engine,
                                                    project_id=permissions.permissions.project_id,
+                                                   assignment_scope_id=assignment_scope_id,
+                                                   annotation_scheme_id=annotation_scheme_id,
                                                    name=name,
                                                    algorithm=settings.algorithm,
-                                                   filters=settings.filters,
                                                    ignore_hierarchy=settings.ignore_hierarchy,
                                                    ignore_repeat=settings.ignore_repeat,
                                                    matrix=matrix)
@@ -525,9 +518,10 @@ async def update_resolved_annotations(bot_annotation_metadata_id: str,
 
 
 @router.get('/config/resolved-list/', response_model=list[BotAnnotationMetaDataBaseModel])
-async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChecker('annotations_read'))):
+async def list_saved_resolved_annotations(annotation_scheme_id: str | None = None,
+                                          permissions=Depends(UserPermissionChecker('annotations_read'))):
     async with db_engine.session() as session:  # type: AsyncSession
-        exports = (await session.execute(
+        stmt = (
             select(BotAnnotationMetaData)
             .where(BotAnnotationMetaData.project_id == permissions.permissions.project_id,
                    BotAnnotationMetaData.kind == BotKind.RESOLVE)
@@ -539,9 +533,11 @@ async def list_saved_resolved_annotations(permissions=Depends(UserPermissionChec
                                BotAnnotationMetaData.name,
                                BotAnnotationMetaData.kind,
                                BotAnnotationMetaData.time_updated,
-                               BotAnnotationMetaData.time_created)))) \
-            .scalars().all()
-
+                               BotAnnotationMetaData.time_created))
+        )
+        if annotation_scheme_id is not None:
+            stmt = stmt.where(BotAnnotationMetaData.annotation_scheme_id == annotation_scheme_id)
+        exports = (await session.execute(stmt)).scalars().all()
         return [BotAnnotationMetaDataBaseModel.model_validate(e.__dict__) for e in exports]
 
 

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, asc
 
 from nacsos_data.util.auth import UserPermissions
-from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel
+from nacsos_data.models.users import UserModel, UserInDBModel, UserBaseModel, DehydratedUser
 from nacsos_data.db.schemas import User, AssignmentScope, AnnotationScheme, Assignment
 from nacsos_data.db.crud.users import (
     read_users,
@@ -28,6 +28,15 @@ router = APIRouter()
 
 @router.get('/list/all', response_model=list[UserBaseModel])
 async def get_all_users(current_user: UserModel = Depends(get_current_active_user)) \
+        -> list[UserInDBModel]:
+    result = await read_users(project_id=None, order_by_username=True, engine=db_engine)
+    if result is None:
+        return []
+    return result
+
+
+@router.get('/list/all/dehydrated', response_model=list[DehydratedUser])
+async def get_all_users_dehydrated(current_user: UserModel = Depends(get_current_active_user)) \
         -> list[UserInDBModel]:
     result = await read_users(project_id=None, order_by_username=True, engine=db_engine)
     if result is None:

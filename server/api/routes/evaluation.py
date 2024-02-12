@@ -7,6 +7,7 @@ from nacsos_data.db.schemas import AnnotationTracker, AssignmentScope, Annotatio
     AnnotationQuality
 from nacsos_data.models.annotation_quality import AnnotationQualityModel
 from nacsos_data.models.annotation_tracker import AnnotationTrackerModel, DehydratedAnnotationTracker
+from nacsos_data.models.bot_annotations import BotAnnotationMetaDataBaseModel
 from nacsos_data.util.annotations.evaluation import get_new_label_batches
 from nacsos_data.util.annotations.evaluation.buscar import (
     calculate_h0s_for_batches,
@@ -60,6 +61,17 @@ async def get_project_scopes(permissions: UserPermissions = Depends(UserPermissi
         resolution_scopes = [LabelScope.model_validate(r) for r in rslt]
 
         return assignment_scopes + resolution_scopes
+
+
+@router.get('/resolutions', response_model=list[BotAnnotationMetaDataBaseModel])
+async def get_resolutions_for_scope(assignment_scope_id: str,
+                                    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
+        -> list[BotAnnotationMetaDataBaseModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = (select(BotAnnotationMetaData)
+                .where(BotAnnotationMetaData.assignment_scope_id == assignment_scope_id))
+        rslt = (await session.execute(stmt)).scalars().all()
+        return [BotAnnotationMetaDataBaseModel.model_validate(r.__dict__) for r in rslt]
 
 
 async def read_tracker(session: AsyncSession, tracker_id: str | uuid.UUID,
@@ -161,7 +173,7 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
 
             if batch_size is None:
                 # Use scopes as batches
-                it = calculate_h0s_for_batches(labels=labels,
+                it = calculate_h0s_for_batches(labels=tracker.labels,
                                                recall_target=tracker.recall_target,
                                                n_docs=tracker.n_items_total)
             else:
@@ -190,8 +202,9 @@ async def get_irr(assignment_scope_id: str,
         return [AnnotationQualityModel(**r.__dict__) for r in results]
 
 
-@router.get('/quality/compute/{assignment_scope_id}', response_model=list[AnnotationQualityModel])
+@router.get('/quality/compute', response_model=list[AnnotationQualityModel])
 async def recompute_irr(assignment_scope_id: str,
+                        bot_annotation_metadata_id: str | None = None,
                         permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AnnotationQualityModel]:
     async with db_engine.session() as session:  # type: AsyncSession
@@ -201,6 +214,7 @@ async def recompute_irr(assignment_scope_id: str,
         # Compute new metrics
         metrics = await compute_irr_scores(session=session,
                                            assignment_scope_id=assignment_scope_id,
+                                           resolution_id=bot_annotation_metadata_id,
                                            project_id=permissions.permissions.project_id)
 
         metrics_orm = [AnnotationQuality(**metric.model_dump()) for metric in metrics]

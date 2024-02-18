@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func as F, distinct
 from sqlalchemy.orm import load_only
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
@@ -9,7 +9,7 @@ from nacsos_data.db.schemas import (
     BotAnnotationMetaData,
     AssignmentScope,
     User,
-    Annotation
+    Annotation, BotAnnotation
 )
 from nacsos_data.models.annotations import (
     AnnotationSchemeModel,
@@ -553,3 +553,30 @@ async def delete_saved_resolved_annotations(bot_annotation_metadata_id: str,
             await session.delete(meta)
         # TODO: do we need to commit?
         # TODO: ensure bot_annotations are deleted via cascade
+
+
+class BotMetaInfo(BotAnnotationMetaDataBaseModel):
+    num_annotations: int
+    num_annotated_items: int
+
+
+@router.get('/bot/annotations')
+async def get_bot_annotations(include_resolve: bool = False,
+                              permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[BotMetaInfo]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = (select(BotAnnotationMetaData,
+                       F.count(BotAnnotation.bot_annotation_id).label('num_annotations'),
+                       F.count(distinct(BotAnnotation.item_id)).label('num_annotated_items'))
+                .join(BotAnnotation,
+                      BotAnnotation.bot_annotation_metadata_id == BotAnnotationMetaData.bot_annotation_metadata_id)
+                # TODO: filter for != RESOLVE
+                .where(BotAnnotationMetaData.project_id == permissions.permissions.project_id)
+                .group_by(BotAnnotationMetaData.bot_annotation_metadata_id))
+        rslt = (await session.execute(stmt)).mappings().all()
+        if rslt:
+            return [BotMetaInfo.model_validate({
+                **r['BotAnnotationMetaData'].__dict__,
+                'num_annotations': r['num_annotations'],
+                'num_annotated_items': r['num_annotated_items']
+            }) for r in rslt]
+        return []

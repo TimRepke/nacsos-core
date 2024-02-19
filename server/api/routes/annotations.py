@@ -9,7 +9,8 @@ from nacsos_data.db.schemas import (
     BotAnnotationMetaData,
     AssignmentScope,
     User,
-    Annotation, BotAnnotation
+    Annotation,
+    BotAnnotation
 )
 from nacsos_data.models.annotations import (
     AnnotationSchemeModel,
@@ -72,6 +73,7 @@ from nacsos_data.util.annotations.validation import (
 )
 from nacsos_data.util.annotations.assignments.random import random_assignments
 from nacsos_data.util.annotations.assignments.random_exclusion import random_assignments_with_exclusion
+from nacsos_data.util.annotations.assignments.random_nql import random_assignments_with_nql
 
 from server.api.errors import (
     SaveFailedError,
@@ -385,6 +387,18 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
                 project_id=permissions.permissions.project_id,
                 config=payload.config,  # type: ignore[arg-type] # FIXME
                 engine=db_engine)
+        except ValueError as e:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
+                                detail=str(e))
+    elif payload.config.config_type == 'random_nql':
+        try:
+            assignments = await random_assignments_with_nql(
+                assignment_scope_id=payload.scope_id,
+                annotation_scheme_id=payload.annotation_scheme_id,
+                project_id=permissions.permissions.project_id,
+                config=payload.config,  # type: ignore[arg-type] # FIXME
+                engine=db_engine
+            )
         except ValueError as e:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=str(e))

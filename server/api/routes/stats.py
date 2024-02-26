@@ -125,7 +125,7 @@ class HistogramEntry(BaseModel):
 @router.get('/histogram/years', response_model=list[HistogramEntry])
 async def get_publication_year_histogram(
         from_year: int = Query(default=1990),
-        to_year: int = Query(default=2023),
+        to_year: int = Query(default=2025),
         permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> list[HistogramEntry]:
     project_id = permissions.permissions.project_id
     from_date = datetime.datetime(year=from_year, month=1, day=1, hour=0, minute=0, second=0)

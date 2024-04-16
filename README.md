@@ -48,3 +48,54 @@ The configuration is read in the following order (and overridden by consecutive 
 
 The default config is set up to work with a locally running docker instance with its respective default config.
 It should never be changed, always make a local copy and never commit it to the repository!
+
+## Pipelines
+Celery systemd:
+```bash
+$ cat /etc/systemd/system/nacsos2-celery@.service
+
+[Unit]
+Description=NACSOS2 Celery Service (%i)
+After=network.target
+
+[Service]
+Type=simple
+User=nacsos
+Group=nacsos
+
+WorkingDirectory=/var/www/nacsos2/nacsos-core
+EnvironmentFile=/var/www/nacsos2/celery-%i.conf
+
+ExecStart=/var/www/nacsos2/nacsos-core/venv/bin/celery -A ${CELERY_APP} worker --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE}  --loglevel="${CELERYD_LOG_LEVEL}" $CELERYD_OPTS
+#ExecStop=/var/www/nacsos2/venv/bin/celery worker stopwait --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE} --loglevel="${CELERYD_LOG_LEVEL}"
+#ExecReload=/var/www/nacsos2/venv/bin/celery -A $CELERY_APP worker restart $CELERYD_NODES --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE} --loglevel="${CELERYD_LOG_LEVEL}" $CELERYD_OPTS
+
+Restart=always
+RestartSec=60s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+/var/www/nacsos1/celery-default.conf
+```dotenv
+CELERY_APP="BasicBrowser"
+
+# Absolute or relative path to the 'celery' command:
+CELERY_BIN="/var/www/nacsos1/venv/bin/celery"
+
+CELERYBEAT_USER=nacsos
+CELERYBEAT_GROUP=nacsos
+
+# Extra command-line arguments to the worker
+CELERYD_OPTS="--concurrency=4 -Q default -P threads -l info -n worker --time-limit=86400"
+
+CELERYD_LOG_FILE=/var/www/nacsos1/logs/celery-default-%n%I.log
+#CELERYD_PID_FILE=/var/www/nacsos1/celery-default-%n.pid
+CELERYD_PID_FILE=/var/www/nacsos1/celery-default-celery.pid
+
+CELERYD_LOG_LEVEL="INFO"
+
+CELERYBEAT_LOG_FILE=/var/www/nacsos1/logs/celery-beat-default.log
+CELERYBEAT_PID_FILE=/var/www/nacsos1/celery-beat-default.pid
+```

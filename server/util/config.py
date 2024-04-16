@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 import secrets
 import json
@@ -6,7 +7,7 @@ import os
 
 from pydantic_settings import SettingsConfigDict, BaseSettings
 from pydantic.networks import PostgresDsn
-from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel
+from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel, model_validator
 
 
 # For more information how BaseSettings work, check the documentation:
@@ -99,9 +100,42 @@ class UsersConfig(BaseModel):
 
 class PipelinesConfig(BaseModel):
     TOKEN: str = ''
-    API_URL: str = 'http://localhost:8000/api'
     USERNAME: str | None = None
     USER_ID: str | None = None
+    REDIS_URL: str = 'redis://localhost:6379'
+
+    DATA_PATH: Path = Path('.tasks')  # Where results and the job database will be stored.
+    WORKING_DIR: Path = Path('.tasks/tmp')  # Directory for temporary files
+
+    @property
+    def target_dir(self) -> Path:
+        return (self.DATA_PATH / 'artefacts').resolve()
+
+    @property
+    def user_data_dir(self) -> Path:
+        return (self.DATA_PATH / 'user_data').resolve()
+
+    @model_validator(mode='before')
+    @classmethod
+    def fix_paths(cls, data: Any) -> Any:
+
+        def ensure_path(key: str) -> Path:
+            v = data.get(key)
+            if isinstance(v, str):
+                path = Path(v)
+            elif isinstance(v, Path) and v.is_absolute():
+                path = v
+            elif isinstance(v, Path):
+                path = (Path.cwd() / Path(v))
+            else:
+                raise ValueError(f'Invalid path for {key}: {v}')
+            path = path.resolve()
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+
+        data['DATA_PATH'] = ensure_path('DATA_PATH')
+        data['WORKING_DIR'] = ensure_path('WORKING_DIR')
+        return data
 
 
 class Settings(BaseSettings):

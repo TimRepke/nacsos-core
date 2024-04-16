@@ -7,7 +7,6 @@ from nacsos_data.db.crud.imports import \
     delete_import, \
     read_all_imports_for_project, \
     read_item_count_for_import
-from nacsos_data.util.pipelines.imports import submit_import_task
 
 from server.data import db_engine
 from server.util.security import UserPermissionChecker, UserPermissions, InsufficientPermissions
@@ -60,10 +59,12 @@ async def trigger_import(import_id: str,
                          permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
     import_details = await read_import(import_id=import_id, engine=db_engine)
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
-        return await submit_import_task(import_details=import_details,
-                                        base_url=settings.PIPES.API_URL,
-                                        auth_token=settings.PIPES.TOKEN,
-                                        engine=db_engine)
+        pass
+        # TODO
+        # return await submit_import_task(import_details=import_details,
+        #                                 base_url=settings.PIPES.API_URL,
+        #                                 auth_token=settings.PIPES.TOKEN,
+        #                                 engine=db_engine)
 
     raise InsufficientPermissions('You do not have permission to edit this data import.')
 

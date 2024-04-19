@@ -17,7 +17,7 @@ from server.util.config import settings, conf_file
 from . import TaskContext, celery_task, unpack_context
 
 
-@celery_task
+@celery_task  # type: ignore[arg-type]
 async def submit_import_task(ctx: TaskContext, import_id: str | None = None) -> None:  # type: ignore[arg-type] #FIXME
     session, target_dir, logger, work_dir, task, celery = unpack_context(ctx, __name__)
     logger.info('Preparing import task!')

@@ -147,7 +147,7 @@ def celery_task(func: TaskFunction[T]) -> SubmitFunction[T]:
         logger.info('Queueing task for celery...')
         app_task.delay(task_id, *args, **kwargs)
 
-    return submit
+    return submit  # type: ignore[return-value]  # FIXME
 
 
 # # Import the module

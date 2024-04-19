@@ -115,4 +115,4 @@ class TimingMiddleware(BaseHTTPMiddleware):
         return resources[0] + resources[1]
 
 
-__all__ = ['TimingMiddleware']
+__all__ = ['TimingMiddleware', 'ErrorHandlingMiddleware']

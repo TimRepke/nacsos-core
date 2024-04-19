@@ -5,7 +5,7 @@ from server.util.logging import get_logger
 logger = get_logger('nacsos.main')
 logger.info('Starting up server')
 
-from server import app  # noqa: E402
+from server.__main__ import app  # noqa: E402
 
 
 @app.on_event('startup')

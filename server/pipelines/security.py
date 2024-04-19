@@ -9,6 +9,8 @@ from nacsos_data.util.auth import InsufficientPermissionError, InvalidCredential
 from server.util.security import get_current_active_user, UserPermissionChecker
 from server.data import db_engine
 
+from server.pipelines.errors import UnknownTaskID
+
 
 class UserTaskProjectPermissions(UserPermissions):
     task: TaskModel
@@ -29,9 +31,12 @@ class UserTaskPermissionChecker(UserPermissionChecker):
                        current_user: UserModel = Depends(get_current_active_user)) -> UserTaskProjectPermissions:
         permissions = await super().__call__(x_project_id=x_project_id, current_user=current_user)
         try:
-            task = await read_task_by_id(task_id=x_task_id, db_engine=db_engine)
+            task: TaskModel | None = await read_task_by_id(task_id=x_task_id, db_engine=db_engine)
 
-            if task is None or str(task.project_id) != str(permissions.permissions.project_id):
+            if task is None:
+                raise UnknownTaskID(f'Task does not exist with ID {x_task_id}')
+
+            if str(task.project_id) != str(permissions.permissions.project_id):
                 # TODO: do we also want to check if the user_id overlaps?
                 raise InsufficientPermissionError('Invalid task or project permissions.')
 

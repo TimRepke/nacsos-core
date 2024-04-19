@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
+
 from server.util.logging import get_logger
 from server.util.security import InsufficientPermissions
 

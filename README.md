@@ -5,6 +5,11 @@ This repository contains the core data management platform of NACSOS.
 It accesses the database via the `nacsos-data` package and exposes the functionality via an API.
 It also serves the web frontend.
 
+## Endpoints
+When using the docker-compose setup, you will reach 
+* pgadmin: http://localhost:5050
+* flower: http://localhost:5555
+
 ```
 pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```
@@ -37,6 +42,10 @@ docker-compose up -d
 # set this in case you want to use a different config (optional)
 export NACSOS_CONFIG=config/default.env
 
+# Start celery & flower in separate terminals via
+./celery-test.sh
+./flower-test.sh
+
 # for development, using the --reload option is helpful
 hypercorn --config=config/hypercorn.toml --reload main:app 
 ```
@@ -49,7 +58,8 @@ The configuration is read in the following order (and overridden by consecutive 
 The default config is set up to work with a locally running docker instance with its respective default config.
 It should never be changed, always make a local copy and never commit it to the repository!
 
-## Pipelines
+## Pipelines 
+
 Celery systemd:
 ```bash
 $ cat /etc/systemd/system/nacsos2-celery@.service
@@ -84,9 +94,6 @@ CELERY_APP="BasicBrowser"
 # Absolute or relative path to the 'celery' command:
 CELERY_BIN="/var/www/nacsos1/venv/bin/celery"
 
-CELERYBEAT_USER=nacsos
-CELERYBEAT_GROUP=nacsos
-
 # Extra command-line arguments to the worker
 CELERYD_OPTS="--concurrency=4 -Q default -P threads -l info -n worker --time-limit=86400"
 
@@ -95,7 +102,4 @@ CELERYD_LOG_FILE=/var/www/nacsos1/logs/celery-default-%n%I.log
 CELERYD_PID_FILE=/var/www/nacsos1/celery-default-celery.pid
 
 CELERYD_LOG_LEVEL="INFO"
-
-CELERYBEAT_LOG_FILE=/var/www/nacsos1/logs/celery-beat-default.log
-CELERYBEAT_PID_FILE=/var/www/nacsos1/celery-beat-default.pid
 ```

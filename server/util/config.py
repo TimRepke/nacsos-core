@@ -102,7 +102,7 @@ class PipelinesConfig(BaseModel):
     TOKEN: str = ''
     USERNAME: str | None = None
     USER_ID: str | None = None
-    REDIS_URL: str = 'redis://localhost:6379'
+    REDIS_URL: str = 'redis://localhost:6379/0'
 
     DATA_PATH: Path = Path('.tasks')  # Where results and the job database will be stored.
     WORKING_DIR: Path = Path('.tasks/tmp')  # Directory for temporary files
@@ -118,7 +118,6 @@ class PipelinesConfig(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def fix_paths(cls, data: Any) -> Any:
-
         def ensure_path(key: str) -> Path:
             v = data.get(key)
             if isinstance(v, str):
@@ -140,20 +139,20 @@ class PipelinesConfig(BaseModel):
 
 class Settings(BaseSettings):
     # Basic server hosting settings
-    SERVER: ServerConfig = ServerConfig()
+    SERVER: ServerConfig
     # Database connection to main database
-    DB: DatabaseConfig = DatabaseConfig()
+    DB: DatabaseConfig
     # Global user account settings
-    USERS: UsersConfig = UsersConfig()
+    USERS: UsersConfig
     # Settings for the nacsos-pipelines API
-    PIPES: PipelinesConfig = PipelinesConfig()
+    PIPES: PipelinesConfig
 
     # OpenAlex in PostgreSQL
-    OA_DB: DatabaseConfig = DatabaseConfig()
+    OA_DB: DatabaseConfig
     # URL including path to OpenAlex collection
     OA_SOLR: AnyHttpUrl = 'http://localhost:8983/solr/openalex'  # type: ignore[assignment]
 
-    EMAIL: EmailConfig = EmailConfig()
+    EMAIL: EmailConfig
 
     LOG_CONF_FILE: str = 'config/logging.conf'
     LOGGING_CONF: dict[str, Any] | None = None
@@ -179,4 +178,4 @@ class Settings(BaseSettings):
 conf_file = os.environ.get('NACSOS_CONFIG', 'config/default.env')
 settings = Settings(_env_file=conf_file, _env_file_encoding='utf-8')  # type: ignore[call-arg]  # FIXME
 
-__all__ = ['settings']
+__all__ = ['settings', 'conf_file']

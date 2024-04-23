@@ -60,6 +60,14 @@ It should never be changed, always make a local copy and never commit it to the 
 
 ## Pipelines 
 
+```bash
+# dramatiq dashboard
+% hypercorn drama:app
+
+# workers
+dramatiq server -t 2 -p 2 --watch server/pipelines
+```
+
 Celery systemd:
 ```bash
 $ cat /etc/systemd/system/nacsos2-celery@.service

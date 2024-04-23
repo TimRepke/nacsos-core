@@ -7,16 +7,19 @@ from pathlib import Path
 
 from nacsos_data.db.crud.pipeline import query_tasks
 from nacsos_data.models.pipeline import TaskModel, TaskStatus
+from nacsos_data.models.users import UserModel
 from typing_extensions import TypedDict
 
 import aiofiles
+from dramatiq_abort import abort
 from fastapi import APIRouter, UploadFile, Depends, Query
 from fastapi.responses import FileResponse
 from nacsos_data.util.auth import UserPermissions
 from pydantic import StringConstraints
 from tempfile import TemporaryDirectory
 
-from server.util.security import UserPermissionChecker
+from server.pipelines.tasks import broker
+from server.util.security import UserPermissionChecker, get_current_active_superuser
 from server.util.logging import get_logger
 from server.util.config import settings
 from server.data import db_engine
@@ -172,3 +175,29 @@ async def delete_task(permissions: UserTaskProjectPermissions = Depends(UserTask
     task_id = permissions.task.task_id
     delete_task_directory(task_id=str(task_id))
     # TODO delete task from db
+
+
+# @router.post('/celery/workers')
+# async def welcome_mail(superuser: UserModel = Depends(get_current_active_superuser)) -> str:
+#     app.events.
+
+@router.delete('/dramatiq/task')
+async def terminate_task(message_id: str = Query(),
+                         superuser: UserModel = Depends(get_current_active_superuser)):
+    abort(message_id)
+
+
+@router.get('/dramatiq/workers')
+async def get_d_workers():
+    from dramatiq_dashboard.interface import RedisInterface
+    inter = RedisInterface(broker=broker)
+    return inter.workers
+
+
+@router.get('/dramatiq/tasks')
+async def get_d_tasks():
+    from dramatiq_dashboard.interface import RedisInterface
+    inter = RedisInterface(broker=broker)
+    print(inter.get_jobs('nacsos-pipes'))
+    print(inter.get_queue('nacsos-pipes'))
+    return inter.queues

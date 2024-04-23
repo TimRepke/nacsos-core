@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends
 
 from nacsos_data.models.imports import ImportModel
-from nacsos_data.db.crud.imports import \
-    read_import, \
-    upsert_import, \
-    delete_import, \
-    read_all_imports_for_project, \
+from nacsos_data.db.crud.imports import (
+    read_import,
+    upsert_import,
+    delete_import,
+    read_all_imports_for_project,
     read_item_count_for_import
+)
 
 from server.pipelines import tasks
 from server.data import db_engine
@@ -54,18 +55,17 @@ async def put_import_details(import_details: ImportModel,
     raise InsufficientPermissions('You do not have permission to edit this data import.')
 
 
-@router.post('/import/{import_id}', response_model=str)
+@router.post('/import/{import_id}')
 async def trigger_import(import_id: str,
-                         permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
-
+                         permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))) -> None:
     import_details = await read_import(import_id=import_id, engine=db_engine)
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
-        await tasks.imports.submit_import_task(project_id=str(import_details.project_id),
-                                               user_id=str(permissions.user.user_id),
-                                               comment=f'Import for "{import_details.name}" ({import_id})',
-                                               import_id=import_id)
-
-    raise InsufficientPermissions('You do not have permission to edit this data import.')
+        tasks.imports.import_task.send(project_id=str(import_details.project_id),  # type: ignore[call-arg]
+                                       user_id=str(permissions.user.user_id),
+                                       comment=f'Import for "{import_details.name}" ({import_id})',
+                                       import_id=import_id)
+    else:
+        raise InsufficientPermissions('You do not have permission to edit this data import.')
 
 
 @router.delete('/import/delete/{import_id}', response_model=str)

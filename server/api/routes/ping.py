@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
+from server.pipelines import tasks
 from server.util.logging import get_logger
 from server.util.security import InsufficientPermissions
 
@@ -8,6 +9,18 @@ logger = get_logger('nacsos.api.route.ping')
 router = APIRouter()
 
 logger.debug('Setup nacsos.api.route.ping router')
+
+
+@router.get('/tracked-sleep-task')
+async def tracked_task(sleep_time: int = 10):
+    tasks.sleepy.tracked_sleep_task.send(sleep_time=sleep_time,  # type: ignore[call-arg]
+                                         project_id='86a4d535-0311-41f7-a934-e4ab0a465a68',
+                                         comment='Pinged sleeping task')
+
+
+@router.get('/sleep-task')
+async def task(sleep_time: int = 10):
+    tasks.sleepy.sleep_task.send(sleep_time=sleep_time)  # type: ignore[call-arg]
 
 
 @router.get('/', response_class=PlainTextResponse)

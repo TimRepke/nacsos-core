@@ -96,3 +96,14 @@ deploy-to-production:
   when: manual
   only:
     - production
+
+
+restart-workers:
+  stage: deploy
+  tags:
+    - vm,bare-metal
+  script:
+    - sudo systemctl restart nacsos-dramatiq.service
+  when: manual
+  only:
+    - production

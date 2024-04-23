@@ -8,7 +8,6 @@ It also serves the web frontend.
 ## Endpoints
 When using the docker-compose setup, you will reach 
 * pgadmin: http://localhost:5050
-* flower: http://localhost:5555
 
 ```
 pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
@@ -42,12 +41,14 @@ docker-compose up -d
 # set this in case you want to use a different config (optional)
 export NACSOS_CONFIG=config/default.env
 
-# Start celery & flower in separate terminals via
-./celery-test.sh
-./flower-test.sh
-
 # for development, using the --reload option is helpful
 hypercorn --config=config/hypercorn.toml --reload main:app 
+
+# pipeline workers (if needed)
+dramatiq server.pipelines.tasks -t 2 -p 2 -Q default nacsos-pipes
+
+# optional dramatiq dashboard
+hypercorn drama:app
 ```
 
 The configuration is read in the following order (and overridden by consecutive steps):
@@ -58,56 +59,27 @@ The configuration is read in the following order (and overridden by consecutive 
 The default config is set up to work with a locally running docker instance with its respective default config.
 It should never be changed, always make a local copy and never commit it to the repository!
 
-## Pipelines 
-
-```bash
-# dramatiq dashboard
-% hypercorn drama:app
-
-# workers
-dramatiq server -t 2 -p 2 --watch server/pipelines
 ```
-
-Celery systemd:
-```bash
-$ cat /etc/systemd/system/nacsos2-celery@.service
-
 [Unit]
-Description=NACSOS2 Celery Service (%i)
+Description=dramatiq workers
 After=network.target
 
 [Service]
 Type=simple
 User=nacsos
 Group=nacsos
-
+Environment="NACSOS_CONFIG=/var/www/nacsos2/nacsos-core/config/server.env"
 WorkingDirectory=/var/www/nacsos2/nacsos-core
-EnvironmentFile=/var/www/nacsos2/celery-%i.conf
-
-ExecStart=/var/www/nacsos2/nacsos-core/venv/bin/celery -A ${CELERY_APP} worker --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE}  --loglevel="${CELERYD_LOG_LEVEL}" $CELERYD_OPTS
-#ExecStop=/var/www/nacsos2/venv/bin/celery worker stopwait --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE} --loglevel="${CELERYD_LOG_LEVEL}"
-#ExecReload=/var/www/nacsos2/venv/bin/celery -A $CELERY_APP worker restart $CELERYD_NODES --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE} --loglevel="${CELERYD_LOG_LEVEL}" $CELERYD_OPTS
-
+#ExecStart=/var/www/nacsos2/nacsos-core/venv/bin/dramatiq dramatiq server.pipelines.tasks -t 2 -p 3 -Q default nacsos-pipes --watch /var/www/nacsos2/nacsos-core/server --pid-file /var/www/nacsos2/dramatiq.pid  
+ExecStart=/var/www/nacsos2/nacsos-core/venv/bin/dramatiq dramatiq server.pipelines.tasks -t 2 -p 3 -Q default nacsos-pipes --pid-file /var/www/nacsos2/dramatiq.pid
 Restart=always
-RestartSec=60s
+RestartSec=30s
+PIDFile=/var/www/nacsos2/dramatiq.pid
+KillMode=process
+KillSignal=SIGHUP
+TimeoutStopSec=30
+FinalKillSignal=SIGKILL
 
 [Install]
 WantedBy=multi-user.target
-```
-
-/var/www/nacsos1/celery-default.conf
-```dotenv
-CELERY_APP="BasicBrowser"
-
-# Absolute or relative path to the 'celery' command:
-CELERY_BIN="/var/www/nacsos1/venv/bin/celery"
-
-# Extra command-line arguments to the worker
-CELERYD_OPTS="--concurrency=4 -Q default -P threads -l info -n worker --time-limit=86400"
-
-CELERYD_LOG_FILE=/var/www/nacsos1/logs/celery-default-%n%I.log
-#CELERYD_PID_FILE=/var/www/nacsos1/celery-default-%n.pid
-CELERYD_PID_FILE=/var/www/nacsos1/celery-default-celery.pid
-
-CELERYD_LOG_LEVEL="INFO"
 ```

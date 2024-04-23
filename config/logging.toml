@@ -52,3 +52,6 @@ propagate = false
 handlers = [ "default",]
 level = "DEBUG"
 propagate = false
+[loggers.numba]
+handlers = [ "default",]
+level = "INFO"

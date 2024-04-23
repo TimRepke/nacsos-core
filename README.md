@@ -5,6 +5,10 @@ This repository contains the core data management platform of NACSOS.
 It accesses the database via the `nacsos-data` package and exposes the functionality via an API.
 It also serves the web frontend.
 
+## Endpoints
+When using the docker-compose setup, you will reach 
+* pgadmin: http://localhost:5050
+
 ```
 pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```
@@ -39,6 +43,12 @@ export NACSOS_CONFIG=config/default.env
 
 # for development, using the --reload option is helpful
 hypercorn --config=config/hypercorn.toml --reload main:app 
+
+# pipeline workers (if needed)
+dramatiq server.pipelines.tasks -t 2 -p 2 -Q default nacsos-pipes
+
+# optional dramatiq dashboard
+hypercorn drama:app
 ```
 
 The configuration is read in the following order (and overridden by consecutive steps):
@@ -48,3 +58,28 @@ The configuration is read in the following order (and overridden by consecutive 
 
 The default config is set up to work with a locally running docker instance with its respective default config.
 It should never be changed, always make a local copy and never commit it to the repository!
+
+```
+[Unit]
+Description=dramatiq workers
+After=network.target
+
+[Service]
+Type=simple
+User=nacsos
+Group=nacsos
+Environment="NACSOS_CONFIG=/var/www/nacsos2/nacsos-core/config/server.env"
+WorkingDirectory=/var/www/nacsos2/nacsos-core
+#ExecStart=/var/www/nacsos2/nacsos-core/venv/bin/dramatiq dramatiq server.pipelines.tasks -t 2 -p 3 -Q default nacsos-pipes --watch /var/www/nacsos2/nacsos-core/server --pid-file /var/www/nacsos2/dramatiq.pid  
+ExecStart=/var/www/nacsos2/nacsos-core/venv/bin/dramatiq dramatiq server.pipelines.tasks -t 2 -p 3 -Q default nacsos-pipes --pid-file /var/www/nacsos2/dramatiq.pid
+Restart=always
+RestartSec=30s
+PIDFile=/var/www/nacsos2/dramatiq.pid
+KillMode=process
+KillSignal=SIGHUP
+TimeoutStopSec=30
+FinalKillSignal=SIGKILL
+
+[Install]
+WantedBy=multi-user.target
+```

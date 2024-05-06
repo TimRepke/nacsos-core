@@ -24,7 +24,7 @@ stages:
   - test
   - deploy
 
-image: python:3.11.7
+image: python:3.12
 
 build-job:
   stage: build
@@ -82,7 +82,7 @@ deploy-to-production:
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
-    - python3.11 -m venv venv
+    - python3.12 -m venv venv
     - source venv/bin/activate
     - which python
     - python -V

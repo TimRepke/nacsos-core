@@ -36,6 +36,7 @@ build-job:
     - pwd
     - ls -lisah
     - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - pip install setuptools
     - pip install -r requirements.txt
     - pip install -r requirements_dev.txt
 

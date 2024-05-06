@@ -24,7 +24,7 @@ stages:
   - test
   - deploy
 
-image: python:3.11.7
+image: python:3.12
 
 build-job:
   stage: build
@@ -36,6 +36,7 @@ build-job:
     - pwd
     - ls -lisah
     - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - pip install setuptools
     - pip install -r requirements.txt
     - pip install -r requirements_dev.txt
 
@@ -82,7 +83,7 @@ deploy-to-production:
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
-    - python3.11 -m venv venv
+    - python3.12 -m venv venv
     - source venv/bin/activate
     - which python
     - python -V
@@ -103,7 +104,9 @@ restart-workers:
   tags:
     - vm,bare-metal
   script:
-    - sudo systemctl restart nacsos-dramatiq.service
+    - sudo systemctl stop nacsos-dramatiq.service
+    - sleep 10
+    - sudo systemctl start nacsos-dramatiq.service
   when: manual
   only:
     - production

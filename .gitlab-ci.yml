@@ -90,7 +90,7 @@ deploy-to-production:
     - echo "Installing requirements"
     - pip install -r requirements.txt
     - echo "Handling migrations"
-    - nacsos_migrate upgrade --revision head --root-path=/var/www/nacsos2/nacsos-core/venv/lib/python3.11/site-packages/nacsos_data --ini-file=/var/www/nacsos2/nacsos-core/config/alembic.ini
+    - nacsos_migrate upgrade --revision head --root-path=/var/www/nacsos2/nacsos-core/venv/lib/python3.12/site-packages/nacsos_data --ini-file=/var/www/nacsos2/nacsos-core/config/alembic.ini
     - sudo chown -R nacsos:nacsos /var/www/nacsos2/nacsos-core
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service

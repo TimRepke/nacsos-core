@@ -90,7 +90,7 @@ class NacsosActor(Actor[P, R]):
         actor_name: str = 'anonymous_actor'
         task_id: str | None = None
         message_id: str | None = None
-        message: Message[R] = CurrentMessage.get_current_message()  # type: ignore[type-arg]
+        message: Message[R] = CurrentMessage.get_current_message()  # type: ignore[type-arg,assignment]
         if message:
             message_id = message.message_id
             actor_name = message.options.get('nacsos_actor_name')  # type: ignore[assignment]

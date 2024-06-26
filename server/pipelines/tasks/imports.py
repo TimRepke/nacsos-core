@@ -23,7 +23,7 @@ def prefix_sources(sources: list[Path]):
     return [settings.PIPES.user_data_dir / path for path in sources]
 
 
-@dramatiq.actor(actor_class=NacsosActor, max_retries=0)
+@dramatiq.actor(actor_class=NacsosActor, max_retries=0)  # type: ignore[arg-type]
 async def import_task(import_id: str | None = None) -> None:
     async with NacsosActor.exec_context() as (session, logger, target_dir, work_dir, task_id, message_id):
         logger.info('Preparing import task!')

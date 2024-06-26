@@ -29,27 +29,31 @@ class TermStats(BaseModel):
     ttf: int
 
 
+class SearchPayload(BaseModel):
+    query: str
+    limit: int = 20
+    offset: int = 0
+    def_type: DefType = 'lucene'
+    field: SearchField = 'title_abstract'
+    histogram: bool = False
+    op: OpType = 'AND'
+    histogram_from: int = 1990
+    histogram_to: int = 2024
+
+
 @router.post('/openalex/select', response_model=SearchResult)
-async def search_openalex(query: str,
-                          limit: int = 20,
-                          offset: int = 0,
-                          def_type: DefType = 'lucene',
-                          field: SearchField = 'title_abstract',
-                          histogram: bool = False,
-                          op: OpType = 'AND',
-                          histogram_from: int = 1990,
-                          histogram_to: int = 2024,
+async def search_openalex(search: SearchPayload,
                           permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> SearchResult:
-    return await query_async(query=query,
+    return await query_async(query=search.query,
                              openalex_endpoint=str(settings.OA_SOLR),
-                             histogram=histogram,
-                             histogram_to=histogram_to,
-                             histogram_from=histogram_from,
-                             op=op,
-                             def_type=def_type,
-                             field=field,
-                             offset=offset,
-                             limit=limit)
+                             histogram=search.histogram,
+                             histogram_to=search.histogram_to,
+                             histogram_from=search.histogram_from,
+                             op=search.op,
+                             def_type=search.def_type,
+                             field=search.field,
+                             offset=search.offset,
+                             limit=search.limit)
 
 
 @router.get('/openalex/terms', response_model=list[TermStats])

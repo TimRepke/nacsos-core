@@ -1,25 +1,11 @@
-import asyncio
-import datetime
 import logging
-import traceback
-import uuid
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import TypeVar, NamedTuple, ParamSpec, Protocol, Callable, Awaitable, Any, TYPE_CHECKING, Generic
 
 import dramatiq
-from dramatiq import Actor, Broker
 from dramatiq.middleware import CurrentMessage, AsyncIO
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq_abort import Abortable, backends
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from nacsos_data.models.pipeline import TaskModel, compute_fingerprint, TaskStatus
-from nacsos_data.db.schemas import Task
-
 from server.util.config import settings
-from server.util.logging import get_file_logger, LogRedirector
 
 logger = logging.getLogger('nacsos.pipelines.task')
 broker = RedisBroker(url=settings.PIPES.REDIS_URL)

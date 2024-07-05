@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import cast
 
 import dramatiq
+
+from nacsos_data.db import get_engine_async
 from nacsos_data.db.schemas import Import
 from nacsos_data.models.imports import ImportConfig, ImportModel
 from nacsos_data.util import ensure_values
@@ -25,20 +27,21 @@ def prefix_sources(sources: list[Path]):
 
 @dramatiq.actor(actor_class=NacsosActor, max_retries=0)  # type: ignore[arg-type]
 async def import_task(import_id: str | None = None) -> None:
-    async with NacsosActor.exec_context() as (session, logger, target_dir, work_dir, task_id, message_id):
+    async with NacsosActor.exec_context() as (db_settings, logger, target_dir, work_dir, task_id, message_id):
         logger.info('Preparing import task!')
+        db_engine = get_engine_async(settings=db_settings)
+        async with db_engine.session() as session:
+            if import_id is None:
+                raise ValueError('import_id is required here.')
 
-        if import_id is None:
-            raise ValueError('import_id is required here.')
+            stmt = select(Import).where(Import.import_id == import_id)
+            result = (await session.execute(stmt)).scalars().one_or_none()
+            if result is None:
+                raise NotFoundError(f'No import info for id={import_id}')
 
-        stmt = select(Import).where(Import.import_id == import_id)
-        result = (await session.execute(stmt)).scalars().one_or_none()
-        if result is None:
-            raise NotFoundError(f'No import info for id={import_id}')
-
-        import_details = ImportModel.model_validate(result.__dict__)
-        result.pipeline_task_id = task_id
-        await session.commit()
+            import_details = ImportModel.model_validate(result.__dict__)
+            result.pipeline_task_id = task_id
+            await session.commit()
 
         user_id, project_id, config = cast(tuple[str, str, ImportConfig],
                                            ensure_values(import_details, 'user_id', 'project_id', 'config'))

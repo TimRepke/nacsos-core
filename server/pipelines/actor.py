@@ -16,8 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 from nacsos_data.models.pipeline import compute_fingerprint, TaskStatus
 from nacsos_data.db.schemas import Task
 
-from server.util.config import settings
+from server.util.config import settings, DatabaseConfig
 from server.util.logging import get_file_logger, LogRedirector
+
+logger = logging.getLogger('nacsos.pipelines.actor')
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -83,7 +85,9 @@ class NacsosActor(Actor[P, R]):
     @classmethod
     @asynccontextmanager
     async def exec_context(cls) \
-            -> AsyncIterator[tuple[AsyncSession, logging.Logger, Path, str, str | None, str | None]]:
+            -> AsyncIterator[tuple[DatabaseConfig, logging.Logger, Path, str, str | None, str | None]]:
+        logger.info('Opening execution context')
+
         from nacsos_data.db import get_engine_async
         db_engine = get_engine_async(settings=settings.DB)  # type: ignore[arg-type]
 
@@ -95,6 +99,7 @@ class NacsosActor(Actor[P, R]):
             message_id = message.message_id
             actor_name = message.options.get('nacsos_actor_name')  # type: ignore[assignment]
             task_id = message.options.get('nacsos_task_id')
+            logger.info(f'message_id: {message_id}, task_id: {task_id}, actor_name: {actor_name}')
 
         target_dir = settings.PIPES.target_dir / str(task_id)
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -114,22 +119,27 @@ class NacsosActor(Actor[P, R]):
             else:
                 task_logger.warning(f'Task {task_id} not found in database.')
 
-            status: TaskStatus | None = None
-            with TemporaryDirectory(dir=settings.PIPES.WORKING_DIR) as work_dir, \
-                    LogRedirector(task_logger, level='INFO', stream='stdout'), \
-                    LogRedirector(task_logger, level='ERROR', stream='stderr'):
-                try:
-                    yield session, task_logger, target_dir, work_dir, task_id, message_id
-
-                except (Exception, Warning) as e:
-                    # Oh no, something failed. Do some post-mortem logging
-                    tb = traceback.format_exc()
-                    task_logger.fatal(tb)
-                    task_logger.fatal(f'{type(e).__name__}: {e}')
-                    status = TaskStatus.FAILED
-                finally:
+        status: TaskStatus | None = None
+        with TemporaryDirectory(dir=settings.PIPES.WORKING_DIR) as work_dir, \
+                LogRedirector(task_logger, level='INFO', stream='stdout'), \
+                LogRedirector(task_logger, level='ERROR', stream='stderr'):
+            try:
+                # Yielding this info implicitly executes everything in the `with:` context.
+                yield settings.DB, task_logger, target_dir, work_dir, task_id, message_id
+            except (Exception, Warning) as e:
+                # Oh no, something failed. Do some post-mortem logging
+                logger.error('Big drama from an actor!')
+                logger.exception(e)
+                tb = traceback.format_exc()
+                task_logger.fatal(tb)
+                task_logger.fatal(f'{type(e).__name__}: {e}')
+                status = TaskStatus.FAILED
+            finally:
+                async with db_engine.session() as session:  # type: AsyncSession
                     task = await session.get(Task, task_id)
-                    status = status or TaskStatus.COMPLETED
+                    logger.debug(f'Pre-set actor status: {status}')
+                    if status is None:
+                        status = TaskStatus.COMPLETED
                     if task:
                         task.status = status
                         task.time_finished = datetime.datetime.now()

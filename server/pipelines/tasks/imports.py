@@ -29,7 +29,7 @@ def prefix_sources(sources: list[Path]):
 async def import_task(import_id: str | None = None) -> None:
     async with NacsosActor.exec_context() as (db_settings, logger, target_dir, work_dir, task_id, message_id):
         logger.info('Preparing import task!')
-        db_engine = get_engine_async(settings=db_settings)
+        db_engine = get_engine_async(settings=db_settings)  # type: ignore[arg-type]
         async with db_engine.session() as session:
             if import_id is None:
                 raise ValueError('import_id is required here.')

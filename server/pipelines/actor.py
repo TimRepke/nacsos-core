@@ -69,7 +69,8 @@ class NacsosActor(Actor[P, R]):
 
         message = super().send_with_options(args=args, kwargs=kwargs,
                                             nacsos_actor_name=self.actor_name,
-                                            nacsos_task_id=self.task_id)
+                                            nacsos_task_id=self.task_id,
+                                            time_limit=86400000)  # 24h in ms => 24*60*60*1000
 
         db_engine = get_engine(settings=settings.DB)  # type: ignore[arg-type]
         with db_engine.session() as session:  # type: Session

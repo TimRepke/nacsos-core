@@ -14,7 +14,7 @@ pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```
  
 ## Installation
-- Requires Python 3.10+, tested with Python 3.10.2
+- Requires Python 3.12+, tested with Python 3.12.2
 
 ```bash
 virtualenv venv

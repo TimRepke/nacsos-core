@@ -116,7 +116,6 @@ async def save_tracker(tracker: AnnotationTrackerModel,
 @router.post('/tracking/refresh', response_model=AnnotationTrackerModel)
 async def update_tracker(tracker_id: str,
                          background_tasks: BackgroundTasks,
-                         batch_size: int | None = None,
                          reset: bool = False,
                          permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> AnnotationTrackerModel:
@@ -144,7 +143,7 @@ async def update_tracker(tracker_id: str,
         await session.flush()
 
         # We are not handing over the existing tracker ORM, because the session is not persistent
-        background_tasks.add_task(bg_populate_tracker, tracker_id, batch_size, diff)
+        background_tasks.add_task(bg_populate_tracker, tracker_id, tracker.batch_size, diff)
 
         return AnnotationTrackerModel.model_validate(tracker.__dict__)
 

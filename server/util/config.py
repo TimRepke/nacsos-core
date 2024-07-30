@@ -165,7 +165,7 @@ class Settings(BaseSettings):
         if isinstance(v, dict):
             return v
         filename = info.data.get('LOG_CONF_FILE', None)
-        print(info.data)
+
         if filename is not None:
             with open(filename, 'r') as f:
                 ret = toml.loads(f.read())

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nacsos_data.db.engine import ensure_session
 from nacsos_data.db.schemas import Project, ItemType
 from nacsos_data.util.nql import NQLQuery, NQLFilter
-from nacsos_data.util.academic.openalex import query_async, SearchResult
+from nacsos_data.util.academic.readers.openalex import query_async, SearchResult
 from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel, GenericItemModel
 from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
 

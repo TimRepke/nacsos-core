@@ -14,6 +14,7 @@ import aiofiles
 from dramatiq_abort import abort
 from fastapi import APIRouter, UploadFile, Depends, Query
 from fastapi.responses import FileResponse
+from starlette.responses import StreamingResponse
 from nacsos_data.util.auth import UserPermissions
 from pydantic import StringConstraints
 from tempfile import TemporaryDirectory
@@ -25,7 +26,7 @@ from server.util.config import settings
 from server.data import db_engine
 
 from server.pipelines.security import UserTaskPermissionChecker, UserTaskProjectPermissions
-from server.pipelines.files import get_outputs_flat, get_log, zip_folder, delete_task_directory
+from server.pipelines.files import get_outputs_flat, get_log, zip_folder, delete_task_directory, stream_log
 
 logger = get_logger('nacsos.api.route.pipelines')
 router = APIRouter()
@@ -60,6 +61,13 @@ def get_task_log(permissions: UserTaskProjectPermissions = Depends(UserTaskPermi
     #  or: https://fastapi.tiangolo.com/advanced/websockets/
     # probably best to return tail by default
     return get_log(task_id=str(task_id))
+
+
+@router.get('/artefacts/log-stream', response_class=StreamingResponse)
+def stream_task_log(permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read'))):
+    return StreamingResponse(stream_log(str(permissions.task.task_id)),
+                             media_type='text/plain',
+                             headers={'X-Content-Type-Options': 'nosniff'})
 
 
 @router.get('/artefacts/file', response_class=FileResponse)

@@ -7,7 +7,7 @@ from nacsos_data.db import get_engine_async
 from nacsos_data.db.schemas import Import
 from nacsos_data.models.imports import ImportConfig, ImportModel
 from nacsos_data.util import ensure_values
-from nacsos_data.util.academic.importing import (
+from nacsos_data.util.academic.importer import (
     import_wos_files,
     import_openalex_files,
     import_academic_db,

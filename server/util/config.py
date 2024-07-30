@@ -154,7 +154,7 @@ class Settings(BaseSettings):
 
     EMAIL: EmailConfig
 
-    LOG_CONF_FILE: str = 'config/logging.conf'
+    LOG_CONF_FILE: str = 'config/logging.toml'
     LOGGING_CONF: dict[str, Any] | None = None
 
     @field_validator('LOGGING_CONF', mode='before')
@@ -165,6 +165,7 @@ class Settings(BaseSettings):
         if isinstance(v, dict):
             return v
         filename = info.data.get('LOG_CONF_FILE', None)
+        print(info.data)
         if filename is not None:
             with open(filename, 'r') as f:
                 ret = toml.loads(f.read())

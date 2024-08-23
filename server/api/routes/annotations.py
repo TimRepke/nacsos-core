@@ -1,7 +1,8 @@
+import uuid
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select, func as F, distinct
+from sqlalchemy import select, func as F, distinct, text
 from sqlalchemy.orm import load_only
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
@@ -10,7 +11,7 @@ from nacsos_data.db.schemas import (
     AssignmentScope,
     User,
     Annotation,
-    BotAnnotation
+    BotAnnotation, Assignment
 )
 from nacsos_data.models.annotations import (
     AnnotationSchemeModel,
@@ -81,7 +82,8 @@ from server.api.errors import (
     NoNextAssignmentWarning,
     ProjectNotFoundError,
     AnnotationSchemeNotFoundError,
-    MissingInformationError
+    MissingInformationError,
+    RemainingDependencyWarning
 )
 from server.util.security import UserPermissionChecker
 from server.data import db_engine
@@ -410,6 +412,88 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
         await store_assignments(assignments=assignments, db_engine=db_engine)
 
     return assignments
+
+
+@router.post('/config/scopes/clear/{scheme_id}')
+async def clear_empty_assignments(scope_id: str,
+                                  permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    """
+    Drop all assignments in a scope that are still incomplete...
+
+    :param scope_id:
+    :param permissions:
+    :return:
+    """
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = text('''
+            DELETE
+            FROM assignment
+            WHERE assignment_id IN (
+                WITH counts AS (
+                    SELECT ass.assignment_id, count(ann.assignment_id) as cnt
+                    FROM assignment ass
+                        LEFT OUTER JOIN annotation ann ON ass.assignment_id = ann.assignment_id
+                    WHERE ass.assignment_scope_id = :scope_id
+                    GROUP BY ass.assignment_id
+                )
+                SELECT assignment_id
+                FROM counts
+                WHERE cnt = 0
+        );''')
+        await session.execute(stmt, {'scope_id': scope_id})
+
+
+class AssignmentEditInfo(BaseModel):
+    scope_id: str
+    scheme_id: str
+    item_id: str
+    user_id: str
+    order: int
+
+
+@router.put('/config/assignments/edit/', response_model=AssignmentModel)
+async def edit_assignment(info: AssignmentEditInfo,
+                          permissions=Depends(UserPermissionChecker('annotations_edit'))) -> AssignmentModel:
+    async with db_engine.session() as session:  # type: AsyncSession
+
+        # Check, if we already have an assignment for this...
+        assignment = (await session.execute(
+            select(Assignment)
+            .where(
+                Assignment.item_id == info.item_id,
+                Assignment.user_id == info.user_id,
+                Assignment.assignment_scope_id == info.scope_id
+            ))).scalars().one_or_none()
+        n_annotations: int = (await session.execute(
+            select(F.count(Annotation.annotation_id).label('n_annotations'))
+            .join(Assignment)
+            .where(Assignment.item_id == info.item_id,
+                   Assignment.user_id == info.user_id,
+                   Assignment.assignment_scope_id == info.scope_id))).scalar()
+
+        # yes we do, drop this assignment!
+        if assignment is not None:
+            model = AssignmentModel.model_validate(assignment.__dict__)
+            if n_annotations == 0:
+                await session.delete(assignment)
+                return model
+
+            raise RemainingDependencyWarning('Assignment has annotations, won\'t delete!')
+
+        # seems to be a new one, create it!
+        assignment = Assignment(
+            assignment_id=uuid.uuid4(),
+            item_id=info.item_id,
+            user_id=info.user_id,
+            assignment_scope_id=info.scope_id,
+            annotation_scheme_id=info.scheme_id,
+            order=info.order,
+            status=AssignmentStatus.OPEN
+        )
+        session.add(assignment)
+        model = AssignmentModel.model_validate(assignment.__dict__)
+        await session.commit()
+        return model
 
 
 @router.get('/config/scopes/{scheme_id}', response_model=list[AssignmentScopeModel])

@@ -33,6 +33,10 @@ class NoNextAssignmentWarning(Warning):
     status = http_status.HTTP_204_NO_CONTENT
 
 
+class RemainingDependencyWarning(Warning):
+    status = http_status.HTTP_412_PRECONDITION_FAILED
+
+
 class AssignmentScopeNotFoundError(Exception):
     pass
 

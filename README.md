@@ -19,11 +19,12 @@ pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```bash
 virtualenv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements_dev.txt
 ```
 
 For development, it is advised to install `nacsos-data` locally (not from git) via
 ```bash
+pip install -r ../nacsos-data/requirements.txt
 pip install -e ../nacsos-data/
 ```
 (assuming both projects reside side-by-side, otherwise adapt path accordingly)

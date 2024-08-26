@@ -464,7 +464,7 @@ async def edit_assignment(info: AssignmentEditInfo,
                 Assignment.user_id == info.user_id,
                 Assignment.assignment_scope_id == info.scope_id
             ))).scalars().one_or_none()
-        n_annotations: int = (await session.execute(
+        n_annotations: int = (await session.execute(  # type: ignore[assignment]
             select(F.count(Annotation.annotation_id).label('n_annotations'))
             .join(Assignment)
             .where(Assignment.item_id == info.item_id,

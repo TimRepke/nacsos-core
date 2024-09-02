@@ -137,7 +137,7 @@ async def put_annotation_scheme(annotation_scheme: AnnotationSchemeModel,
 @router.delete('/schemes/definition/{scheme_id}')
 async def remove_annotation_scheme(annotation_scheme_id: str,
                                    permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
-    await delete_annotation_scheme(annotation_scheme_id=annotation_scheme_id, db_engine=db_engine)
+    await delete_annotation_scheme(annotation_scheme_id=annotation_scheme_id, db_engine=db_engine, use_commit=True)
 
 
 @router.get('/schemes/list/{project_id}', response_model=list[AnnotationSchemeModel])
@@ -272,7 +272,7 @@ async def put_assignment_scope(assignment_scope: AssignmentScopeModel,
 async def remove_assignment_scope(assignment_scope_id: str,
                                   permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
     try:
-        await delete_assignment_scope(assignment_scope_id=assignment_scope_id, db_engine=db_engine)
+        await delete_assignment_scope(assignment_scope_id=assignment_scope_id, db_engine=db_engine, use_commit=True)
     except ValueError as e:
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                             detail=str(e))
@@ -409,7 +409,7 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
                             detail=f'Method "{payload.config.config_type}" is unknown.')
 
     if payload.save:
-        await store_assignments(assignments=assignments, db_engine=db_engine)
+        await store_assignments(assignments=assignments, db_engine=db_engine, use_commit=True)
 
     return assignments
 
@@ -441,6 +441,7 @@ async def clear_empty_assignments(scope_id: str,
                 WHERE cnt = 0
         );''')
         await session.execute(stmt, {'scope_id': scope_id})
+        await session.commit()
 
 
 class AssignmentEditInfo(BaseModel):
@@ -593,7 +594,7 @@ async def save_resolved_annotations(settings: BotMetaResolveBase,
                                     assignment_scope_id: str,
                                     annotation_scheme_id: str,
                                     permissions=Depends(UserPermissionChecker('annotations_edit'))):
-    meta_id = await store_resolved_bot_annotations(db_engine=db_engine,
+    meta_id = await store_resolved_bot_annotations(db_engine=db_engine, use_commit=True,
                                                    project_id=permissions.permissions.project_id,
                                                    assignment_scope_id=assignment_scope_id,
                                                    annotation_scheme_id=annotation_scheme_id,
@@ -612,7 +613,7 @@ async def update_resolved_annotations(bot_annotation_metadata_id: str,
                                       permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
     # TODO: allow update of filters and settings?
     await update_resolved_bot_annotations(bot_annotation_metadata_id=bot_annotation_metadata_id,
-                                          name=name, matrix=matrix, db_engine=db_engine)
+                                          name=name, matrix=matrix, db_engine=db_engine, use_commit=True)
 
 
 @router.get('/config/resolved-list/', response_model=list[BotAnnotationMetaDataBaseModel])
@@ -649,6 +650,7 @@ async def delete_saved_resolved_annotations(bot_annotation_metadata_id: str,
             .scalars().one_or_none()
         if meta is not None:
             await session.delete(meta)
+            await session.commit()
         # TODO: do we need to commit?
         # TODO: ensure bot_annotations are deleted via cascade
 

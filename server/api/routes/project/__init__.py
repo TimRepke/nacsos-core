@@ -32,7 +32,7 @@ async def get_project(permission=Depends(UserPermissionChecker())) -> ProjectMod
 async def save_project(project_info: ProjectModel,
                        permission=Depends(UserPermissionChecker('owner'))) -> str:
     pkey = await upsert_orm(upsert_model=project_info, Schema=Project, primary_key='project_id',
-                            skip_update=['project_id'], db_engine=db_engine)
+                            skip_update=['project_id'], db_engine=db_engine, use_commit=True)
     return str(pkey)
 
 

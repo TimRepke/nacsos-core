@@ -84,3 +84,16 @@ FinalKillSignal=SIGKILL
 [Install]
 WantedBy=multi-user.target
 ```
+
+## Testing database things in the console
+```
+from sqlalchemy import select
+from nacsos_data.db import get_engine
+from nacsos_data.db.schemas.users import User
+engine = get_engine('config/remote.env')
+with engine.session() as session:
+    users = session.execute(select(User.email, User.full_name, User.username)
+                                       .where(User.setting_newsletter == False,
+                                              User.is_active == True)).mappings().all()
+    print(users[0])
+```

@@ -49,7 +49,7 @@ async def put_import_details(import_details: ImportModel,
                              permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))) -> str:
     if str(import_details.project_id) == str(permissions.permissions.project_id):
         logger.debug(import_details)
-        key = await upsert_import(import_model=import_details, engine=db_engine)
+        key = await upsert_import(import_model=import_details, engine=db_engine, use_commit=True)
         return str(key)
 
     raise InsufficientPermissions('You do not have permission to edit this data import.')
@@ -75,7 +75,7 @@ async def delete_import_details(import_id: str,
 
     # First, make sure the user trying to delete this import is actually authorised to delete this specific import
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
-        await delete_import(import_id=import_id, engine=db_engine)
+        await delete_import(import_id=import_id, engine=db_engine, use_commit=True)
         return str(import_id)
 
     raise InsufficientPermissions('You do not have permission to delete this data import.')

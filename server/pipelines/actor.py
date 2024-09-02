@@ -79,7 +79,7 @@ class NacsosActor(Actor[P, R]):
                         params=params, fingerprint=fingerprint, comment=comment, message_id=message.message_id,
                         rec_expunge=self.rec_expunge, status=TaskStatus.PENDING)
             session.add(task)
-            session.flush()
+            session.commit()
             self.logger.info('Wrote task info to database.')
 
         return message

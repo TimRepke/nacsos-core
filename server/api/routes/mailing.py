@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, Body
 from fastapi.responses import PlainTextResponse
 from nacsos_data.util.errors import NotFoundError
 
@@ -135,7 +135,7 @@ async def remind_users_assigment(assignment_scope_id: str,
         reminded_users = []
         for res in result:
             if res['num_open'] > 0:
-                logger.debug(f'Trying to remind {res}')
+                logger.info(f'Trying to remind {res}')
                 background_tasks.add_task(
                     send_message,
                     sender=None,
@@ -163,21 +163,27 @@ async def remind_users_assigment(assignment_scope_id: str,
 
 
 @router.post('/news')
-async def news_mail(subject: str,
-                    body: str,
-                    background_tasks: BackgroundTasks,
+async def news_mail(background_tasks: BackgroundTasks,
+                    subject: str = Body(),
+                    body: str = Body(),
+                    is_active: bool | None = None,
+                    is_subscribed: bool | None = None,
                     superuser: UserModel = Depends(get_current_active_superuser)) -> list[str]:
     reminded_users: list[str] = []
 
     session: AsyncSession
     async with db_engine.session() as session:
-        users = (await session.execute(select(User.email, User.full_name, User.username)
-                                       .where(User.setting_newsletter is True,  # type: ignore[arg-type]
-                                              User.is_active is True))).mappings().all()  # type: ignore[arg-type]
+        stmt = select(User.email, User.full_name, User.username)
+        if is_active is not None:
+            stmt = stmt.where(User.is_active == is_active)
+        if is_subscribed:
+            stmt = stmt.where(User.setting_newsletter == is_subscribed)
+
+        users = (await session.execute(stmt)).mappings().all()  # type: ignore[arg-type]
 
         for user in users:
             try:
-                logger.debug(f'Trying to remind {user["username"]}')
+                logger.info(f'Trying to send news to {user["username"]}')
                 background_tasks.add_task(
                     send_message,
                     sender=None,

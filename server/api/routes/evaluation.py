@@ -140,7 +140,7 @@ async def update_tracker(tracker_id: str,
 
         # Update labels
         tracker.labels = batched_sequence
-        await session.flush()
+        await session.commit()
 
         # We are not handing over the existing tracker ORM, because the session is not persistent
         background_tasks.add_task(bg_populate_tracker, tracker_id, tracker.batch_size, diff)
@@ -186,6 +186,7 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
                 tracker.buscar = tracker.buscar + [(x, y)]
                 # save after each step, so the user can refresh the page and get data as it becomes available
                 await session.flush()
+        await session.commit()
 
 
 @router.get('/quality/load/{assignment_scope_id}', response_model=list[AnnotationQualityModel])

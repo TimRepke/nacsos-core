@@ -3,9 +3,9 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 import sqlalchemy.sql.functions as func
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 
-from nacsos_data.db.engine import ensure_session
+from nacsos_data.db.engine import ensure_session, DBSession
 from nacsos_data.db.schemas import Project, ItemType
 from nacsos_data.util.nql import NQLQuery, NQLFilter
 from nacsos_data.util.academic.readers.openalex import query_async, SearchResult
@@ -90,7 +90,7 @@ class QueryResult(BaseModel):
 
 
 @ensure_session
-async def _get_query(session: AsyncSession, query: NQLFilter, project_id: str) -> NQLQuery:
+async def _get_query(session: DBSession, query: NQLFilter, project_id: str) -> NQLQuery:
     project_type: ItemType | None = (
         await session.scalar(select(Project.type).where(Project.project_id == project_id)))
 

@@ -37,19 +37,20 @@ async def reset_password(username: str,
         await auth_helper.clear_tokens_by_user(username=username)
         # Create new token
         token = await auth_helper.refresh_or_create_token(username=username,
-                                                          token_lifetime_minutes=3 * 60)
+                                                          token_lifetime_minutes=24 * 60)
         try:
             background_tasks.add_task(
                 send_message,
                 sender=None,
                 recipients=[user.email],
+                bcc=[],
                 subject='[NACSOS] Reset password',
                 message=f'Dear {user.full_name},\n'
                         f'You are receiving this message because you or someone else '
                         f'tried to reset your password.\n'
                         f'We closed all your active sessions, so you will have to log in again.\n'
                         f'\n'
-                        f'You can use the following link within the next 3h to reset your password:\n'
+                        f'You can use the following link within the next 24h to reset your password:\n'
                         f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
                         f'\n'
                         f'Sincerely,\n'
@@ -73,11 +74,12 @@ async def welcome_mail(username: str,
     if user is not None and user.email is not None:
         # Create new token
         token = await auth_helper.refresh_or_create_token(username=username,
-                                                          token_lifetime_minutes=3 * 60)
+                                                          token_lifetime_minutes=24 * 60)
         background_tasks.add_task(
             send_message,
             sender=None,
             recipients=[user.email],
+            bcc=[],
             subject='[NACSOS] Welcome to the platform',
             message=f'Dear {user.full_name},\n'
                     f'I created an account on our scoping platform for you.\n '
@@ -88,7 +90,7 @@ async def welcome_mail(username: str,
                     f'You can change your password after logging in by opening the user menu at '
                     f'the top right and clicking "edit profile".\n'
                     f'\n'
-                    f'Alternatively, you can use the following link within the next 3h to reset your password:\n'
+                    f'Alternatively, you can use the following link within the next 24h to reset your password:\n'
                     f'{settings.SERVER.WEB_URL}/#/password-reset/{token.token_id}\n'
                     f'\n'
                     f'We are working on expanding the documentation for the platform here:\n'
@@ -138,6 +140,7 @@ async def remind_users_assigment(assignment_scope_id: str,
                     send_message,
                     sender=None,
                     recipients=[res['email']],
+                    bcc=[],
                     subject='[NACSOS] Assignments waiting for you',
                     message=f'Dear {res["full_name"]},\n'
                             f'In the project "{info["project_name"]}", in the scope "{info["scope_name"]}", '
@@ -156,4 +159,50 @@ async def remind_users_assigment(assignment_scope_id: str,
                 reminded_users.append(res['username'])
             else:
                 logger.debug(f'Not reminding {res}')
+        return reminded_users
+
+
+@router.post('/news')
+async def news_mail(subject: str,
+                    body: str,
+                    background_tasks: BackgroundTasks,
+                    superuser: UserModel = Depends(get_current_active_superuser)) -> list[str]:
+    reminded_users: list[str] = []
+
+    session: AsyncSession
+    async with db_engine.session() as session:
+        users = (await session.execute(select(User.email, User.full_name, User.username)
+                                       .where(User.setting_newsletter is True,  # type: ignore[arg-type]
+                                              User.is_active is True))).mappings().all()  # type: ignore[arg-type]
+
+        for user in users:
+            try:
+                logger.debug(f'Trying to remind {user["username"]}')
+                background_tasks.add_task(
+                    send_message,
+                    sender=None,
+                    recipients=[user['email']],
+                    bcc=[],
+                    subject=f'[NACSOS] -NEWS- | {subject}',
+                    message=f'Dear {user["full_name"]},\n'
+                            f'\n'
+                            f'The following message was sent to you by the platform:\n'
+                            f'\n'
+                            f'------------------------------------------------------\n'
+                            f'{body}\n'
+                            f'------------------------------------------------------\n'
+                            f' / end of message\n'
+                            f'\n'
+                            f'If you do not want to receive any more emails like this, please log in and '
+                            f'edit your user profile.\n'
+                            f'We created a guide in the documentation: https://apsis.mcc-berlin.net/nacsos-docs/user/issues/\n'
+                            f'There is also a high-level changelog: https://apsis.mcc-berlin.net/nacsos-docs/news/\n'
+                            f'\n'
+                            f'Sincerely,\n'
+                            f'The Platform'
+                )
+                reminded_users.append(user['username'])
+            except Exception as e:
+                logger.exception(e)
+
         return reminded_users

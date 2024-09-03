@@ -39,6 +39,7 @@ class EmailNotSentError(Exception):
 
 
 def construct_email(recipients: list[str],
+                    bcc: list[str],
                     subject: str,
                     message: str,
                     sender: str | None = None) -> EmailMessage:
@@ -50,21 +51,24 @@ def construct_email(recipients: list[str],
     email['Subject'] = subject
     email['From'] = sender  # type: ignore[assignment]
     email['To'] = ', '.join(recipients)
+    email['Bcc'] = ', '.join(bcc)
     return email
 
 
 async def send_message(recipients: list[str],
+                       bcc: list[str],
                        subject: str,
                        message: str,
                        sender: str | None = None) -> bool:
-    email = construct_email(sender=sender, recipients=recipients, subject=subject, message=message)
+    email = construct_email(sender=sender, recipients=recipients, bcc=bcc, subject=subject, message=message)
     return await send_email(email)
 
 
 async def send_email(email: EmailMessage) -> bool:
     if not settings.EMAIL.ENABLED:
         raise EmailNotSentError(f'Mailing system inactive, '
-                                f'email with subject "{email["Subject"]}" not sent to {email["To"]}')
+                                f'email with subject "{email["Subject"]}" '
+                                f'not sent to {email["To"]} (Bcc: {email["Bcc"]})')
 
     if email['From'] is None:
         del email['From']
@@ -89,18 +93,20 @@ async def send_email(email: EmailMessage) -> bool:
     except (SMTPRecipientsRefused, SMTPResponseException, ValueError, SMTPException, SMTPTimeoutError,
             SMTPAuthenticationError, SMTPNotSupported, SMTPConnectTimeoutError, SMTPConnectError,
             SMTPConnectResponseError, SMTPServerDisconnected, SMTPHeloError, SMTPSenderRefused) as e:
-        logger.warning(f'Failed sending email to {email["To"]} with subject "{email["Subject"]}"')
+        logger.warning(f'Failed sending email to {email["To"]} (Bcc: {email["Bcc"]}) with subject "{email["Subject"]}"')
         logger.error(e)
         await client.quit()
 
-        raise EmailNotSentError(f'Email with subject "{email["Subject"]}" not sent to {email["To"]} because of "{e}"')
+        raise EmailNotSentError(f'Email with subject "{email["Subject"]}" '
+                                f'not sent to {email["To"]} (Bcc: {email["Bcc"]}) because of "{e}"')
 
 
 def send_message_sync(recipients: list[str],
+                      bcc: list[str],
                       subject: str,
                       message: str,
                       sender: str | None = None) -> bool:
-    email = construct_email(sender=sender, recipients=recipients, subject=subject, message=message)
+    email = construct_email(sender=sender, recipients=recipients, bcc=bcc, subject=subject, message=message)
     return send_email_sync(email)
 
 
@@ -130,15 +136,18 @@ def send_email_sync(email: EmailMessage) -> bool:
                 smtp.login(user=user, password=password)
 
             smtp.connect()
-            logger.info(f'Trying to send email to {email["To"]} with subject "{email["Subject"]}"')
+            logger.info(f'Trying to send email to {email["To"]} '
+                        f'(Bcc: {email["Bcc"]}) with subject "{email["Subject"]}"')
             status = smtp.send_message(email)
             logger.debug(status)
-            logger.info(f'Successfully sent email to {email["To"]} with subject "{email["Subject"]}"')
+            logger.info(f'Successfully sent email to {email["To"]} '
+                        f'(Bcc: {email["Bcc"]}) with subject "{email["Subject"]}"')
 
             return True
 
     except (SMTPHeloErrorOrig, SMTPRecipientsRefusedOrig, SMTPSenderRefusedOrig,
             SMTPDataError, SMTPNotSupportedError, SMTPExceptionOrig) as e:
-        logger.warning(f'Failed sending email to {email["To"]} with subject "{email["Subject"]}"')
+        logger.warning(f'Failed sending email to {email["To"]} (Bcc: {email["Bcc"]}) with subject "{email["Subject"]}"')
         logger.error(e)
-        raise EmailNotSentError(f'Email with subject "{email["Subject"]}" not sent to {email["To"]} because of "{e}"')
+        raise EmailNotSentError(f'Email with subject "{email["Subject"]}" '
+                                f'not sent to {email["To"]} (Bcc: {email["Bcc"]}) because of "{e}"')

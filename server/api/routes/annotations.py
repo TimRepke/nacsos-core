@@ -502,10 +502,9 @@ async def get_assignment_scopes_for_scheme(scheme_id: str,
                                            permissions=Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AssignmentScopeModel]:
     async with db_engine.session() as session:  # type: AsyncSession
-        return [AssignmentScopeModel.model_validate(scope.__dict__)
-                for scope in (await session.execute(select(AssignmentScope)
-                                                    .where(AssignmentScope.annotation_scheme_id == scheme_id))
-                              ).scalars().all()]
+        scopes = await session.execute(select(AssignmentScope)
+                                       .where(AssignmentScope.annotation_scheme_id == scheme_id))
+        return [AssignmentScopeModel.model_validate(scope) for scope in scopes.mappings().all()]
 
 
 @router.get('/config/annotators/{scheme_id}', response_model=list[UserModel])

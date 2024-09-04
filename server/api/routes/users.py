@@ -17,7 +17,7 @@ from nacsos_data.db.crud.users import (
 from server.data import db_engine
 from server.api.errors import DataNotFoundWarning, UserNotFoundError, UserPermissionError
 from server.util.logging import get_logger
-from server.util.security import UserPermissionChecker, get_current_active_user
+from server.util.security import UserPermissionChecker, get_current_active_user, auth_helper
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
@@ -102,7 +102,9 @@ async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = D
     if user.user_id != current_user.user_id and not current_user.is_superuser:
         raise UserPermissionError('You do not have permission to perform this action.')
 
-    return await create_or_update_user(user, engine=db_engine)
+    new_user_id = await create_or_update_user(user, engine=db_engine)
+    await auth_helper.cache.reload_users()
+    return new_user_id
 
 
 @router.put('/my-details', response_model=str)
@@ -134,4 +136,5 @@ async def save_user_self(user: UserInDBModel | UserModel,
         # save changes
         await session.commit()
 
-        return user_id
+    await auth_helper.cache.reload_users()
+    return user_id

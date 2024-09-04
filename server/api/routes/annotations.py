@@ -302,7 +302,7 @@ async def get_assignment_indicators_for_scope(assignment_scope_id: str,
                                               permissions=Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AssignmentScopeEntry]:
     return await read_assignment_overview_for_scope(assignment_scope_id=assignment_scope_id,
-                                                    db_engine=db_engine)
+                                                    connection=db_engine)
 
 
 @router.get('/annotate/assignments/scope/{assignment_scope_id}', response_model=list[AssignmentModel])

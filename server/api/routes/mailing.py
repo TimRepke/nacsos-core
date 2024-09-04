@@ -183,7 +183,7 @@ async def news_mail(background_tasks: BackgroundTasks,
 
         for user in users:
             try:
-                logger.info(f'Trying to send news to {user["username"]}')
+                logger.info(f'({len(reminded_users)}/{len(users)}) Trying to send news to {user["username"]}')
                 background_tasks.add_task(
                     send_message,
                     sender=None,

@@ -112,9 +112,10 @@ async def save_user_self(user: UserInDBModel | UserModel,
         raise UserPermissionError('This is not you!')
 
     async with db_engine.session() as session:  # type: AsyncSession
-        user_db: User | None = (await session.scalars(select(User)
-                                                      .where(User.user_id == str(current_user.user_id)))
-                                ).one_or_none()
+        user_db: User | None = (
+            await session.scalars(select(User)
+                                  .where(User.user_id == str(current_user.user_id)))
+        ).one_or_none()
 
         if user_db is None:
             raise DataNotFoundWarning('User does not exist (this error should never happen)!')
@@ -126,6 +127,7 @@ async def save_user_self(user: UserInDBModel | UserModel,
         user_db.email = user.email
         user_db.full_name = user.full_name
         user_db.affiliation = user.affiliation
+        user_db.setting_newsletter = user.setting_newsletter
 
         user_id = str(user_db.user_id)
 

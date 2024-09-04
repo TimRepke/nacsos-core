@@ -6,13 +6,13 @@ from sqlalchemy.orm import selectinload
 from nacsos_data.models.users import UserBaseModel
 from nacsos_data.models.projects import ProjectPermissionsModel
 from nacsos_data.db.schemas import ProjectPermissions
-from nacsos_data.db.crud.projects import \
-    read_project_permissions_for_project, \
-    read_project_permissions_by_id, \
+from nacsos_data.db.crud.projects import (
+    read_project_permissions_for_project,
+    read_project_permissions_by_id,
     delete_project_permissions
-
+)
 from server.data import db_engine
-from server.util.security import UserPermissionChecker, UserPermissions, InsufficientPermissions
+from server.util.security import UserPermissionChecker, UserPermissions, InsufficientPermissions, auth_helper
 from server.util.logging import get_logger
 
 logger = get_logger('nacsos.api.route.project')
@@ -83,6 +83,7 @@ async def save_project_permission(project_permission: ProjectPermissionsModel,
 
                 # Save
                 await session.commit()
+                await auth_helper.cache.reload_permissions()
                 return str(project_permission.project_permission_id)
 
         # Create new permission
@@ -97,13 +98,19 @@ async def save_project_permission(project_permission: ProjectPermissionsModel,
         pp_orm = ProjectPermissions(**project_permission.model_dump())
         session.add(pp_orm)
         await session.commit()
-        return str(project_permission.project_permission_id)
+
+        new_id = str(project_permission.project_permission_id)
+
+    await auth_helper.cache.reload_permissions()
+
+    return new_id
 
 
 @router.delete('/permission')
 async def remove_project_permission(project_permission_id: str,
                                     permission=Depends(UserPermissionChecker('owner'))):
     await delete_project_permissions(project_permission_id=project_permission_id, engine=db_engine)
+    await auth_helper.cache.reload_permissions()
 
 
 @router.get('/{project_permission_id}', response_model=ProjectPermissionsModel)

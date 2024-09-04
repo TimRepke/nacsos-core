@@ -1,7 +1,7 @@
 from fastapi import Depends, status as http_status, Header
 from fastapi.security import OAuth2PasswordBearer
 
-from nacsos_data.models.users import UserModel, UserInDBModel
+from nacsos_data.models.users import UserModel
 from nacsos_data.models.projects import ProjectPermission
 from nacsos_data.util.auth import Authentication, InsufficientPermissionError, InvalidCredentialsError, UserPermissions
 
@@ -29,9 +29,9 @@ auth_helper = Authentication(engine=db_engine,
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=False)
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDBModel:
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserModel:
     try:
-        return await auth_helper.get_current_user(token_id=token)
+        return auth_helper.get_current_user(token_id=token)
     except InvalidCredentialsError as e:
         raise NotAuthenticated(str(e))
     except InsufficientPermissionError as e:
@@ -77,10 +77,10 @@ class UserPermissionChecker:
         :raises HTTPException if permissions are not fulfilled
         """
         try:
-            return await auth_helper.check_permissions(project_id=x_project_id,
-                                                       user=current_user,
-                                                       required_permissions=self.permissions,
-                                                       fulfill_all=self.fulfill_all)
+            return auth_helper.check_permissions(project_id=x_project_id,
+                                                 user=current_user,
+                                                 required_permissions=self.permissions,
+                                                 fulfill_all=self.fulfill_all)
 
         except (InvalidCredentialsError, InsufficientPermissionError) as e:
             raise InsufficientPermissions(repr(e))

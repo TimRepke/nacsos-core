@@ -1,4 +1,5 @@
 import mimetypes
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -8,6 +9,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from .util.middlewares import TimingMiddleware, ErrorHandlingMiddleware
 from .util.config import settings
+from .util.security import auth_helper
 from .data import db_engine
 from .util.logging import get_logger
 from .api import router as api_router
@@ -20,10 +22,25 @@ mimetypes.init()
 
 logger = get_logger('nacsos.server')
 
-app = FastAPI(openapi_url=settings.SERVER.OPENAPI_FILE,
-              openapi_prefix=settings.SERVER.OPENAPI_PREFIX,
-              root_path=settings.SERVER.ROOT_PATH,
-              separate_input_output_schemas=False)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Following code executed on startup
+    await db_engine.startup()
+    await auth_helper
+
+    yield  # running server
+
+    # Following code executed after shutdown
+
+
+app = FastAPI(
+    openapi_url=settings.SERVER.OPENAPI_FILE,
+    openapi_prefix=settings.SERVER.OPENAPI_PREFIX,
+    root_path=settings.SERVER.ROOT_PATH,
+    separate_input_output_schemas=False,
+    lifespan=lifespan
+)
 
 logger.debug('Setting up server and middlewares')
 mimetypes.add_type('application/javascript', '.js')
@@ -46,8 +63,3 @@ logger.debug('Setup routers')
 app.include_router(api_router, prefix='/api')
 
 app.mount('/', StaticFiles(directory=settings.SERVER.STATIC_FILES, html=True), name='static')
-
-
-@app.on_event("startup")
-async def on_startup():
-    await db_engine.startup()

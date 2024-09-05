@@ -31,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=Fals
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserModel:
     try:
-        return auth_helper.get_current_user(token_id=token)
+        return await auth_helper.get_current_user(token_id=token)
     except InvalidCredentialsError as e:
         raise NotAuthenticated(str(e))
     except InsufficientPermissionError as e:
@@ -77,10 +77,10 @@ class UserPermissionChecker:
         :raises HTTPException if permissions are not fulfilled
         """
         try:
-            return auth_helper.check_permissions(project_id=x_project_id,
-                                                 user=current_user,
-                                                 required_permissions=self.permissions,
-                                                 fulfill_all=self.fulfill_all)
+            return await auth_helper.check_permissions(project_id=x_project_id,
+                                                       user=current_user,
+                                                       required_permissions=self.permissions,
+                                                       fulfill_all=self.fulfill_all)
 
         except (InvalidCredentialsError, InsufficientPermissionError) as e:
             raise InsufficientPermissions(repr(e))

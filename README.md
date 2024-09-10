@@ -60,6 +60,8 @@ The configuration is read in the following order (and overridden by consecutive 
 The default config is set up to work with a locally running docker instance with its respective default config.
 It should never be changed, always make a local copy and never commit it to the repository!
 
+Note, you may need to install `apt install python3.12-dev libsystemd-dev`.
+
 ```
 [Unit]
 Description=dramatiq workers

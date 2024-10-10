@@ -477,6 +477,7 @@ async def edit_assignment(info: AssignmentEditInfo,
             model = AssignmentModel.model_validate(assignment.__dict__)
             if n_annotations == 0:
                 await session.delete(assignment)
+                await session.commit()
                 return model
 
             raise RemainingDependencyWarning('Assignment has annotations, won\'t delete!')

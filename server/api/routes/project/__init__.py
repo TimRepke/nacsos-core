@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends
-from nacsos_data.db.crud import update_orm, upsert_orm
+from nacsos_data.db.crud import upsert_orm
+from nacsos_data.db.crud.imports import set_session_mutex
 from nacsos_data.db.schemas import Project
 
 from nacsos_data.models.projects import ProjectModel
-from nacsos_data.db.crud.projects import read_project_by_id, update_project
+from nacsos_data.db.crud.projects import read_project_by_id
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.data import db_engine
 from server.util.security import UserPermissionChecker
@@ -36,7 +39,15 @@ async def save_project(project_info: ProjectModel,
     return str(pkey)
 
 
-# TODO create project (superuser only)
+@router.put('/import_mutex')
+async def reset_import_mutex(permission=Depends(UserPermissionChecker('imports_edit'))) -> None:
+    async with db_engine.session() as session:  # type: AsyncSession
+        await set_session_mutex(session=session,
+                                project_id=permission.permissions.project_id,
+                                lock=False)
+    return None
+
+
 # TODO delete project (project owner and superuser only)
 
 # sub-router for everything related to project-level permission management

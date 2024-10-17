@@ -1,13 +1,16 @@
 from fastapi import APIRouter, Depends
-
-from nacsos_data.models.imports import ImportModel
+import sqlalchemy as sa
+from nacsos_data.db.schemas import Task
+from nacsos_data.db.schemas.imports import ImportRevision
+from nacsos_data.models.imports import ImportModel, ImportRevisionModel
 from nacsos_data.db.crud.imports import (
     read_import,
     upsert_import,
     delete_import,
-    read_all_imports_for_project,
     read_item_count_for_import
 )
+from nacsos_data.models.pipeline import TaskModel
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 from server.pipelines import tasks
 from server.data import db_engine
@@ -20,11 +23,29 @@ router = APIRouter()
 logger.info('Setting up imports route')
 
 
-@router.get('/list', response_model=list[ImportModel])
+class ImportInfo(ImportModel):
+    num_revisions: int
+    num_items: int | None = None
+
+
+class ImportRevisionDetails(ImportRevisionModel):
+    task: TaskModel | None = None
+
+
+@router.get('/list', response_model=list[ImportInfo])
 async def get_all_imports_for_project(permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
         -> list[ImportModel]:
-    return await read_all_imports_for_project(project_id=permissions.permissions.project_id,
-                                              engine=db_engine)
+    async with db_engine.session() as session:  # type: AsyncSession
+        rslt = await session.execute(sa.text('SELECT im.*, '
+                                             '       count(ir.import_revision_counter) as num_revisions, '
+                                             '       max(ir.num_items) as num_items '
+                                             'FROM import im '
+                                             'LEFT OUTER JOIN import_revision ir ON im.import_id = ir.import_id '
+                                             'WHERE im.project_id = :project_id '
+                                             'GROUP BY im.import_id;'),
+                                     {'project_id': permissions.permissions.project_id})
+
+        return [ImportInfo(**ii) for ii in rslt.mappings().all()]
 
 
 @router.get('/import/{import_id}', response_model=ImportModel)
@@ -41,7 +62,26 @@ async def get_import_details(import_id: str,
 @router.get('/import/{import_id}/count/', response_model=int)
 async def get_import_counts(import_id: str,
                             permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) -> int:
+    # FIXME: add permission check for project_id
     return await read_item_count_for_import(import_id=import_id, engine=db_engine)
+
+
+@router.get('/import/{import_id}/revisions', response_model=list[ImportRevisionDetails])
+async def get_import_revisions(import_id: str,
+                               permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
+        -> list[ImportRevisionDetails]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        rslt = await session.execute(
+            sa.select(ImportRevision, Task)
+            .join(Task, sa.func.cast(Task.task_id, sa.Text) == ImportRevision.pipeline_task_id, isouter=True)
+            .where(ImportRevision.import_id == import_id)
+            .order_by(ImportRevision.import_revision_counter))
+        # FIXME: add permission check for project_id
+        return [
+            ImportRevisionDetails(**ird['ImportRevision'].__dict__,
+                                  task=None if not ird['Task'] else ird['Task'].__dict__)
+            for ird in rslt.mappings().all()
+        ]
 
 
 @router.put('/import', response_model=str)

@@ -75,7 +75,7 @@ async def get_import_revisions(import_id: str,
             sa.select(ImportRevision, Task)
             .join(Task, sa.func.cast(Task.task_id, sa.Text) == ImportRevision.pipeline_task_id, isouter=True)
             .where(ImportRevision.import_id == import_id)
-            .order_by(ImportRevision.import_revision_counter))
+            .order_by(sa.desc(ImportRevision.import_revision_counter)))
         # FIXME: add permission check for project_id
         return [
             ImportRevisionDetails(**ird['ImportRevision'].__dict__,

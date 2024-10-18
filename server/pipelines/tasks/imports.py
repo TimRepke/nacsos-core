@@ -40,8 +40,6 @@ async def import_task(import_id: str | None = None) -> None:
                 raise NotFoundError(f'No import info for id={import_id}')
 
             import_details = ImportModel.model_validate(result.__dict__)
-            result.pipeline_task_id = task_id
-            await session.commit()
 
         user_id, project_id, config = cast(tuple[str, str, ImportConfig],
                                            ensure_values(import_details, 'user_id', 'project_id', 'config'))
@@ -52,6 +50,7 @@ async def import_task(import_id: str | None = None) -> None:
             await import_wos_files(sources=prefix_sources(config.sources),
                                    project_id=project_id,
                                    import_id=import_id,
+                                   pipeline_task_id=task_id,
                                    db_config=Path(conf_file),
                                    logger=logger.getChild('wos'))
         elif config.kind == 'scopus':
@@ -59,6 +58,7 @@ async def import_task(import_id: str | None = None) -> None:
             await import_scopus_csv_file(sources=prefix_sources(config.sources),
                                          project_id=project_id,
                                          import_id=import_id,
+                                         pipeline_task_id=task_id,
                                          db_config=Path(conf_file),
                                          logger=logger.getChild('scopus'))
         elif config.kind == 'academic':
@@ -66,6 +66,7 @@ async def import_task(import_id: str | None = None) -> None:
             await import_academic_db(sources=prefix_sources(config.sources),
                                      project_id=project_id,
                                      import_id=import_id,
+                                     pipeline_task_id=task_id,
                                      db_config=Path(conf_file),
                                      logger=logger.getChild('academic'))
         elif config.kind == 'oa-file':
@@ -73,6 +74,7 @@ async def import_task(import_id: str | None = None) -> None:
             await import_openalex_files(sources=prefix_sources(config.sources),
                                         project_id=project_id,
                                         import_id=import_id,
+                                        pipeline_task_id=task_id,
                                         db_config=Path(conf_file),
                                         logger=logger.getChild('oa-file'))
         elif config.kind == 'oa-solr':
@@ -84,6 +86,7 @@ async def import_task(import_id: str | None = None) -> None:
                                   op=config.op,
                                   project_id=project_id,
                                   import_id=import_id,
+                                  pipeline_task_id=task_id,
                                   db_config=Path(conf_file),
                                   logger=logger.getChild('oa-solr'))
 

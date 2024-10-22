@@ -14,6 +14,7 @@ from .routes import search
 from .routes import evaluation
 from .routes import mailing
 from .routes import pipelines
+from .routes import item
 
 # this router proxies all /api endpoints
 router = APIRouter()
@@ -62,3 +63,6 @@ router.include_router(mailing.router, prefix='/mail', tags=['mailing'])
 
 # route for pipeline stuff
 router.include_router(pipelines.router, prefix='/pipes', tags=['pipes'])
+
+# route for viewing and editing item details
+router.include_router(item.router, prefix='/item', tags=['item'])

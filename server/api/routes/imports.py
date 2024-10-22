@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 import sqlalchemy as sa
 from nacsos_data.db.schemas import Task
-from nacsos_data.db.schemas.imports import ImportRevision
+from nacsos_data.db.schemas.imports import ImportRevision, Import
 from nacsos_data.models.imports import ImportModel, ImportRevisionModel
 from nacsos_data.db.crud.imports import (
     read_import,
@@ -32,9 +32,13 @@ class ImportRevisionDetails(ImportRevisionModel):
     task: TaskModel | None = None
 
 
+class ImportDetails(ImportModel):
+    revisions: list[ImportRevisionModel]
+
+
 @router.get('/list', response_model=list[ImportInfo])
 async def get_all_imports_for_project(permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
-        -> list[ImportModel]:
+        -> list[ImportInfo]:
     async with db_engine.session() as session:  # type: AsyncSession
         rslt = await session.execute(sa.text('SELECT im.*, '
                                              '       count(ir.import_revision_counter) as num_revisions, '
@@ -46,6 +50,35 @@ async def get_all_imports_for_project(permissions: UserPermissions = Depends(Use
                                      {'project_id': permissions.permissions.project_id})
 
         return [ImportInfo(**ii) for ii in rslt.mappings().all()]
+
+
+@router.get('/list/details', response_model=list[ImportDetails])
+async def get_project_imports(permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
+        -> list[ImportDetails]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        rslt = (await session.execute(
+            sa.select(Import,
+                      sa.func.array_agg(
+                          sa.func.row_to_json(ImportRevision.__table__.table_valued())  # type: ignore[attr-defined]
+                      ).label('revisions'))
+            .join(ImportRevision, ImportRevision.import_id == Import.import_id, isouter=True)
+            .where(Import.project_id == permissions.permissions.project_id)
+            .group_by(Import.import_id))).mappings().all()
+        return [
+            ImportDetails(
+                **ii['Import'].__dict__,
+                revisions=(
+                    []
+                    if not ii['revisions'] else
+                    [
+                        ImportRevisionModel(**rev)
+                        for rev in ii['revisions']
+                        if rev is not None
+                    ]
+                )
+            )
+            for ii in rslt
+        ]
 
 
 @router.get('/import/{import_id}', response_model=ImportModel)

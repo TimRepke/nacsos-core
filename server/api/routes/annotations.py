@@ -1,4 +1,5 @@
 import uuid
+from hashlib import md5
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -140,18 +141,35 @@ async def remove_annotation_scheme(annotation_scheme_id: str,
     await delete_annotation_scheme(annotation_scheme_id=annotation_scheme_id, db_engine=db_engine, use_commit=True)
 
 
-@router.get('/schemes/list/{project_id}', response_model=list[AnnotationSchemeModel])
-async def get_scheme_definitions_for_project(project_id: str,
-                                             permissions=Depends(UserPermissionChecker('annotations_read'))) \
+@router.get('/schemes/list', response_model=list[AnnotationSchemeModel])
+async def get_scheme_definitions_for_project(permissions=Depends(UserPermissionChecker('annotations_read'))) \
         -> list[AnnotationSchemeModel]:
     """
     This endpoint returns the detailed definitions of all annotation schemes associated with a project.
 
-    :param project_id: database id of the project
     :param permissions:
     :return: list of annotation schemes
     """
-    return await read_annotation_schemes_for_project(project_id=project_id, db_engine=db_engine)
+    return await read_annotation_schemes_for_project(project_id=permissions.permissions.project_id, db_engine=db_engine)
+
+
+@router.get('/schemes/fingerprints')
+async def get_annotation_scheme_fingerprints(merged: bool = Query(default=False),
+                                             permissions=Depends(UserPermissionChecker('annotations_read'))) \
+        -> str | dict[str, str]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        rslt = (await session.execute(text('SELECT annotation_scheme_id, '
+                                           '       md5(textin(record_out(annotation_scheme.*))) as hash '
+                                           'FROM annotation_scheme '
+                                           'WHERE project_id=:project_id;'),
+                                      {'project_id': permissions.permissions.project_id})).mappings().all()
+        if merged:
+            return md5((''.join([row['hash'] for row in rslt]).encode())).hexdigest()
+
+        return {
+            row['annotation_scheme_id']: row['hash']
+            for row in rslt
+        }
 
 
 async def _construct_annotation_item(assignment: AssignmentModel, project_id: str) -> AnnotationItem:

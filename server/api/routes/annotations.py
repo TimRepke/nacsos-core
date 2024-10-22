@@ -434,16 +434,21 @@ async def make_assignments(payload: MakeAssignmentsRequestModel,
 
 @router.post('/config/scopes/clear/{scheme_id}')
 async def clear_empty_assignments(scope_id: str,
+                                  user_id: str | None = None,
                                   permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
     """
     Drop all assignments in a scope that are still incomplete...
 
     :param scope_id:
+    :param user_id:
     :param permissions:
     :return:
     """
     async with db_engine.session() as session:  # type: AsyncSession
-        stmt = text('''
+        extra = ''
+        if user_id is not None:
+            extra = 'AND ass.user_id = :user_id'
+        stmt = text(f'''
             DELETE
             FROM assignment
             WHERE assignment_id IN (
@@ -451,15 +456,53 @@ async def clear_empty_assignments(scope_id: str,
                     SELECT ass.assignment_id, count(ann.assignment_id) as cnt
                     FROM assignment ass
                         LEFT OUTER JOIN annotation ann ON ass.assignment_id = ann.assignment_id
-                    WHERE ass.assignment_scope_id = :scope_id
+                    WHERE ass.assignment_scope_id = :scope_id {extra}
                     GROUP BY ass.assignment_id
                 )
                 SELECT assignment_id
                 FROM counts
                 WHERE cnt = 0
         );''')
-        await session.execute(stmt, {'scope_id': scope_id})
+        await session.execute(stmt, {'scope_id': scope_id, 'user_id': user_id})
         await session.commit()
+    return None
+
+
+class BulkAddPayload(BaseModel):
+    user_id: str
+    scope_id: str
+    scheme_id: str
+    item_ids: list[str]
+
+
+@router.put('/config/scopes/bulk-add/')
+async def bulk_add_assignment(info: BulkAddPayload,
+                              permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    async with db_engine.session() as session:  # type: AsyncSession
+        # existing assignments
+        existing_ids = set([str(eid)
+                            for eid in (
+                                await session.execute(
+                                    select(Assignment.item_id)
+                                    .where(Assignment.assignment_scope_id == info.scope_id,
+                                           Assignment.user_id == info.user_id))).scalars()])
+
+        # drop existing ids from the list and create assignments
+        session.add_all([
+            Assignment(
+                assignment_id=uuid.uuid4(),
+                assignment_scope_id=info.scope_id,
+                user_id=info.user_id,
+                item_id=iid,
+                annotation_scheme_id=info.scheme_id,
+                status=AssignmentStatus.OPEN,
+                order=ordr
+            )
+            for ordr, iid in enumerate(info.item_ids)
+            if iid not in existing_ids
+        ])
+        await session.commit()
+    return None
 
 
 class AssignmentEditInfo(BaseModel):

@@ -1,14 +1,14 @@
 import httpx
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Body
-import sqlalchemy.sql.functions as func
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
+import sqlalchemy.sql.functions as func
 
 from nacsos_data.util.nql import NQLQuery, NQLFilter
 from nacsos_data.util.academic.readers.openalex import query_async, SearchResult
 from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel, GenericItemModel
 from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 
 from server.util.security import UserPermissionChecker, UserPermissions
 from server.util.logging import get_logger
@@ -40,8 +40,9 @@ class SearchPayload(BaseModel):
 
 
 @router.post('/openalex/select', response_model=SearchResult)
-async def search_openalex(search: SearchPayload,
-                          permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> SearchResult:
+async def search_openalex(
+        search: SearchPayload,
+        permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> SearchResult:
     return await query_async(query=search.query,
                              openalex_endpoint=str(settings.OA_SOLR),
                              histogram=search.histogram,
@@ -55,9 +56,10 @@ async def search_openalex(search: SearchPayload,
 
 
 @router.get('/openalex/terms', response_model=list[TermStats])
-async def term_expansion(term_prefix: str,
-                         limit: int = 20,
-                         permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> list[TermStats]:
+async def term_expansion(
+        term_prefix: str,
+        limit: int = 20,
+        permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> list[TermStats]:
     url = f'{settings.OA_SOLR}/terms' \
           f'?facet=true' \
           f'&indent=true' \
@@ -87,15 +89,13 @@ class QueryResult(BaseModel):
     docs: list[AcademicItemModel] | list[FullLexisNexisItemModel] | list[GenericItemModel]
 
 
-
-
 @router.post('/nql/query', response_model=QueryResult)
 async def nql_query(query: NQLFilter,
                     page: int = 1,
                     limit: int = 20,
                     permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> QueryResult:
     async with db_engine.session() as session:  # type: AsyncSession
-        nql = await NQLQuery.get_query(session=session, query=query, project_id=permissions.permissions.project_id)
+        nql = await NQLQuery.get_query(session=session, query=query, project_id=str(permissions.permissions.project_id))
 
         n_docs = (await session.execute(func.count(nql.stmt.subquery().c.item_id))).scalar()
         docs = await nql.results_async(session=session, limit=limit, offset=(page - 1) * limit)
@@ -108,8 +108,9 @@ async def nql_query_count(query: NQLFilter | None = Body(default=None),
                           permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> int:
     async with db_engine.session() as session:  # type: AsyncSession
         if not query:
-            return await session.scalar(text('SELECT count(item_id) FROM item WHERE project_id = :project_id;'),
-                                        {'project_id': permissions.permissions.project_id})
+            return await session.scalar(  # type: ignore[no-any-return]
+                text('SELECT count(item_id) FROM item WHERE project_id = :project_id;'),
+                {'project_id': permissions.permissions.project_id})
 
-        nql = await NQLQuery.get_query(session=session, query=query, project_id=permissions.permissions.project_id)
+        nql = await NQLQuery.get_query(session=session, query=query, project_id=str(permissions.permissions.project_id))
         return (await session.execute(func.count(nql.stmt.subquery().c.item_id))).scalar()  # type: ignore[return-value]

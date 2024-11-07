@@ -2,10 +2,15 @@ import uuid
 from hashlib import md5
 from typing import TYPE_CHECKING
 
+import numpy as np
+from nacsos_data.models.nql import NQLFilter
+from nacsos_data.util.annotations.export import wide_export_table
+from nacsos_data.util.auth import UserPermissions
+from nacsos_data.util.priority.mask import get_inclusion_mask
 from pydantic import BaseModel
 from sqlalchemy import select, func as F, distinct, text
 from sqlalchemy.orm import load_only
-from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query, Body
 
 from nacsos_data.db.schemas import (
     BotAnnotationMetaData,
@@ -28,7 +33,7 @@ from nacsos_data.models.bot_annotations import (
     BotAnnotationResolution,
     ResolutionMatrix,
     BotMetaResolveBase,
-    ResolutionProposal
+    ResolutionProposal, BotAnnotationMetaDataModel
 )
 from nacsos_data.models.users import UserModel
 from nacsos_data.models.items import AnyItemModel
@@ -741,3 +746,19 @@ async def get_bot_annotations(include_resolve: bool = False,
                 'num_annotated_items': r['num_annotated_items']
             }) for r in rslt]
         return []
+
+
+@router.get('/bot/scopes')
+async def get_bot_scopes(only_resolve: bool = False,
+                         permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[
+    BotAnnotationMetaDataModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = (select(BotAnnotationMetaData)
+                .where(BotAnnotationMetaData.project_id == permissions.permissions.project_id)
+                .group_by(BotAnnotationMetaData.bot_annotation_metadata_id))
+        if only_resolve:
+            stmt.where(BotAnnotationMetaData.kind == 'RESOLVE')
+        return [
+            BotAnnotationMetaDataModel(**r.__dict__)
+            for r in (await session.execute(stmt)).scalars().all()
+        ]

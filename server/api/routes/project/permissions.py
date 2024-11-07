@@ -68,8 +68,10 @@ async def save_project_permission(project_permission: ProjectPermissionsModel,
                 logger.debug('Existing project_permissions found, attempting to UPDATE!')
 
                 # Assert that the current user is even allowed to hand out these permissions
-                if not is_su and ((project_permission.search_oa is True
-                                   and existing_perms.search_oa is False)
+                if not is_su and ((project_permission.annotations_prio is True
+                                   and existing_perms.annotations_prio is False)
+                                  or (project_permission.search_oa is True
+                                      and existing_perms.search_oa is False)
                                   or (project_permission.import_limit_oa > 0
                                       and existing_perms.import_limit_oa < 1)
                                   or (project_permission.search_dimensions is True
@@ -89,7 +91,8 @@ async def save_project_permission(project_permission: ProjectPermissionsModel,
         # Create new permission
 
         # Assert that the current user is even allowed to hand out these permissions
-        if not is_su and (project_permission.search_oa is True
+        if not is_su and (project_permission.annotations_prio is True
+                          or project_permission.search_oa is True
                           or project_permission.import_limit_oa > 0
                           or project_permission.search_dimensions is True):
             raise InsufficientPermissions('Only super-admins are allowed to change this setting.')

@@ -1,18 +1,22 @@
-from typing import Any, TYPE_CHECKING
-
-import numpy as np
-from nacsos_data.db.schemas.priority import Priority
-from nacsos_data.models.priority import PriorityModel, DehydratedPriorityModel
-from nacsos_data.util.annotations.export import wide_export_table
-from nacsos_data.util.priority.mask import get_inclusion_mask
+from typing import Any, TYPE_CHECKING, TypedDict
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 from sqlalchemy import select, delete
 from sqlalchemy.dialects import postgresql as psa
+import numpy as np
+
+from nacsos_data.db.schemas.priority import Priority
+from nacsos_data.models.priority import PriorityModel, DehydratedPriorityModel
+from nacsos_data.util.annotations.export import wide_export_table
+from nacsos_data.util.priority.mask import get_inclusion_mask
+
+from fastapi.responses import FileResponse
 
 from nacsos_data.util.nql import NQLFilter
-
-from server.util.security import UserPermissionChecker, UserPermissions
+from server.util.config import settings
+from server.util.files import get_outputs_flat
+from server.util.security import UserPermissionChecker, UserPermissions, UserPriorityPermissions, \
+    UserPriorityPermissionChecker
 from server.util.logging import get_logger
 from server.data import db_engine
 
@@ -31,7 +35,7 @@ class PrioTableParams(BaseModel):
     incl: str = 'incl:1'
     query: NQLFilter | None = None
 
-    limit: int | None = 20
+    limit: int = 20
 
 
 async def _get_df(project_id: str,
@@ -44,7 +48,7 @@ async def _get_df(project_id: str,
                                                             project_id=project_id,
                                                             nql_filter=query,
                                                             scope_ids=scope_ids,
-                                                            limit=limit or 20)
+                                                            limit=limit)
         try:
             df['incl'] = get_inclusion_mask(rule=incl, df=df, label_cols=label_cols)
         except KeyError:
@@ -59,7 +63,7 @@ async def get_table_sample_html(params: PrioTableParams,
                        scope_ids=params.scope_ids,
                        incl=params.incl,
                        query=params.query,
-                       limit=params.limit)
+                       limit=min(params.limit, 500))
     return df.drop(columns=['text']).replace({np.nan: None}).replace({None: np.nan}).to_html(na_rep='')
 
 
@@ -72,7 +76,7 @@ async def get_table_sample(
                        scope_ids=params.scope_ids,
                        incl=params.incl,
                        query=params.query,
-                       limit=params.limit)
+                       limit=min(params.limit, 500))
     return df.drop(columns=['text']).to_dict(orient='records')
 
 
@@ -112,7 +116,7 @@ async def save_prio_setup(config: PriorityModel,
         await session.execute(
             psa
             .insert(Priority)
-            .values(**config.model_dump())
+            .values(**config.model_dump(exclude_unset=True))
             .on_conflict_do_update(
                 constraint='priorities_pkey',
                 set_=config.model_dump(exclude={'priority_id'})
@@ -126,3 +130,30 @@ async def drop_prio_setup(priority_id: str,
     async with db_engine.session() as session:  # type: AsyncSession
         await session.execute(delete(Priority).where(Priority.priority_id == priority_id))
         await session.commit()
+
+
+class FileOnDisk(TypedDict):
+    path: str
+    size: int
+
+
+@router.get('/artefacts/list', response_model=list[FileOnDisk])
+def get_artefacts(
+        permissions: UserPriorityPermissions = Depends(UserPriorityPermissionChecker('artefacts_read'))
+) -> list[FileOnDisk]:
+    priority_id = str(permissions.priority.priority_id)
+
+    return [
+        FileOnDisk(path=file[0],
+                   size=file[1])  # type: ignore[typeddict-item]
+        for file in get_outputs_flat(root=settings.PIPES.priority_dir / priority_id,
+                                     base=settings.PIPES.priority_dir,
+                                     include_fsize=True)
+    ]
+
+
+@router.get('/artefacts/file', response_class=FileResponse)
+def get_file(filename: str,
+             permissions: UserPriorityPermissions = Depends(UserPriorityPermissionChecker('artefacts_read'))) \
+        -> FileResponse:
+    return FileResponse(settings.PIPES.priority_dir / filename)

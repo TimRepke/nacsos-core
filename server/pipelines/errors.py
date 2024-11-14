@@ -66,13 +66,6 @@ class ProcessIncomplete(Exception):
     pass
 
 
-class MissingFileError(FileNotFoundError):
-    """
-    Essentially just a wrapper for FileNotFoundError
-    """
-    pass
-
-
 class LibraryFunctionNotFoundError(Exception):
     """
     Thrown when a library function lookup failed.

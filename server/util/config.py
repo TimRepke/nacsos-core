@@ -115,6 +115,10 @@ class PipelinesConfig(BaseModel):
     def user_data_dir(self) -> Path:
         return (self.DATA_PATH / 'user_data').resolve()
 
+    @property
+    def priority_dir(self) -> Path:
+        return (self.DATA_PATH / 'priority').resolve()
+
     @model_validator(mode='before')
     @classmethod
     def fix_paths(cls, data: Any) -> Any:

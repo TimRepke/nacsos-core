@@ -20,13 +20,14 @@ from pydantic import StringConstraints
 from tempfile import TemporaryDirectory
 
 from server.pipelines.tasks import broker
+from server.util.files import delete_directory, zip_folder, get_outputs_flat
 from server.util.security import UserPermissionChecker, get_current_active_superuser
 from server.util.logging import get_logger
 from server.util.config import settings
 from server.data import db_engine
 
 from server.pipelines.security import UserTaskPermissionChecker, UserTaskProjectPermissions
-from server.pipelines.files import get_outputs_flat, get_log, zip_folder, delete_task_directory, stream_log
+from server.pipelines.files import get_log, stream_log
 
 logger = get_logger('nacsos.api.route.pipelines')
 router = APIRouter()
@@ -47,7 +48,9 @@ def get_artefacts(permissions: UserTaskProjectPermissions = Depends(UserTaskPerm
     return [
         FileOnDisk(path=file[0],
                    size=file[1])  # type: ignore[typeddict-item]
-        for file in get_outputs_flat(task_id=str(task_id), include_fsize=True)
+        for file in get_outputs_flat(root=settings.PIPES.target_dir / str(task_id),
+                                     base=settings.PIPES.target_dir,
+                                     include_fsize=True)
     ]
 
 
@@ -91,7 +94,7 @@ async def tmp_path() -> AsyncGenerator[Path, None]:
 def get_archive(permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
                 tmp_dir: Path = Depends(tmp_path)) -> FileResponse:
     task_id = permissions.task.task_id
-    zip_folder(task_id=str(task_id), target_file=str(tmp_dir / 'archive.zip'))
+    zip_folder(settings.PIPES.target_dir / str(task_id), target_file=str(tmp_dir / 'archive.zip'))
     return FileResponse(str(tmp_dir / 'archive.zip'))
 
 
@@ -181,7 +184,7 @@ async def get_task(permissions: UserTaskProjectPermissions = Depends(UserTaskPer
 async def delete_task(permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('pipelines_edit'))) \
         -> None:
     task_id = permissions.task.task_id
-    delete_task_directory(task_id=str(task_id))
+    delete_directory(settings.PIPES.target_dir / str(task_id))
     # TODO delete task from db
 
 

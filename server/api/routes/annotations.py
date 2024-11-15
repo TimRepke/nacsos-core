@@ -2,9 +2,11 @@ import uuid
 from hashlib import md5
 from typing import TYPE_CHECKING
 
+from nacsos_data.util.annotations.assignments import create_assignments
 from pydantic import BaseModel
 from sqlalchemy import select, func as F, distinct, text
 from sqlalchemy.orm import load_only
+from sqlalchemy.dialects import postgresql as psa
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
 from nacsos_data.db.schemas import (
@@ -20,7 +22,6 @@ from nacsos_data.models.annotations import (
     AssignmentScopeModel,
     AssignmentModel,
     AssignmentStatus,
-    AssignmentScopeConfig,
     AnnotationSchemeModelFlat
 )
 from nacsos_data.models.bot_annotations import (
@@ -50,14 +51,12 @@ from nacsos_data.db.crud.annotations import (
     read_assignment_scope,
     upsert_annotation_scheme,
     delete_annotation_scheme,
-    upsert_assignment_scope,
     delete_assignment_scope,
     read_item_ids_with_assignment_count_for_project,
     read_assignment_counts_for_scope,
     ItemWithCount,
     AssignmentCounts,
     UserProjectAssignmentScope,
-    store_assignments,
     store_resolved_bot_annotations,
     update_resolved_bot_annotations,
     read_assignment_overview_for_scope,
@@ -75,13 +74,9 @@ from nacsos_data.util.annotations.validation import (
     annotated_scheme_to_annotations,
     flatten_annotation_scheme
 )
-from nacsos_data.util.annotations.assignments.random import random_assignments
-from nacsos_data.util.annotations.assignments.random_exclusion import random_assignments_with_exclusion
-from nacsos_data.util.annotations.assignments.random_nql import random_assignments_with_nql
 
 from server.api.errors import (
     SaveFailedError,
-    AssignmentScopeNotFoundError,
     NoNextAssignmentWarning,
     ProjectNotFoundError,
     AnnotationSchemeNotFoundError,
@@ -254,7 +249,7 @@ async def get_assignment(assignment_id: str,
     return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
-@router.get('/annotate/scopes/{project_id}', response_model=list[UserProjectAssignmentScope])
+@router.get('/assignments/scopes/{project_id}', response_model=list[UserProjectAssignmentScope])
 async def get_assignment_scopes_for_user(
         project_id: str,
         permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[UserProjectAssignmentScope]:
@@ -264,7 +259,7 @@ async def get_assignment_scopes_for_user(
     return scopes
 
 
-@router.get('/annotate/scopes/', response_model=list[AssignmentScopeModel])
+@router.get('/assignments/scopes/', response_model=list[AssignmentScopeModel])
 async def get_assignment_scopes_for_project(
         permissions=Depends(UserPermissionChecker('annotations_edit'))) -> list[AssignmentScopeModel]:
     scopes = await read_assignment_scopes_for_project(project_id=permissions.permissions.project_id,
@@ -273,23 +268,31 @@ async def get_assignment_scopes_for_project(
     return scopes
 
 
-@router.get('/annotate/scope/{assignment_scope_id}', response_model=AssignmentScopeModel)
+@router.get('/assignments/scope/{assignment_scope_id}', response_model=AssignmentScopeModel | None)
 async def get_assignment_scope(
         assignment_scope_id: str,
         permissions=Depends(UserPermissionChecker(['annotations_read', 'annotations_edit'],
                                                   fulfill_all=False))
-) -> AssignmentScopeModel:
+) -> AssignmentScopeModel | None:
     scope = await read_assignment_scope(assignment_scope_id=assignment_scope_id, db_engine=db_engine)
     if scope is not None:
         return scope
-    raise AssignmentScopeNotFoundError(f'No assignment scope found in the DB for {assignment_scope_id}')
+    return None
 
 
-@router.put('/annotate/scope/', response_model=str)
+@router.put('/assignments/scope/')
 async def put_assignment_scope(assignment_scope: AssignmentScopeModel,
-                               permissions=Depends(UserPermissionChecker('annotations_edit'))) -> str:
-    key = await upsert_assignment_scope(assignment_scope=assignment_scope, db_engine=db_engine)
-    return str(key)
+                               permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    async with db_engine.session() as session:  # type: AsyncSession
+        await session.execute(
+            psa
+            .insert(AssignmentScope)
+            .values(**assignment_scope.model_dump(exclude_unset=True))
+            .on_conflict_do_update(
+                constraint='assignment_scope_pkey',
+                set_=assignment_scope.model_dump(exclude={'assignment_scope_id'})
+            ))
+        await session.commit()
 
 
 @router.delete('/annotate/scope/{assignment_scope_id}')
@@ -385,57 +388,13 @@ async def get_items_with_count(
     return items
 
 
-class MakeAssignmentsRequestModel(BaseModel):
-    annotation_scheme_id: str
-    scope_id: str
-    config: AssignmentScopeConfig
-    save: bool = False
-
-
-@router.post('/config/assignments/', response_model=list[AssignmentModel])
-async def make_assignments(payload: MakeAssignmentsRequestModel,
-                           permissions=Depends(UserPermissionChecker('annotations_edit'))) -> list[AssignmentModel]:
-    if payload.config.config_type == 'random':
-        try:
-            assignments = await random_assignments(assignment_scope_id=payload.scope_id,
-                                                   annotation_scheme_id=payload.annotation_scheme_id,
-                                                   project_id=permissions.permissions.project_id,
-                                                   config=payload.config,
-                                                   engine=db_engine)
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
-    elif payload.config.config_type == 'random_exclusion':
-        try:
-            assignments = await random_assignments_with_exclusion(
-                assignment_scope_id=payload.scope_id,
-                annotation_scheme_id=payload.annotation_scheme_id,
-                project_id=permissions.permissions.project_id,
-                config=payload.config,  # type: ignore[arg-type] # FIXME
-                engine=db_engine)
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
-    elif payload.config.config_type == 'random_nql':
-        try:
-            assignments = await random_assignments_with_nql(
-                assignment_scope_id=payload.scope_id,
-                annotation_scheme_id=payload.annotation_scheme_id,
-                project_id=permissions.permissions.project_id,
-                config=payload.config,  # type: ignore[arg-type] # FIXME
-                engine=db_engine
-            )
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
-    else:
-        raise HTTPException(status_code=http_status.HTTP_501_NOT_IMPLEMENTED,
-                            detail=f'Method "{payload.config.config_type}" is unknown.')
-
-    if payload.save:
-        await store_assignments(assignments=assignments, db_engine=db_engine, use_commit=True)
-
-    return assignments
+@router.put('/config/assignments/{assignment_scope_id}')
+async def make_assignments(assignment_scope_id: str,
+                           permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    async with db_engine.session() as session:  # type: AsyncSession
+        await create_assignments(session=session,
+                                 assignment_scope_id=assignment_scope_id,
+                                 project_id=permissions.permissions.project_id)
 
 
 @router.post('/config/scopes/clear/{scheme_id}')

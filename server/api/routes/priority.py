@@ -1,7 +1,7 @@
 from typing import Any, TYPE_CHECKING, TypedDict
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, text
 from sqlalchemy.dialects import postgresql as psa
 import numpy as np
 
@@ -15,8 +15,12 @@ from fastapi.responses import FileResponse
 from nacsos_data.util.nql import NQLFilter
 from server.util.config import settings
 from server.util.files import get_outputs_flat
-from server.util.security import UserPermissionChecker, UserPermissions, UserPriorityPermissions, \
+from server.util.security import (
+    UserPermissionChecker,
+    UserPermissions,
+    UserPriorityPermissions,
     UserPriorityPermissionChecker
+)
 from server.util.logging import get_logger
 from server.data import db_engine
 
@@ -81,20 +85,18 @@ async def get_table_sample(
 
 
 @router.get('/setups', response_model=list[DehydratedPriorityModel])
-async def read_project_setup(
+async def read_project_setups(
         permissions: UserPermissions = Depends(UserPermissionChecker('annotations_prio'))
 ) -> list[DehydratedPriorityModel]:
     async with db_engine.session() as session:  # type: AsyncSession
-        rslt = (await session.execute(
-            select(Priority.priority_id,
-                   Priority.project_id,
-                   Priority.name,
-                   Priority.time_created,
-                   Priority.time_ready,
-                   Priority.time_started,
-                   Priority.time_assigned)
-            .where(Priority.project_id == permissions.permissions.project_id))).mappings().all()
-        return [PriorityModel(**r) for r in rslt]
+        rslt = (await session.execute(text('''
+        SELECT priority_id, project_id, name,
+               time_created, time_ready, time_started, time_assigned,
+               array_length(prioritised_ids, 1) as num_prioritised
+        FROM priorities
+        WHERE project_id = :project_id;
+        '''), {'project_id': permissions.permissions.project_id})).mappings().all()
+        return [DehydratedPriorityModel(**r) for r in rslt]
 
 
 @router.get('/setup', response_model=PriorityModel | None)

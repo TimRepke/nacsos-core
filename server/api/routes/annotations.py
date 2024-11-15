@@ -2,9 +2,11 @@ import uuid
 from hashlib import md5
 from typing import TYPE_CHECKING
 
+from nacsos_data.util.annotations.assignments import create_assignments
 from pydantic import BaseModel
 from sqlalchemy import select, func as F, distinct, text
 from sqlalchemy.orm import load_only
+from sqlalchemy.dialects import postgresql as psa
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 
 from nacsos_data.db.schemas import (
@@ -12,14 +14,14 @@ from nacsos_data.db.schemas import (
     AssignmentScope,
     User,
     Annotation,
-    BotAnnotation, Assignment
+    BotAnnotation,
+    Assignment
 )
 from nacsos_data.models.annotations import (
     AnnotationSchemeModel,
     AssignmentScopeModel,
     AssignmentModel,
     AssignmentStatus,
-    AssignmentScopeConfig,
     AnnotationSchemeModelFlat
 )
 from nacsos_data.models.bot_annotations import (
@@ -28,7 +30,8 @@ from nacsos_data.models.bot_annotations import (
     BotAnnotationResolution,
     ResolutionMatrix,
     BotMetaResolveBase,
-    ResolutionProposal
+    ResolutionProposal,
+    BotAnnotationMetaDataModel
 )
 from nacsos_data.models.users import UserModel
 from nacsos_data.models.items import AnyItemModel
@@ -48,14 +51,12 @@ from nacsos_data.db.crud.annotations import (
     read_assignment_scope,
     upsert_annotation_scheme,
     delete_annotation_scheme,
-    upsert_assignment_scope,
     delete_assignment_scope,
     read_item_ids_with_assignment_count_for_project,
     read_assignment_counts_for_scope,
     ItemWithCount,
     AssignmentCounts,
     UserProjectAssignmentScope,
-    store_assignments,
     store_resolved_bot_annotations,
     update_resolved_bot_annotations,
     read_assignment_overview_for_scope,
@@ -73,13 +74,9 @@ from nacsos_data.util.annotations.validation import (
     annotated_scheme_to_annotations,
     flatten_annotation_scheme
 )
-from nacsos_data.util.annotations.assignments.random import random_assignments
-from nacsos_data.util.annotations.assignments.random_exclusion import random_assignments_with_exclusion
-from nacsos_data.util.annotations.assignments.random_nql import random_assignments_with_nql
 
 from server.api.errors import (
     SaveFailedError,
-    AssignmentScopeNotFoundError,
     NoNextAssignmentWarning,
     ProjectNotFoundError,
     AnnotationSchemeNotFoundError,
@@ -107,10 +104,11 @@ class AnnotationItem(AnnotatedItem):
 
 @router.get('/schemes/definition/{annotation_scheme_id}',
             response_model=AnnotationSchemeModelFlat | AnnotationSchemeModel)
-async def get_scheme_definition(annotation_scheme_id: str,
-                                flat: bool = Query(default=False),
-                                permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> AnnotationSchemeModelFlat | AnnotationSchemeModel:
+async def get_scheme_definition(
+        annotation_scheme_id: str,
+        flat: bool = Query(default=False),
+        permissions=Depends(UserPermissionChecker('annotations_read'))
+) -> AnnotationSchemeModelFlat | AnnotationSchemeModel:
     """
     This endpoint returns the detailed definition of an annotation scheme.
 
@@ -142,8 +140,8 @@ async def remove_annotation_scheme(annotation_scheme_id: str,
 
 
 @router.get('/schemes/list', response_model=list[AnnotationSchemeModel])
-async def get_scheme_definitions_for_project(permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AnnotationSchemeModel]:
+async def get_scheme_definitions_for_project(
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[AnnotationSchemeModel]:
     """
     This endpoint returns the detailed definitions of all annotation schemes associated with a project.
 
@@ -154,9 +152,9 @@ async def get_scheme_definitions_for_project(permissions=Depends(UserPermissionC
 
 
 @router.get('/schemes/fingerprints')
-async def get_annotation_scheme_fingerprints(merged: bool = Query(default=False),
-                                             permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> str | dict[str, str]:
+async def get_annotation_scheme_fingerprints(
+        merged: bool = Query(default=False),
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> str | dict[str, str]:
     async with db_engine.session() as session:  # type: AsyncSession
         rslt = (await session.execute(text('SELECT annotation_scheme_id, '
                                            '       md5(textin(record_out(annotation_scheme.*))) as hash '
@@ -201,9 +199,10 @@ async def _construct_annotation_item(assignment: AssignmentModel, project_id: st
 
 
 @router.get('/annotate/next/{assignment_scope_id}/{current_assignment_id}', response_model=AnnotationItem)
-async def get_next_assignment_for_scope_for_user(assignment_scope_id: str,
-                                                 current_assignment_id: str,
-                                                 permissions=Depends(UserPermissionChecker('annotations_read'))):
+async def get_next_assignment_for_scope_for_user(
+        assignment_scope_id: str,
+        current_assignment_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> AnnotationItem:
     # FIXME response for "last in list"
     assignment = await read_next_assignment_for_scope_for_user(current_assignment_id=current_assignment_id,
                                                                assignment_scope_id=assignment_scope_id,
@@ -219,8 +218,9 @@ class NoAssignments(Warning):
 
 
 @router.get('/annotate/next/{assignment_scope_id}', response_model=AnnotationItem)
-async def get_next_open_assignment_for_scope_for_user(assignment_scope_id: str,
-                                                      permissions=Depends(UserPermissionChecker('annotations_read'))):
+async def get_next_open_assignment_for_scope_for_user(
+        assignment_scope_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> AnnotationItem:
     assignment = await read_next_open_assignment_for_scope_for_user(assignment_scope_id=assignment_scope_id,
                                                                     user_id=permissions.user.user_id,
                                                                     db_engine=db_engine)
@@ -239,7 +239,7 @@ async def get_next_open_assignment_for_scope_for_user(assignment_scope_id: str,
 
 @router.get('/annotate/assignment/{assignment_id}', response_model=AnnotationItem)
 async def get_assignment(assignment_id: str,
-                         permissions=Depends(UserPermissionChecker('annotations_read'))):
+                         permissions=Depends(UserPermissionChecker('annotations_read'))) -> AnnotationItem:
     assignment = await read_assignment(assignment_id=assignment_id, db_engine=db_engine)
 
     if (assignment is None) or (assignment.user_id != permissions.user.user_id):
@@ -249,41 +249,50 @@ async def get_assignment(assignment_id: str,
     return await _construct_annotation_item(assignment=assignment, project_id=permissions.permissions.project_id)
 
 
-@router.get('/annotate/scopes/{project_id}', response_model=list[UserProjectAssignmentScope])
-async def get_assignment_scopes_for_user(project_id: str,
-                                         permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[UserProjectAssignmentScope]:
+@router.get('/assignments/scopes/{project_id}', response_model=list[UserProjectAssignmentScope])
+async def get_assignment_scopes_for_user(
+        project_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[UserProjectAssignmentScope]:
     scopes = await read_assignment_scopes_for_project_for_user(project_id=project_id,
                                                                user_id=permissions.user.user_id,
                                                                db_engine=db_engine)
     return scopes
 
 
-@router.get('/annotate/scopes/', response_model=list[AssignmentScopeModel])
-async def get_assignment_scopes_for_project(permissions=Depends(UserPermissionChecker('annotations_edit'))) \
-        -> list[AssignmentScopeModel]:
+@router.get('/assignments/scopes/', response_model=list[AssignmentScopeModel])
+async def get_assignment_scopes_for_project(
+        permissions=Depends(UserPermissionChecker('annotations_edit'))) -> list[AssignmentScopeModel]:
     scopes = await read_assignment_scopes_for_project(project_id=permissions.permissions.project_id,
                                                       db_engine=db_engine)
 
     return scopes
 
 
-@router.get('/annotate/scope/{assignment_scope_id}', response_model=AssignmentScopeModel)
-async def get_assignment_scope(assignment_scope_id: str,
-                               permissions=Depends(
-                                   UserPermissionChecker(['annotations_read', 'annotations_edit'], fulfill_all=False))
-                               ) -> AssignmentScopeModel:
+@router.get('/assignments/scope/{assignment_scope_id}', response_model=AssignmentScopeModel | None)
+async def get_assignment_scope(
+        assignment_scope_id: str,
+        permissions=Depends(UserPermissionChecker(['annotations_read', 'annotations_edit'],
+                                                  fulfill_all=False))
+) -> AssignmentScopeModel | None:
     scope = await read_assignment_scope(assignment_scope_id=assignment_scope_id, db_engine=db_engine)
     if scope is not None:
         return scope
-    raise AssignmentScopeNotFoundError(f'No assignment scope found in the DB for {assignment_scope_id}')
+    return None
 
 
-@router.put('/annotate/scope/', response_model=str)
+@router.put('/assignments/scope/')
 async def put_assignment_scope(assignment_scope: AssignmentScopeModel,
-                               permissions=Depends(UserPermissionChecker('annotations_edit'))) -> str:
-    key = await upsert_assignment_scope(assignment_scope=assignment_scope, db_engine=db_engine)
-    return str(key)
+                               permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    async with db_engine.session() as session:  # type: AsyncSession
+        await session.execute(
+            psa
+            .insert(AssignmentScope)
+            .values(**assignment_scope.model_dump(exclude_unset=True))
+            .on_conflict_do_update(
+                constraint='assignment_scope_pkey',
+                set_=assignment_scope.model_dump(exclude={'assignment_scope_id'})
+            ))
+        await session.commit()
 
 
 @router.delete('/annotate/scope/{assignment_scope_id}')
@@ -297,18 +306,18 @@ async def remove_assignment_scope(assignment_scope_id: str,
 
 
 @router.get('/annotate/scope/counts/{assignment_scope_id}', response_model=AssignmentCounts)
-async def get_num_assignments_for_scope(assignment_scope_id: str,
-                                        permissions=Depends(
-                                            UserPermissionChecker(['annotations_read', 'annotations_edit'],
-                                                                  fulfill_all=False))
-                                        ) -> AssignmentCounts:
+async def get_num_assignments_for_scope(
+        assignment_scope_id: str,
+        permissions=Depends(UserPermissionChecker(['annotations_read', 'annotations_edit'],
+                                                  fulfill_all=False))
+) -> AssignmentCounts:
     scope = await read_assignment_counts_for_scope(assignment_scope_id=assignment_scope_id, db_engine=db_engine)
     return scope
 
 
 @router.get('/annotate/assignments/{assignment_scope_id}', response_model=list[AssignmentModel])
-async def get_assignments(assignment_scope_id: str, permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AssignmentModel]:
+async def get_assignments(assignment_scope_id: str,
+                          permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[AssignmentModel]:
     assignments = await read_assignments_for_scope_for_user(assignment_scope_id=assignment_scope_id,
                                                             user_id=permissions.user.user_id,
                                                             db_engine=db_engine)
@@ -316,25 +325,25 @@ async def get_assignments(assignment_scope_id: str, permissions=Depends(UserPerm
 
 
 @router.get('/annotate/assignment/progress/{assignment_scope_id}', response_model=list[AssignmentScopeEntry])
-async def get_assignment_indicators_for_scope(assignment_scope_id: str,
-                                              permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AssignmentScopeEntry]:
+async def get_assignment_indicators_for_scope(
+        assignment_scope_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[AssignmentScopeEntry]:
     return await read_assignment_overview_for_scope(assignment_scope_id=assignment_scope_id,
                                                     connection=db_engine)
 
 
 @router.get('/annotate/assignments/scope/{assignment_scope_id}', response_model=list[AssignmentModel])
-async def get_assignments_for_scope(assignment_scope_id: str,
-                                    permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AssignmentModel]:
+async def get_assignments_for_scope(
+        assignment_scope_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[AssignmentModel]:
     assignments = await read_assignments_for_scope(assignment_scope_id=assignment_scope_id,
                                                    db_engine=db_engine)
     return assignments
 
 
 @router.get('/annotate/annotations/{assignment_scope_id}', response_model=list[AssignmentModel])
-async def get_annotations(assignment_scope_id: str, permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AssignmentModel]:
+async def get_annotations(assignment_scope_id: str,
+                          permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[AssignmentModel]:
     assignments = await read_assignments_for_scope_for_user(assignment_scope_id=assignment_scope_id,
                                                             user_id=permissions.user.user_id,
                                                             db_engine=db_engine)
@@ -372,64 +381,20 @@ async def save_annotation(annotated_item: AnnotatedItem,
 
 
 @router.get('/config/items/', response_model=list[ItemWithCount])
-async def get_items_with_count(permissions=Depends(UserPermissionChecker('dataset_read'))) \
-        -> list[ItemWithCount]:
+async def get_items_with_count(
+        permissions=Depends(UserPermissionChecker('dataset_read'))) -> list[ItemWithCount]:
     items = await read_item_ids_with_assignment_count_for_project(project_id=permissions.permissions.project_id,
                                                                   db_engine=db_engine)
     return items
 
 
-class MakeAssignmentsRequestModel(BaseModel):
-    annotation_scheme_id: str
-    scope_id: str
-    config: AssignmentScopeConfig
-    save: bool = False
-
-
-@router.post('/config/assignments/', response_model=list[AssignmentModel])
-async def make_assignments(payload: MakeAssignmentsRequestModel,
-                           permissions=Depends(UserPermissionChecker('annotations_edit'))):
-    if payload.config.config_type == 'random':
-        try:
-            assignments = await random_assignments(assignment_scope_id=payload.scope_id,
-                                                   annotation_scheme_id=payload.annotation_scheme_id,
-                                                   project_id=permissions.permissions.project_id,
-                                                   config=payload.config,
-                                                   engine=db_engine)
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
-    elif payload.config.config_type == 'random_exclusion':
-        try:
-            assignments = await random_assignments_with_exclusion(
-                assignment_scope_id=payload.scope_id,
-                annotation_scheme_id=payload.annotation_scheme_id,
-                project_id=permissions.permissions.project_id,
-                config=payload.config,  # type: ignore[arg-type] # FIXME
-                engine=db_engine)
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
-    elif payload.config.config_type == 'random_nql':
-        try:
-            assignments = await random_assignments_with_nql(
-                assignment_scope_id=payload.scope_id,
-                annotation_scheme_id=payload.annotation_scheme_id,
-                project_id=permissions.permissions.project_id,
-                config=payload.config,  # type: ignore[arg-type] # FIXME
-                engine=db_engine
-            )
-        except ValueError as e:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=str(e))
-    else:
-        raise HTTPException(status_code=http_status.HTTP_501_NOT_IMPLEMENTED,
-                            detail=f'Method "{payload.config.config_type}" is unknown.')
-
-    if payload.save:
-        await store_assignments(assignments=assignments, db_engine=db_engine, use_commit=True)
-
-    return assignments
+@router.put('/config/assignments/{assignment_scope_id}')
+async def make_assignments(assignment_scope_id: str,
+                           permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
+    async with db_engine.session() as session:  # type: AsyncSession
+        await create_assignments(session=session,
+                                 assignment_scope_id=assignment_scope_id,
+                                 project_id=permissions.permissions.project_id)
 
 
 @router.post('/config/scopes/clear/{scheme_id}')
@@ -560,9 +525,9 @@ async def edit_assignment(info: AssignmentEditInfo,
 
 
 @router.get('/config/scopes/{scheme_id}', response_model=list[AssignmentScopeModel])
-async def get_assignment_scopes_for_scheme(scheme_id: str,
-                                           permissions=Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AssignmentScopeModel]:
+async def get_assignment_scopes_for_scheme(
+        scheme_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[AssignmentScopeModel]:
     async with db_engine.session() as session:  # type: AsyncSession
         scopes = await session.execute(select(AssignmentScope)
                                        .where(AssignmentScope.annotation_scheme_id == scheme_id))
@@ -570,9 +535,9 @@ async def get_assignment_scopes_for_scheme(scheme_id: str,
 
 
 @router.get('/config/annotators/{scheme_id}', response_model=list[UserModel])
-async def get_annotators_for_scheme(scheme_id: str,
-                                    permissions=Depends(UserPermissionChecker('annotations_edit'))) \
-        -> list[UserModel]:
+async def get_annotators_for_scheme(
+        scheme_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_edit'))) -> list[UserModel]:
     async with db_engine.session() as session:  # type: AsyncSession
         return [UserModel.model_validate(user.__dict__)
                 for user in (
@@ -583,14 +548,14 @@ async def get_annotators_for_scheme(scheme_id: str,
 
 
 @router.post('/config/resolve', response_model=ResolutionProposal)
-async def get_resolved_annotations(settings: BotMetaResolveBase,
-                                   assignment_scope_id: str | None = None,
-                                   bot_annotation_metadat_id: str | None = None,
-                                   include_empty: bool = False,
-                                   include_new: bool = False,
-                                   update_existing: bool = False,
-                                   permissions=Depends(UserPermissionChecker('annotations_edit'))) \
-        -> ResolutionProposal:
+async def get_resolved_annotations(
+        settings: BotMetaResolveBase,
+        assignment_scope_id: str | None = None,
+        bot_annotation_metadat_id: str | None = None,
+        include_empty: bool = False,
+        include_new: bool = False,
+        update_existing: bool = False,
+        permissions=Depends(UserPermissionChecker('annotations_edit'))) -> ResolutionProposal:
     """
     Get all annotations that match the filters (e.g. all annotations made by users in scope with :scope_id).
 
@@ -634,9 +599,9 @@ class SavedResolution(BaseModel):
 
 
 @router.get('/config/resolved/{bot_annotation_metadata_id}', response_model=SavedResolution)
-async def get_saved_resolved_annotations(bot_annotation_metadata_id: str,
-                                         permissions=Depends(UserPermissionChecker('annotations_edit'))) \
-        -> SavedResolution:
+async def get_saved_resolved_annotations(
+        bot_annotation_metadata_id: str,
+        permissions=Depends(UserPermissionChecker('annotations_edit'))) -> SavedResolution:
     async with db_engine.session() as session:  # type: AsyncSession
         bot_meta = await read_resolved_bot_annotation_meta(bot_annotation_metadata_id=bot_annotation_metadata_id,
                                                            session=session)
@@ -654,7 +619,7 @@ async def save_resolved_annotations(settings: BotMetaResolveBase,
                                     name: str,
                                     assignment_scope_id: str,
                                     annotation_scheme_id: str,
-                                    permissions=Depends(UserPermissionChecker('annotations_edit'))):
+                                    permissions=Depends(UserPermissionChecker('annotations_edit'))) -> str:
     meta_id = await store_resolved_bot_annotations(db_engine=db_engine, use_commit=True,
                                                    project_id=permissions.permissions.project_id,
                                                    assignment_scope_id=assignment_scope_id,
@@ -678,8 +643,9 @@ async def update_resolved_annotations(bot_annotation_metadata_id: str,
 
 
 @router.get('/config/resolved-list/', response_model=list[BotAnnotationMetaDataBaseModel])
-async def list_saved_resolved_annotations(annotation_scheme_id: str | None = None,
-                                          permissions=Depends(UserPermissionChecker('annotations_read'))):
+async def list_saved_resolved_annotations(
+        annotation_scheme_id: str | None = None,
+        permissions=Depends(UserPermissionChecker('annotations_read'))) -> list[BotAnnotationMetaDataBaseModel]:
     async with db_engine.session() as session:  # type: AsyncSession
         stmt = (
             select(BotAnnotationMetaData)
@@ -703,7 +669,7 @@ async def list_saved_resolved_annotations(annotation_scheme_id: str | None = Non
 
 @router.delete('/config/resolved/{bot_annotation_meta_id}')
 async def delete_saved_resolved_annotations(bot_annotation_metadata_id: str,
-                                            permissions=Depends(UserPermissionChecker('annotations_edit'))):
+                                            permissions=Depends(UserPermissionChecker('annotations_edit'))) -> None:
     async with db_engine.session() as session:  # type: AsyncSession
         meta: BotAnnotationMetaData | None = (await session.execute(
             select(BotAnnotationMetaData)
@@ -741,3 +707,20 @@ async def get_bot_annotations(include_resolve: bool = False,
                 'num_annotated_items': r['num_annotated_items']
             }) for r in rslt]
         return []
+
+
+@router.get('/bot/scopes')
+async def get_bot_scopes(
+        only_resolve: bool = False,
+        permissions=Depends(UserPermissionChecker('annotations_read'))
+) -> list[BotAnnotationMetaDataModel]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        stmt = (select(BotAnnotationMetaData)
+                .where(BotAnnotationMetaData.project_id == permissions.permissions.project_id)
+                .group_by(BotAnnotationMetaData.bot_annotation_metadata_id))
+        if only_resolve:
+            stmt.where(BotAnnotationMetaData.kind == 'RESOLVE')
+        return [
+            BotAnnotationMetaDataModel(**r.__dict__)
+            for r in (await session.execute(stmt)).scalars().all()
+        ]

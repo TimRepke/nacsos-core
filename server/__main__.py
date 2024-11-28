@@ -22,7 +22,6 @@ mimetypes.init()
 
 logger = get_logger('nacsos.server')
 
-logger.warning(settings)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

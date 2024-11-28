@@ -5,4 +5,5 @@ db_engine = DatabaseEngineAsync(host=settings.DB.HOST,
                                 port=settings.DB.PORT,
                                 user=settings.DB.USER,
                                 password=settings.DB.PASSWORD,
-                                database=settings.DB.DATABASE)
+                                database=settings.DB.DATABASE,
+                                debug=settings.SERVER.DEBUG_MODE)

@@ -57,12 +57,7 @@ async def _get_df(project_id: str,
             df['incl'] = get_inclusion_mask(rule=incl, df=df, label_cols=label_cols)
         except KeyError:
             df['incl'] = 'ERROR'
-        return (
-            df.shape[0],
-            (df['incl'] is True).sum(),  # type: ignore[attr-defined]
-            (df['incl'] is False).sum(),  # type: ignore[attr-defined]
-            df
-        )
+        return df.shape[0], (df['incl'] == True).sum(), (df['incl'] == False).sum(), df  # noqa: E712
 
 
 @router.post('/table/peek/html', response_model=str)

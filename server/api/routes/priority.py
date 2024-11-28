@@ -46,7 +46,7 @@ async def _get_df(project_id: str,
                   scope_ids: list[str],
                   incl: str,
                   query: NQLFilter | None = None,
-                  limit: int | None = 20) -> 'pd.DataFrame':
+                  limit: int | None = 20) -> tuple[int, int, int, 'pd.DataFrame']:
     async with db_engine.session() as session:  # type: AsyncSession
         base_cols, label_cols, df = await wide_export_table(session=session,
                                                             project_id=project_id,
@@ -57,31 +57,39 @@ async def _get_df(project_id: str,
             df['incl'] = get_inclusion_mask(rule=incl, df=df, label_cols=label_cols)
         except KeyError:
             df['incl'] = 'ERROR'
-        return df
+        return df.shape[0], (df['incl'] == True).sum(), (df['incl'] == False).sum(), df
 
 
 @router.post('/table/peek/html', response_model=str)
 async def get_table_sample_html(params: PrioTableParams,
                                 permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> Any:
-    df = await _get_df(project_id=str(permissions.permissions.project_id),
-                       scope_ids=params.scope_ids,
-                       incl=params.incl,
-                       query=params.query,
-                       limit=min(params.limit, 500))
+    _, _, _, df = await _get_df(project_id=str(permissions.permissions.project_id),
+                                scope_ids=params.scope_ids,
+                                incl=params.incl,
+                                query=params.query,
+                                limit=min(params.limit, 500))
     return df.drop(columns=['text']).replace({np.nan: None}).replace({None: np.nan}).to_html(na_rep='')
 
 
-@router.post('/table/peek', response_model=list[dict[str, Any]])
+class SampleResponse(BaseModel):
+    data: list[dict[str, Any]]
+    n_total: int
+    n_incl: int
+    n_excl: int
+
+
+@router.post('/table/peek', response_model=SampleResponse)
 async def get_table_sample(
         params: PrioTableParams,
         permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))
 ) -> Any:
-    df = await _get_df(project_id=str(permissions.permissions.project_id),
-                       scope_ids=params.scope_ids,
-                       incl=params.incl,
-                       query=params.query,
-                       limit=min(params.limit, 500))
-    return df.drop(columns=['text']).to_dict(orient='records')
+    n_total, n_incl, n_excl, df = await _get_df(project_id=str(permissions.permissions.project_id),
+                                                scope_ids=params.scope_ids,
+                                                incl=params.incl,
+                                                query=params.query,
+                                                limit=min(params.limit, 500))
+    return SampleResponse(data=df.drop(columns=['text']).to_dict(orient='records'),
+                          n_total=n_total, n_incl=n_incl, n_excl=n_excl)
 
 
 @router.get('/setups', response_model=list[DehydratedPriorityModel])

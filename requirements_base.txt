@@ -1,4 +1,4 @@
-fastapi==0.115.2
+fastapi==0.115.6
 hypercorn==0.17.3
 toml==0.10.2
 email-validator==2.2.0
@@ -6,9 +6,9 @@ python-dotenv==1.0.1
 passlib[bcrypt]==1.7.4
 pymitter==0.5.1
 uvicorn==0.32.0
-python-multipart==0.0.12
+python-multipart==0.0.18
 aiosmtplib==3.0.2
 aiofiles==24.1.0
-dramatiq[redis,watch]==1.17.0
-dramatiq-abort==1.2.0
+dramatiq[redis,watch]==1.17.1
+dramatiq-abort==1.2.1
 dramatiq-dashboard==0.4.0

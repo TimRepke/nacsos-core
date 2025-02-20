@@ -24,8 +24,7 @@ pip install -r requirements_dev.txt
 
 For development, it is advised to install `nacsos-data` locally (not from git) via
 ```bash
-pip install -r ../nacsos-data/requirements.txt
-pip install -e ../nacsos-data/
+pip install -e  "../nacsos_data[utils,scripts]"
 ```
 (assuming both projects reside side-by-side, otherwise adapt path accordingly)
 If you do so, please keep in mind to update the requirements and temporarily commenting out the respective line in `requirements.txt` when installing the other requirements!

@@ -108,7 +108,7 @@ async def get_tracker(tracker_id: str,
 async def save_tracker(tracker: AnnotationTrackerModel,
                        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) -> str:
     pkey = await upsert_orm(upsert_model=tracker, Schema=AnnotationTracker,
-                            primary_key='annotation_tracking_id', db_engine=db_engine,
+                            primary_key='annotation_tracking_id', db_engine=db_engine, use_commit=True,
                             skip_update=['labels', 'recall', 'buscar'])
     return str(pkey)
 

@@ -1,18 +1,19 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Body
 from nacsos_data.db.crud import upsert_orm
-from nacsos_data.db.schemas import AnnotationTracker, AssignmentScope, AnnotationScheme, BotAnnotationMetaData, \
+from nacsos_data.db.schemas import (
+    AnnotationTracker,
+    AssignmentScope,
+    AnnotationScheme,
+    BotAnnotationMetaData,
     AnnotationQuality
+)
 from nacsos_data.models.annotation_quality import AnnotationQualityModel
 from nacsos_data.models.annotation_tracker import AnnotationTrackerModel, DehydratedAnnotationTracker
 from nacsos_data.models.bot_annotations import BotAnnotationMetaDataBaseModel
-from nacsos_data.util.annotations.evaluation import get_new_label_batches
-from nacsos_data.util.annotations.evaluation.buscar import (
-    calculate_h0s_for_batches,
-    compute_recall,
-    calculate_h0s)
+from nacsos_data.util.annotations.evaluation.buscar import compute_recall, retrospective_h0, recall_frontier
 from nacsos_data.util.annotations.evaluation.irr import compute_irr_scores
 from nacsos_data.util.annotations.label_transform import annotations_to_sequence, get_annotations
 from nacsos_data.util.auth import UserPermissions
@@ -108,7 +109,7 @@ async def get_tracker(tracker_id: str,
 async def save_tracker(tracker: AnnotationTrackerModel,
                        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) -> str:
     pkey = await upsert_orm(upsert_model=tracker, Schema=AnnotationTracker,
-                            primary_key='annotation_tracking_id', db_engine=db_engine,
+                            primary_key='annotation_tracking_id', db_engine=db_engine, use_commit=True,
                             skip_update=['labels', 'recall', 'buscar'])
     return str(pkey)
 
@@ -116,7 +117,7 @@ async def save_tracker(tracker: AnnotationTrackerModel,
 @router.post('/tracking/refresh', response_model=AnnotationTrackerModel)
 async def update_tracker(tracker_id: str,
                          background_tasks: BackgroundTasks,
-                         reset: bool = False,
+                         reset: bool = Body(default=True, deprecated='Not used anymore, just here for compatibility!'),
                          permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit'))) \
         -> AnnotationTrackerModel:
     async with db_engine.session() as session:  # type: AsyncSession
@@ -126,29 +127,30 @@ async def update_tracker(tracker_id: str,
         batched_annotations = [await get_annotations(session=session, source_ids=[sid])
                                for sid in tracker.source_ids]
 
-        batched_sequence = [annotations_to_sequence(tracker.inclusion_rule, annotations=annotations,
+        batched_sequence = [annotations_to_sequence(tracker.inclusion_rule,
+                                                    annotations=annotations,
                                                     majority=tracker.majority)
                             for annotations in batched_annotations
                             if len(annotations) > 0]
 
-        diff: list[list[int]] | None = None
-        if reset:
-            tracker.buscar = None
-            tracker.recall = None
-        elif tracker.labels is not None:
-            diff = get_new_label_batches(tracker.labels, batched_sequence)
+        # reset scores
+        tracker.recall = None
+        tracker.buscar = None
+        tracker.buscar_frontier = None
 
         # Update labels
         tracker.labels = batched_sequence
+
+        model = AnnotationTrackerModel.model_validate(tracker.__dict__)
         await session.commit()
 
         # We are not handing over the existing tracker ORM, because the session is not persistent
-        background_tasks.add_task(bg_populate_tracker, tracker_id, tracker.batch_size, diff)
+        background_tasks.add_task(bg_populate_tracker, tracker_id, batched_sequence)
 
-        return AnnotationTrackerModel.model_validate(tracker.__dict__)
+        return model
 
 
-async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, labels: list[list[int]] | None = None):
+async def bg_populate_tracker(tracker_id: str, labels: list[list[int]] | None = None):
     async with db_engine.session() as session:  # type: AsyncSession
         tracker = await read_tracker(tracker_id=tracker_id, session=session)
 
@@ -159,34 +161,24 @@ async def bg_populate_tracker(tracker_id: str, batch_size: int | None = None, la
             flat_labels = [lab for batch in labels for lab in batch]
 
             recall = compute_recall(labels_=flat_labels)
-            if tracker.recall is None:
-                tracker.recall = recall
-            else:
-                tracker.recall += recall
+            tracker.recall = recall
 
-            await session.flush()
+            scores = retrospective_h0(
+                labels_=flat_labels,
+                n_docs=tracker.n_items_total,
+                recall_target=tracker.recall_target,
+                bias=tracker.bias,
+                batch_size=tracker.batch_size,
+                confidence_level=tracker.confidence_level,
+            )
+            # retrospective_h0() -> tuple[list[int], list[float | None]]
+            # tracker.buscar: list[tuple[int, float | None]]
 
-            # Initialise buscar scores
-            if tracker.buscar is None:
-                tracker.buscar = []
+            recall = recall_frontier(labels_=flat_labels, n_docs=tracker.n_items_total, bias=tracker.bias)
 
-            if batch_size is None:
-                # Use scopes as batches
-                it = calculate_h0s_for_batches(labels=tracker.labels,
-                                               recall_target=tracker.recall_target,
-                                               n_docs=tracker.n_items_total)
-            else:
-                # Ignore the batches derived from scopes and use fixed step sizes
-                it = calculate_h0s(labels_=flat_labels,
-                                   batch_size=batch_size,
-                                   recall_target=tracker.recall_target,
-                                   n_docs=tracker.n_items_total)
-
-            for x, y in it:
-                tracker.buscar = tracker.buscar + [(x, y)]
-                # save after each step, so the user can refresh the page and get data as it becomes available
-                await session.flush()
-        await session.commit()
+            tracker.buscar = list(zip(*scores))
+            tracker.buscar_frontier = list(zip(*recall))
+            await session.commit()
 
 
 @router.get('/quality/load/{assignment_scope_id}', response_model=list[AnnotationQualityModel])

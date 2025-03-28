@@ -174,10 +174,10 @@ async def bg_populate_tracker(tracker_id: str, labels: list[list[int]] | None = 
             # retrospective_h0() -> tuple[list[int], list[float | None]]
             # tracker.buscar: list[tuple[int, float | None]]
 
-            recall = recall_frontier(labels_=flat_labels, n_docs=tracker.n_items_total, bias=tracker.bias)
+            frontier = recall_frontier(labels_=flat_labels, n_docs=tracker.n_items_total, bias=tracker.bias)
 
             tracker.buscar = list(zip(*scores))
-            tracker.buscar_frontier = list(zip(*recall))
+            tracker.buscar_frontier = list(zip(*frontier))
             await session.commit()
 
 

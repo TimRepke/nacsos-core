@@ -28,6 +28,8 @@ image: python:3.12
 
 build-job:
   stage: build
+  tags:
+    - vm
   script:
     - python -V
     - pip install virtualenv
@@ -42,12 +44,16 @@ build-job:
 
 test-job1:
   stage: test
+  tags:
+    - vm
   script:
     - source venv/bin/activate
     - flake8 --config .flake8
 
 test-job2:
   stage: test
+  tags:
+    - vm
   script:
     - source venv/bin/activate
     - which python

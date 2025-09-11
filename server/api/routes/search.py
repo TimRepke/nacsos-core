@@ -7,7 +7,7 @@ import sqlalchemy.sql.functions as func
 from nacsos_data.util.nql import NQLQuery, NQLFilter
 from nacsos_data.util.academic.readers.openalex import query_async, SearchResult
 from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel, GenericItemModel
-from nacsos_data.models.openalex.solr import SearchField, DefType, OpType
+from nacsos_data.models.openalex import SearchField, DefType, OpType
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 
 from server.util.security import UserPermissionChecker, UserPermissions

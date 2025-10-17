@@ -1,6 +1,4 @@
 -r requirements_base.txt
--e "../nacsos_data[utils,scripts]"
-
 
 flake8==7.3.0
 tox==4.31.0

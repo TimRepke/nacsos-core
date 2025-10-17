@@ -56,8 +56,9 @@ services:
 
   standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:v2.4.8
+    image: milvusdb/milvus:latest
     command: ["milvus", "run", "standalone"]
+    restart: always
     environment:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000

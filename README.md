@@ -14,12 +14,13 @@ pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```
  
 ## Installation
-- Requires Python 3.12+, tested with Python 3.12.2
+- Requires Python 3.13+, tested with Python 3.13.7
+- Assumes nacsos_data to be cloned in sibling folder
 
 ```bash
 virtualenv venv
 source venv/bin/activate
-pip install -r requirements_dev.txt
+pip install -r requirements_dev.txt  # edit second line to install nacsos_data separately
 ```
 
 For development, it is advised to install `nacsos-data` locally (not from git) via

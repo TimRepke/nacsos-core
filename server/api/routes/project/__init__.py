@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Depends
 from nacsos_data.db.crud import upsert_orm
 from nacsos_data.db.crud.imports import set_session_mutex
@@ -14,6 +16,9 @@ from server.util.logging import get_logger
 from . import permissions
 from . import items
 from ...errors import ProjectNotFoundError
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
 
 logger = get_logger('nacsos.api.route.project')
 router = APIRouter()
@@ -32,22 +37,21 @@ async def get_project(permission: UserPermissions = Depends(UserPermissionChecke
 
 @router.put('/info', response_model=str)
 async def save_project(
-        project_info: ProjectModel,
-        permission: UserPermissions = Depends(UserPermissionChecker('owner')),
+    project_info: ProjectModel,
+    permission: UserPermissions = Depends(UserPermissionChecker('owner')),
 ) -> str:
-    pkey = await upsert_orm(upsert_model=project_info, Schema=Project, primary_key='project_id',
-                            skip_update=['project_id'], db_engine=db_engine, use_commit=True)
+    pkey = await upsert_orm(
+        upsert_model=project_info, Schema=Project, primary_key='project_id', skip_update=['project_id'], db_engine=db_engine, use_commit=True
+    )
     return str(pkey)
 
 
 @router.put('/import_mutex')
 async def reset_import_mutex(
-        permission: UserPermissions = Depends(UserPermissionChecker('imports_edit')),
+    permission: UserPermissions = Depends(UserPermissionChecker('imports_edit')),
 ) -> None:
     async with db_engine.session() as session:  # type: AsyncSession
-        await set_session_mutex(session=session,
-                                project_id=permission.permissions.project_id,
-                                lock=False)
+        await set_session_mutex(session=session, project_id=permission.permissions.project_id, lock=False)
     return None
 
 

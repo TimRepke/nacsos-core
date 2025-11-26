@@ -30,9 +30,11 @@ class UserPriorityPermissions(UserPermissions):
     priority: PriorityModel
 
 
-auth_helper = Authentication(engine=db_engine,
-                             token_lifetime_minutes=settings.SERVER.ACCESS_TOKEN_EXPIRE_MINUTES,
-                             default_user=settings.USERS.DEFAULT_USER)
+auth_helper = Authentication(
+    engine=db_engine,
+    token_lifetime_minutes=settings.SERVER.ACCESS_TOKEN_EXPIRE_MINUTES,
+    default_user=settings.USERS.DEFAULT_USER,
+)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=False)
 
 
@@ -53,14 +55,12 @@ async def get_current_active_user(current_user: UserModel = Depends(get_current_
 
 def get_current_active_superuser(current_user: UserModel = Depends(get_current_active_user)) -> UserModel:
     if not current_user.is_superuser:
-        raise InsufficientPermissions('The user doesn\'t have enough privileges')
+        raise InsufficientPermissions("The user doesn't have enough privileges")
     return current_user
 
 
 class UserPermissionChecker:
-    def __init__(self,
-                 permissions: list[ProjectPermission] | ProjectPermission | None = None,
-                 fulfill_all: bool = True):
+    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None, fulfill_all: bool = True):
         self.permissions = permissions
         self.fulfill_all = fulfill_all
 
@@ -68,9 +68,7 @@ class UserPermissionChecker:
         if type(self.permissions) is str:
             self.permissions = [self.permissions]
 
-    async def __call__(self,
-                       x_project_id: str = Header(),
-                       current_user: UserModel = Depends(get_current_active_user)) -> UserPermissions:
+    async def __call__(self, x_project_id: str = Header(), current_user: UserModel = Depends(get_current_active_user)) -> UserPermissions:
         """
         This function checks the whether a set of required permissions is fulfilled
         for the given project for the currently active user.
@@ -84,24 +82,24 @@ class UserPermissionChecker:
         :raises HTTPException if permissions are not fulfilled
         """
         try:
-            return await auth_helper.check_permissions(project_id=x_project_id,
-                                                       user=current_user,
-                                                       required_permissions=self.permissions,
-                                                       fulfill_all=self.fulfill_all)
+            return await auth_helper.check_permissions(
+                project_id=x_project_id, user=current_user, required_permissions=self.permissions, fulfill_all=self.fulfill_all
+            )
 
         except (InvalidCredentialsError, InsufficientPermissionError) as e:
             raise InsufficientPermissions(repr(e))
 
 
 class UserPriorityPermissionChecker(UserPermissionChecker):
-    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None,
-                 fulfill_all: bool = True):
+    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None, fulfill_all: bool = True):
         super().__init__(permissions, fulfill_all)
 
-    async def __call__(self,  # type: ignore[override]
-                       x_priority_id: str = Header(),
-                       x_project_id: str = Header(),
-                       current_user: UserModel = Depends(get_current_active_user)) -> UserPriorityPermissions:
+    async def __call__(  # type: ignore[override]
+        self,
+        x_priority_id: str = Header(),
+        x_project_id: str = Header(),
+        current_user: UserModel = Depends(get_current_active_user),
+    ) -> UserPriorityPermissions:
         permissions = await super().__call__(x_project_id=x_project_id, current_user=current_user)
         try:
             priority: PriorityModel | None = await read_priority_by_id(priority_id=x_priority_id, db_engine=db_engine)
@@ -112,15 +110,24 @@ class UserPriorityPermissionChecker(UserPermissionChecker):
             if str(priority.project_id) != str(permissions.permissions.project_id):
                 raise InsufficientPermissionError('Invalid priority or project permissions.')
 
-            return UserPriorityPermissions(user=permissions.user,
-                                           permissions=permissions.permissions,
-                                           priority=priority)
+            return UserPriorityPermissions(user=permissions.user, permissions=permissions.permissions, priority=priority)
 
         except (InvalidCredentialsError, InsufficientPermissionError) as e:
             raise InsufficientPermissions(repr(e))
 
 
-__all__ = ['InsufficientPermissionError', 'InvalidCredentialsError', 'InsufficientPermissions',
-           'auth_helper', 'oauth2_scheme', 'UserPermissionChecker', 'UserPermissions', 'NotAuthenticated',
-           'get_current_user', 'get_current_active_user', 'get_current_active_superuser',
-           'UserPriorityPermissionChecker', 'UserPriorityPermissions']
+__all__ = [
+    'InsufficientPermissionError',
+    'InvalidCredentialsError',
+    'InsufficientPermissions',
+    'auth_helper',
+    'oauth2_scheme',
+    'UserPermissionChecker',
+    'UserPermissions',
+    'NotAuthenticated',
+    'get_current_user',
+    'get_current_active_user',
+    'get_current_active_superuser',
+    'UserPriorityPermissionChecker',
+    'UserPriorityPermissions',
+]

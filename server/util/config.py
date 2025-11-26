@@ -129,7 +129,7 @@ class PipelinesConfig(BaseModel):
             elif isinstance(v, Path) and v.is_absolute():
                 path = v
             elif isinstance(v, Path):
-                path = (Path.cwd() / Path(v))
+                path = Path.cwd() / Path(v)
             else:
                 raise ValueError(f'Invalid path for {key}: {v}')
             path = path.resolve()

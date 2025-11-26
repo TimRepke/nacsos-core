@@ -26,6 +26,10 @@ uv sync --extra remote --no-dev
 uv sync --extra local
 # Development setup with nacsos-data lib from git (not advised)
 uv sync --extra remote
+
+uv run mypy
+uv run ruff check
+uv run ruff format
 ```
 
 ## Running the database with docker

@@ -42,22 +42,19 @@ class FileOnDisk(TypedDict):
 
 @router.get('/artefacts/list', response_model=list[FileOnDisk])
 def get_artefacts(
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
 ) -> list[FileOnDisk]:
     task_id = permissions.task.task_id
 
     return [
-        FileOnDisk(path=file[0],
-                   size=file[1])  # type: ignore[typeddict-item]
-        for file in get_outputs_flat(root=settings.PIPES.target_dir / str(task_id),
-                                     base=settings.PIPES.target_dir,
-                                     include_fsize=True)
+        FileOnDisk(path=file[0], size=file[1])  # type: ignore[typeddict-item]
+        for file in get_outputs_flat(root=settings.PIPES.target_dir / str(task_id), base=settings.PIPES.target_dir, include_fsize=True)
     ]
 
 
 @router.get('/artefacts/log', response_model=str)
 def get_task_log(
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
 ) -> str | None:
     task_id = permissions.task.task_id
 
@@ -70,17 +67,15 @@ def get_task_log(
 
 @router.get('/artefacts/log-stream', response_class=StreamingResponse)
 def stream_task_log(
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
 ) -> StreamingResponse:
-    return StreamingResponse(stream_log(str(permissions.task.task_id)),
-                             media_type='text/plain',
-                             headers={'X-Content-Type-Options': 'nosniff'})
+    return StreamingResponse(stream_log(str(permissions.task.task_id)), media_type='text/plain', headers={'X-Content-Type-Options': 'nosniff'})
 
 
 @router.get('/artefacts/file', response_class=FileResponse)
 def get_file(
-        filename: str,
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
+    filename: str,
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
 ) -> FileResponse:
     return FileResponse(settings.PIPES.target_dir / filename)
 
@@ -97,8 +92,8 @@ async def tmp_path() -> AsyncGenerator[Path, None]:
 
 @router.get('/artefacts/files', response_class=FileResponse)
 def get_archive(
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
-        tmp_dir: Path = Depends(tmp_path),
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('artefacts_read')),
+    tmp_dir: Path = Depends(tmp_path),
 ) -> FileResponse:
     task_id = permissions.task.task_id
     zip_folder(settings.PIPES.target_dir / str(task_id), target_file=str(tmp_dir / 'archive.zip'))
@@ -107,9 +102,9 @@ def get_archive(
 
 @router.post('/artefacts/files/upload', response_model=str)
 async def upload_file(
-        file: UploadFile,
-        folder: str | None = None,
-        permissions: UserPermissions = Depends(UserPermissionChecker('artefacts_edit')),
+    file: UploadFile,
+    folder: str | None = None,
+    permissions: UserPermissions = Depends(UserPermissionChecker('artefacts_edit')),
 ) -> str:
     if folder is None:
         folder = str(uuid4())
@@ -132,9 +127,9 @@ async def upload_file(
 
 @router.post('/artefacts/files/upload-many', response_model=list[str])
 async def upload_files(
-        file: list[UploadFile],
-        folder: str | None = None,
-        permissions: UserPermissions = Depends(UserPermissionChecker('artefacts_edit')),
+    file: list[UploadFile],
+    folder: str | None = None,
+    permissions: UserPermissions = Depends(UserPermissionChecker('artefacts_edit')),
 ) -> list[str]:
     if folder is None:
         folder = str(uuid4())
@@ -146,21 +141,17 @@ OrderBy = Annotated[str, StringConstraints(pattern=r'^[A-Za-z\-_]+,(asc|desc)$')
 
 @router.get('/tasks', response_model=list[TaskModel])
 async def search_tasks(
-        function_name: str | None = Query(default=None),
-        fingerprint: str | None = Query(default=None),
-        user_id: str | None = Query(default=None),
-        location: str | None = Query(default=None),
-        status: TaskStatus | None = Query(default=None),
-        order_by_fields: list[OrderBy] | None = Query(default=None),
-        permissions: UserPermissions = Depends(UserPermissionChecker('pipelines_read')),
+    function_name: str | None = Query(default=None),
+    fingerprint: str | None = Query(default=None),
+    user_id: str | None = Query(default=None),
+    location: str | None = Query(default=None),
+    status: TaskStatus | None = Query(default=None),
+    order_by_fields: list[OrderBy] | None = Query(default=None),
+    permissions: UserPermissions = Depends(UserPermissionChecker('pipelines_read')),
 ) -> list[TaskModel]:
     order_by_fields_parsed = None
     if order_by_fields is not None:
-        order_by_fields_parsed = [
-            (parts[0], parts[1] == 'asc')
-            for field in order_by_fields
-            if (parts := field.split(',')) is None
-        ]
+        order_by_fields_parsed = [(parts[0], parts[1] == 'asc') for field in order_by_fields if (parts := field.split(',')) is None]
 
     params = {}
     if function_name is not None:
@@ -174,10 +165,7 @@ async def search_tasks(
     if status is not None:
         params['status'] = status
 
-    tasks = await query_tasks(db_engine=db_engine,
-                              project_id=permissions.permissions.project_id,
-                              order_by_fields=order_by_fields_parsed,
-                              **params)
+    tasks = await query_tasks(db_engine=db_engine, project_id=permissions.permissions.project_id, order_by_fields=order_by_fields_parsed, **params)
 
     if tasks is None:
         return []
@@ -186,14 +174,14 @@ async def search_tasks(
 
 @router.get('/task', response_model=TaskModel)
 async def get_task(
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('pipelines_edit')),
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('pipelines_edit')),
 ) -> TaskModel:
     return permissions.task
 
 
 @router.delete('/task')
 async def delete_task(
-        permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('pipelines_edit')),
+    permissions: UserTaskProjectPermissions = Depends(UserTaskPermissionChecker('pipelines_edit')),
 ) -> None:
     task_id = permissions.task.task_id
     delete_directory(settings.PIPES.target_dir / str(task_id))
@@ -204,10 +192,11 @@ async def delete_task(
 # async def welcome_mail(superuser: UserModel = Depends(get_current_active_superuser)) -> str:
 #     app.events.
 
+
 @router.delete('/dramatiq/task')
 async def terminate_task(
-        message_id: str = Query(),
-        superuser: UserModel = Depends(get_current_active_superuser),
+    message_id: str = Query(),
+    superuser: UserModel = Depends(get_current_active_superuser),
 ) -> None:
     abort(message_id)
 
@@ -215,6 +204,7 @@ async def terminate_task(
 @router.get('/dramatiq/workers')
 async def get_d_workers() -> list[Any]:
     from dramatiq_dashboard.interface import RedisInterface
+
     inter = RedisInterface(broker=broker)
     return inter.workers  # type: ignore[no-any-return]
 
@@ -222,6 +212,7 @@ async def get_d_workers() -> list[Any]:
 @router.get('/dramatiq/tasks')
 async def get_d_tasks() -> list[Any]:
     from dramatiq_dashboard.interface import RedisInterface
+
     inter = RedisInterface(broker=broker)
     print(inter.get_jobs('nacsos-pipes'))
     print(inter.get_queue('nacsos-pipes'))

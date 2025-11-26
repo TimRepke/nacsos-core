@@ -53,9 +53,7 @@ def get_file_logger(out_file: str | Path, name: str, level: str = 'DEBUG', stdio
 
 
 class LogRedirector:
-    def __init__(self, logger: logging.Logger,
-                 level: Literal['INFO', 'ERROR'] = 'INFO',
-                 stream: Literal['stdout', 'stderr'] = 'stdout') -> None:
+    def __init__(self, logger: logging.Logger, level: Literal['INFO', 'ERROR'] = 'INFO', stream: Literal['stdout', 'stderr'] = 'stdout') -> None:
         self.logger = logger
         self.level = getattr(logging, level)
         if stream == 'stdout':
@@ -74,8 +72,6 @@ class LogRedirector:
         self._redirector.__enter__()
         return self
 
-    def __exit__(self, exc_type: Type[BaseException] | None,
-                 exc_value: BaseException | None,
-                 trace: TracebackType | None) -> None:
+    def __exit__(self, exc_type: Type[BaseException] | None, exc_value: BaseException | None, trace: TracebackType | None) -> None:
         # let contextlib do any exception handling here
         self._redirector.__exit__(exc_type, exc_value, trace)

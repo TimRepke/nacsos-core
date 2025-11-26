@@ -14,7 +14,7 @@ class BaseEvent(BaseModel):
                     return sub_cls.__subclasses__() + recurse(sc)  # type: ignore[no-untyped-call]
             return []
 
-        return tuple(set(recurse(cls))) # type: ignore[no-untyped-call]
+        return tuple(set(recurse(cls)))  # type: ignore[no-untyped-call]
 
 
 class ExampleEvent(BaseEvent):

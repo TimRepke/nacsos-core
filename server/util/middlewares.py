@@ -56,7 +56,6 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         except (Exception, Warning) as ew:
-
             error_str = 'Unknown error (very serious stuff...)'
             try:
                 # FIXME: The Pydantic Validation Error triggers an exception when logging the error.
@@ -81,14 +80,13 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                         level=level,
                         type=ew.__class__.__name__,
                         message=error_str,
-                        args=self._resolve_args(ew)
+                        args=self._resolve_args(ew),
                     ).model_dump(),
                     headers=headers
                 ))
 
 
 class TimingMiddleware(BaseHTTPMiddleware):
-
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         start_time = time.time()
         start_cpu_time = self._get_cpu_time()
@@ -103,7 +101,7 @@ class TimingMiddleware(BaseHTTPMiddleware):
 
         request.scope['timing_stats'] = {
             'cpu_time': f'{used_cpu_time:.8f}s',
-            'wall_time': f'{used_time:.8f}s'
+            'wall_time': f'{used_time:.8f}s',
         }
 
         return response

@@ -6,7 +6,6 @@ from nacsos_data.db.schemas import Project
 from nacsos_data.models.projects import ProjectModel
 from nacsos_data.db.crud.projects import read_project_by_id
 from nacsos_data.util.auth import UserPermissions
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.data import db_engine
 from server.util.security import UserPermissionChecker
@@ -14,7 +13,6 @@ from server.util.logging import get_logger
 
 from . import permissions
 from . import items
-from .permissions import UserPermission
 from ...errors import ProjectNotFoundError
 
 logger = get_logger('nacsos.api.route.project')

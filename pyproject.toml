@@ -50,12 +50,12 @@ dev = [
 line-length = 160
 indent-width = 4
 target-version = "py313"
-include = ["pyproject.toml", "src/nacsos_data/**/*.py"]
-exclude = ["src/nacsos_data/scripts/"]
+include = ["pyproject.toml", "server/**/*.py"]
+exclude = []
 
 [tool.ruff.lint]
 select = ["C", "E", "F", "W", "B", "B9"]
-ignore = ["E203", "E501", "E712", "E741", "B010", "B009"]  # , "E126", "W503",
+ignore = ["E203", "E501", "E712", "E741", "B010", "B009", "B904", "B008"]  # , "E126", "W503",
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]

@@ -34,5 +34,5 @@ broker.add_middleware(AsyncIO())  # type: ignore [no-untyped-call]
 #     result = func(*args, ctx=ctx, **kwargs)
 
 
-from . import imports
-from . import sleepy
+from . import imports  # noqa: F401, E402
+from . import sleepy  # noqa: F401, E402

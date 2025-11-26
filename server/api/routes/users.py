@@ -97,7 +97,7 @@ async def get_users_by_ids(user_id: list[str] = Query(),
 
 
 @router.put('/details', response_model=str)
-async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = Depends(get_current_active_user)):
+async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = Depends(get_current_active_user)) -> str:
     # Users can only edit their own info, admins can edit all.
     if user.user_id != current_user.user_id and not current_user.is_superuser:
         raise UserPermissionError('You do not have permission to perform this action.')
@@ -108,8 +108,10 @@ async def save_user(user: UserInDBModel | UserModel, current_user: UserModel = D
 
 
 @router.put('/my-details', response_model=str)
-async def save_user_self(user: UserInDBModel | UserModel,
-                         current_user: UserModel = Depends(get_current_active_user)):
+async def save_user_self(
+        user: UserInDBModel | UserModel,
+        current_user: UserModel = Depends(get_current_active_user),
+) -> str:
     if str(current_user.user_id) != str(user.user_id):
         raise UserPermissionError('This is not you!')
 

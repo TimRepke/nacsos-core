@@ -37,8 +37,9 @@ class ImportDetails(ImportModel):
 
 
 @router.get('/list', response_model=list[ImportInfo])
-async def get_all_imports_for_project(permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
-        -> list[ImportInfo]:
+async def get_all_imports_for_project(
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_read')),
+) -> list[ImportInfo]:
     async with db_engine.session() as session:  # type: AsyncSession
         rslt = await session.execute(sa.text('SELECT im.*, '
                                              '       count(ir.import_revision_counter) as num_revisions, '
@@ -53,8 +54,9 @@ async def get_all_imports_for_project(permissions: UserPermissions = Depends(Use
 
 
 @router.get('/list/details', response_model=list[ImportDetails])
-async def get_project_imports(permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
-        -> list[ImportDetails]:
+async def get_project_imports(
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_read')),
+) -> list[ImportDetails]:
     async with db_engine.session() as session:  # type: AsyncSession
         rslt = (await session.execute(
             sa.select(Import,
@@ -82,9 +84,10 @@ async def get_project_imports(permissions: UserPermissions = Depends(UserPermiss
 
 
 @router.get('/import/{import_id}', response_model=ImportModel)
-async def get_import_details(import_id: str,
-                             permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
-        -> ImportModel:
+async def get_import_details(
+        import_id: str,
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))
+) -> ImportModel:
     import_details = await read_import(import_id=import_id, engine=db_engine)
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
         return import_details
@@ -93,16 +96,19 @@ async def get_import_details(import_id: str,
 
 
 @router.get('/import/{import_id}/count/', response_model=int)
-async def get_import_counts(import_id: str,
-                            permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) -> int:
+async def get_import_counts(
+        import_id: str,
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_read')),
+) -> int:
     # FIXME: add permission check for project_id
     return await read_item_count_for_import(import_id=import_id, engine=db_engine)
 
 
 @router.get('/import/{import_id}/revisions', response_model=list[ImportRevisionDetails])
-async def get_import_revisions(import_id: str,
-                               permissions: UserPermissions = Depends(UserPermissionChecker('imports_read'))) \
-        -> list[ImportRevisionDetails]:
+async def get_import_revisions(
+        import_id: str,
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_read')),
+) -> list[ImportRevisionDetails]:
     async with db_engine.session() as session:  # type: AsyncSession
         rslt = await session.execute(
             sa.select(ImportRevision, Task)
@@ -118,8 +124,10 @@ async def get_import_revisions(import_id: str,
 
 
 @router.put('/import', response_model=str)
-async def put_import_details(import_details: ImportModel,
-                             permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))) -> str:
+async def put_import_details(
+        import_details: ImportModel,
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit')),
+) -> str:
     if str(import_details.project_id) == str(permissions.permissions.project_id):
         logger.debug(import_details)
         key = await upsert_import(import_model=import_details, engine=db_engine, use_commit=True)
@@ -129,8 +137,10 @@ async def put_import_details(import_details: ImportModel,
 
 
 @router.post('/import/{import_id}')
-async def trigger_import(import_id: str,
-                         permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))) -> None:
+async def trigger_import(
+        import_id: str,
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit')),
+) -> None:
     import_details = await read_import(import_id=import_id, engine=db_engine)
     if import_details is not None and str(import_details.project_id) == str(permissions.permissions.project_id):
         tasks.imports.import_task.send(project_id=str(import_details.project_id),  # type: ignore[call-arg]
@@ -142,8 +152,10 @@ async def trigger_import(import_id: str,
 
 
 @router.delete('/import/delete/{import_id}', response_model=str)
-async def delete_import_details(import_id: str,
-                                permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit'))):
+async def delete_import_details(
+        import_id: str,
+        permissions: UserPermissions = Depends(UserPermissionChecker('imports_edit')),
+) -> str:
     import_details = await read_import(import_id=import_id, engine=db_engine)
 
     # First, make sure the user trying to delete this import is actually authorised to delete this specific import

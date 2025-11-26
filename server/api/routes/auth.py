@@ -43,13 +43,13 @@ async def refresh_token(token_id: str, current_user: UserModel = Depends(get_cur
 
 
 @router.delete('/token/{token_id}')
-async def revoke_token(token_id: str, current_user: UserModel = Depends(get_current_active_user)):
+async def revoke_token(token_id: str, current_user: UserModel = Depends(get_current_active_user)) -> None:
     await auth_helper.clear_token_by_id(token_id=token_id,
                                         verify_username=current_user.username)
 
 
 @router.get('/my-tokens', response_model=list[AuthTokenModel])
-async def read_tokens_me(current_user: UserModel = Depends(get_current_active_user)):
+async def read_tokens_me(current_user: UserModel = Depends(get_current_active_user)) -> list[AuthTokenModel]:
     async with db_engine.session() as session:  # type: AsyncSession
         stmt = select(AuthToken) \
             .where(AuthToken.username == current_user.username) \
@@ -61,12 +61,12 @@ async def read_tokens_me(current_user: UserModel = Depends(get_current_active_us
 
 
 @router.get('/me', response_model=UserModel)
-async def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
+async def read_users_me(current_user: UserModel = Depends(get_current_active_user)) -> UserModel:
     return current_user
 
 
 @router.get('/logout')
-async def logout(current_user: UserModel = Depends(get_current_active_user)):
+async def logout(current_user: UserModel = Depends(get_current_active_user)) -> None:
     username = current_user.username
 
     if username is None:

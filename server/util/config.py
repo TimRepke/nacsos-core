@@ -181,6 +181,6 @@ class Settings(BaseSettings):
 
 
 conf_file = os.environ.get('NACSOS_CONFIG', 'config/default.env')
-settings = Settings(_env_file=conf_file, _env_file_encoding='utf-8')  # type: ignore[call-arg]  # FIXME
+settings = Settings(_env_file=conf_file, _env_file_encoding='utf-8')
 
 __all__ = ['settings', 'conf_file']

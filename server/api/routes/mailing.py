@@ -179,7 +179,7 @@ async def news_mail(background_tasks: BackgroundTasks,
         if is_subscribed:
             stmt = stmt.where(User.setting_newsletter == is_subscribed)
 
-        users = (await session.execute(stmt)).mappings().all()  # type: ignore[arg-type]
+        users = (await session.execute(stmt)).mappings().all()
 
         for user in users:
             try:

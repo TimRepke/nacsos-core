@@ -49,7 +49,7 @@ def construct_email(recipients: list[str],
     email = EmailMessage()
     email.set_content(message)
     email['Subject'] = subject
-    email['From'] = sender  # type: ignore[assignment]
+    email['From'] = sender
     email['To'] = ', '.join(recipients)
     email['Bcc'] = ', '.join(bcc)
     return email
@@ -72,7 +72,7 @@ async def send_email(email: EmailMessage) -> bool:
 
     if email['From'] is None:
         del email['From']
-        email['From'] = settings.EMAIL.SENDER  # type: ignore[assignment]
+        email['From'] = settings.EMAIL.SENDER
 
     client = SMTP(hostname=settings.EMAIL.SMTP_HOST,
                   port=settings.EMAIL.SMTP_PORT,
@@ -120,7 +120,7 @@ def send_email_sync(email: EmailMessage) -> bool:
 
     if email['From'] is None:
         del email['From']
-        email['From'] = settings.EMAIL.SENDER  # type: ignore[assignment]
+        email['From'] = settings.EMAIL.SENDER
 
     try:
         client: SMTP_SSL | SMTPSync

@@ -63,7 +63,7 @@ class NacsosActor(Actor[P, R]):
 
         params = {**kwargs}
         for i, arg in enumerate(args):
-            params[self.fn.__code__.co_varnames[i]] = arg  # type: ignore[attr-defined]
+            params[self.fn.__code__.co_varnames[i]] = arg
 
         fingerprint = compute_fingerprint(full_name=self.actor_name, params=params)
 
@@ -96,7 +96,7 @@ class NacsosActor(Actor[P, R]):
         actor_name: str = 'anonymous_actor'
         task_id: str | None = None
         message_id: str | None = None
-        message: Message[R] = CurrentMessage.get_current_message()  # type: ignore[type-arg,assignment]
+        message: Message[R] = CurrentMessage.get_current_message()  # type: ignore[assignment]
         if message:
             message_id = message.message_id
             actor_name = message.options.get('nacsos_actor_name')  # type: ignore[assignment]

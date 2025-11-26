@@ -109,7 +109,7 @@ class TimingMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    def _get_cpu_time():
+    def _get_cpu_time() -> float:
         resources = getrusage(RUSAGE_SELF)
         # add up user time (ru_utime) and system time (ru_stime)
         return resources[0] + resources[1]

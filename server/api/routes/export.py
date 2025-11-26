@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-def cleanup(file):
+def cleanup(file: str) -> None:
     os.remove(file)
 
 
@@ -51,8 +51,10 @@ class ExportRequest(BaseModel):
 
 
 @router.post('/annotations/csv', response_class=CFR)
-async def get_annotations_csv(query: ExportRequest,
-                              permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))):
+async def get_annotations_csv(
+        query: ExportRequest,
+        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> FileResponse:
     result = await prepare_export_table(bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
                                         assignment_scope_ids=query.assignment_scope_ids,
                                         user_ids=query.user_ids,
@@ -94,7 +96,9 @@ class ProjectBaseInfo(BaseModel):
 
 
 @router.get('/project/baseinfo', response_model=ProjectBaseInfo)
-async def get_export_baseinfo(permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))):
+async def get_export_baseinfo(
+        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> ProjectBaseInfo:
     project_users = await get_project_users(project_id=permissions.permissions.project_id,
                                             db_engine=db_engine)
     project_scopes = await get_project_scopes(project_id=permissions.permissions.project_id,

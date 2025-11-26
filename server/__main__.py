@@ -24,7 +24,7 @@ logger = get_logger('nacsos.server')
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # Following code executed on startup
     await db_engine.startup()
     await auth_helper

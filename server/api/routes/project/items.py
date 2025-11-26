@@ -29,6 +29,7 @@ from nacsos_data.db.crud.items.twitter import (
     read_twitter_item_by_item_id,
     import_tweet
 )
+from nacsos_data.util.auth import UserPermissions
 from sqlalchemy import select
 
 from server.api.errors import ItemNotFoundError
@@ -43,8 +44,10 @@ logger.info('Setting up data route')
 
 
 @router.get('/{item_type}/list', response_model=AnyItemModelList)
-async def list_project_data(item_type: ItemTypeLiteral,
-                            permission=Depends(UserPermissionChecker('dataset_read'))):
+async def list_project_data(
+        item_type: ItemTypeLiteral,
+        permission: UserPermissions = Depends(UserPermissionChecker('dataset_read')),
+) -> AnyItemModelList:
     project_id = permission.permissions.project_id
     if item_type == 'generic':
         return await read_all_for_project(Model=GenericItemModel, Schema=GenericItem,
@@ -62,8 +65,10 @@ async def list_project_data(item_type: ItemTypeLiteral,
 
 
 @router.get('/{item_type}/list/{page}/{page_size}', response_model=AnyItemModelList)
-async def list_project_data_paged(item_type: ItemTypeLiteral, page: int, page_size: int,
-                                  permission=Depends(UserPermissionChecker('dataset_read'))):
+async def list_project_data_paged(
+        item_type: ItemTypeLiteral, page: int, page_size: int,
+        permission: UserPermissions = Depends(UserPermissionChecker('dataset_read')),
+) -> AnyItemModelList:
     project_id = permission.permissions.project_id
     if item_type == 'generic':
         return await read_paged_for_project(Model=GenericItemModel, Schema=GenericItem,
@@ -84,9 +89,11 @@ async def list_project_data_paged(item_type: ItemTypeLiteral, page: int, page_si
 
 
 @router.get('/detail/{item_id}', response_model=AnyItemModel)
-async def get_detail_for_item(item_id: str,
-                              item_type: ItemTypeLiteral | None = Query(default=None),
-                              permission=Depends(UserPermissionChecker('dataset_read'))) -> AnyItemModel:
+async def get_detail_for_item(
+        item_id: str,
+        item_type: ItemTypeLiteral | None = Query(default=None),
+        permission: UserPermissions = Depends(UserPermissionChecker('dataset_read')),
+) -> AnyItemModel:
     if item_type is None:
         async with db_engine.session() as session:
             project: Project | None = await session.get(Project, permission.permissions.project_id)
@@ -112,7 +119,10 @@ async def get_detail_for_item(item_id: str,
 
 
 @router.get('/text/{item_id}', response_model=str)
-async def get_text_for_item(item_id: str, permission=Depends(UserPermissionChecker('dataset_read'))) -> str:
+async def get_text_for_item(
+        item_id: str,
+        permission: UserPermissions = Depends(UserPermissionChecker('dataset_read')),
+) -> str:
     async with db_engine.session() as session:
         stmt = select(Item.text).where(Item.item_id == item_id)
         text: str | None = await session.scalar(stmt)
@@ -122,13 +132,15 @@ async def get_text_for_item(item_id: str, permission=Depends(UserPermissionCheck
 
 
 @router.get('/count', response_model=int)
-async def count_project_items(permission=Depends(UserPermissionChecker('dataset_read'))) -> int:
+async def count_project_items(permission: UserPermissions = Depends(UserPermissionChecker('dataset_read'))) -> int:
     tweets = await read_item_count_for_project(project_id=permission.permissions.project_id, engine=db_engine)
     return tweets
 
 
 @router.post('/twitter/add')
-async def add_tweet(tweet: TwitterItemModel, import_id: str | None = None,
-                    permission=Depends(UserPermissionChecker('dataset_edit'))):
+async def add_tweet(
+        tweet: TwitterItemModel, import_id: str | None = None,
+        permission: UserPermissions = Depends(UserPermissionChecker('dataset_edit')),
+) -> TwitterItemModel:
     return await import_tweet(tweet=tweet, project_id=permission.permissions.project_id,
                               import_id=import_id, engine=db_engine)

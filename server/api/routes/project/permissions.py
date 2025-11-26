@@ -20,14 +20,17 @@ router = APIRouter()
 
 
 @router.get('/me', response_model=ProjectPermissionsModel)
-async def get_project_permissions_current_user(permission: UserPermissions = Depends(UserPermissionChecker())) \
-        -> ProjectPermissionsModel:
+async def get_project_permissions_current_user(
+        permission: UserPermissions = Depends(UserPermissionChecker()),
+) -> ProjectPermissionsModel:
     return permission.permissions
 
 
 @router.get('/list/{project_id}', response_model=list[ProjectPermissionsModel])
-async def get_all_project_permissions(project_id: str, permission=Depends(UserPermissionChecker('owner'))) \
-        -> list[ProjectPermissionsModel] | None:
+async def get_all_project_permissions(
+        project_id: str,
+        permission: UserPermissions = Depends(UserPermissionChecker('owner')),
+) -> list[ProjectPermissionsModel] | None:
     if permission:
         return await read_project_permissions_for_project(project_id=project_id, engine=db_engine)
     return None
@@ -38,19 +41,23 @@ class UserPermission(ProjectPermissionsModel):
 
 
 @router.get('/list-users', response_model=list[UserPermission])
-async def get_all_user_permissions(permission=Depends(UserPermissionChecker('owner'))):
+async def get_all_user_permissions(
+        permission: UserPermissions = Depends(UserPermissionChecker('owner')),
+) -> list[UserPermission]:
     async with db_engine.session() as session:
         stmt = (select(ProjectPermissions)
                 .where(ProjectPermissions.project_id == permission.permissions.project_id)
                 .options(selectinload(ProjectPermissions.user)))
         result = (await session.execute(stmt)).scalars().all()
 
-        return [UserPermission(**{**row.__dict__, 'user': row.user.__dict__}) for row in result]  # type: ignore
+        return [UserPermission(**{**row.__dict__, 'user': row.user.__dict__}) for row in result]
 
 
 @router.put('/permission', response_model=str)
-async def save_project_permission(project_permission: ProjectPermissionsModel,
-                                  permission=Depends(UserPermissionChecker('owner'))) -> str:
+async def save_project_permission(
+        project_permission: ProjectPermissionsModel,
+        permission: UserPermissions = Depends(UserPermissionChecker('owner')),
+) -> str:
     async with db_engine.session() as session:
         logger.debug('Updating project permissions')
 
@@ -110,16 +117,19 @@ async def save_project_permission(project_permission: ProjectPermissionsModel,
 
 
 @router.delete('/permission')
-async def remove_project_permission(project_permission_id: str,
-                                    permission=Depends(UserPermissionChecker('owner'))):
+async def remove_project_permission(
+        project_permission_id: str,
+        permission: UserPermissions = Depends(UserPermissionChecker('owner')),
+) -> None:
     await delete_project_permissions(project_permission_id=project_permission_id, engine=db_engine)
     await auth_helper.cache.reload_permissions()
 
 
 @router.get('/{project_permission_id}', response_model=ProjectPermissionsModel)
-async def get_project_permissions_by_id(project_permission_id: str,
-                                        permission=Depends(UserPermissionChecker('owner'))) \
-        -> ProjectPermissionsModel | None:
+async def get_project_permissions_by_id(
+        project_permission_id: str,
+        permission: UserPermissions = Depends(UserPermissionChecker('owner')),
+) -> ProjectPermissionsModel | None:
     if permission:
         return await read_project_permissions_by_id(permissions_id=project_permission_id, engine=db_engine)
     return None

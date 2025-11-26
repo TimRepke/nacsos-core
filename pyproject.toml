@@ -21,22 +21,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-remote=[
-    "nacsos-data[utils,scripts] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.23.0"
+remote = [
+    "nacsos_data[utils,scripts] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.23.0"
 ]
-local=[
-    "nacsos-data[utils,scripts]"
+local = [
+    "nacsos_data[utils,scripts]"
 ]
 
 [tool.uv.sources]
-nacsos-data = [
-    { path = "../nacsos_data", editable = true},
-#    { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.23.0" },
+nacsos_data = [
+    { path = "../nacsos_data", editable = true },
+    #    { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.23.0" },
 ]
 
 [dependency-groups]
-dev=[
-    "flake8==7.3.0",
+dev = [
+    "ruff>=0.14.6",
     "tox==4.32.0",
     "pytest==9.0.1",
     "pytest-cov==7.0.0",
@@ -46,15 +46,66 @@ dev=[
     "types-aiofiles==25.1.0.20251011",
 ]
 
+[tool.ruff]
+line-length = 160
+indent-width = 4
+target-version = "py313"
+include = ["pyproject.toml", "src/nacsos_data/**/*.py"]
+exclude = ["src/nacsos_data/scripts/"]
 
-[tool.pytest.ini_options]
-addopts = "--cov=server"
-testpaths = [
-    "tests",
-]
+[tool.ruff.lint]
+select = ["C", "E", "F", "W", "B", "B9"]
+ignore = ["E203", "E501", "E712", "E741", "B010", "B009"]  # , "E126", "W503",
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds 5.
+max-complexity = 12
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "single"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
 
 [tool.mypy]
-mypy_path = "server"
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+strict = true
+follow_imports = "silent"
+
+files = ["server"]
+exclude = []
+
 check_untyped_defs = true
 disallow_any_generics = true
 ignore_missing_imports = true
@@ -66,11 +117,33 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 no_implicit_reexport = true
+strict_optional = true
+explicit_package_bases = false
+show_traceback = true
+incremental = false
+
+# for strict mypy: (this is the tricky one :-))
+disallow_untyped_defs = true
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
 warn_untyped_fields = true
+
+[tool.pyright]
+include = ["src/nacsos_data"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "src/nacsos_data/scripts",
+]
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonVersion = "3.13"
+pythonPlatform = "Linux"
+
 
 

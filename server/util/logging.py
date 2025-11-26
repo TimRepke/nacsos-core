@@ -12,14 +12,14 @@ from uvicorn.logging import DefaultFormatter
 from server.util.config import settings
 
 
-def get_logger(name: str | None = None):
+def get_logger(name: str | None = None) -> logging.Logger:
     if settings.LOGGING_CONF is not None:
         logging.config.dictConfig(settings.LOGGING_CONF)
     return logging.getLogger(name)
 
 
 class ColourFormatter(DefaultFormatter):
-    def formatMessage(self, record):
+    def formatMessage(self, record: logging.LogRecord) -> str:
         pad = (8 - len(record.levelname)) / 2
         levelname = ' ' * math.ceil(pad) + record.levelname + ' ' * math.floor(pad)
         if self.use_colors:
@@ -30,7 +30,7 @@ class ColourFormatter(DefaultFormatter):
         return super().formatMessage(record)
 
 
-def except2str(e, logger=None):
+def except2str(e: Exception, logger: logging.Logger | None = None) -> str:
     if settings.SERVER.DEBUG_MODE:
         tb = traceback.format_exc()
         if logger:

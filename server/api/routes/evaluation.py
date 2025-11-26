@@ -150,7 +150,7 @@ async def update_tracker(tracker_id: str,
         return model
 
 
-async def bg_populate_tracker(tracker_id: str, labels: list[list[int]] | None = None):
+async def bg_populate_tracker(tracker_id: str, labels: list[list[int]] | None = None) -> None:
     async with db_engine.session() as session:  # type: AsyncSession
         tracker = await read_tracker(tracker_id=tracker_id, session=session)
 
@@ -182,9 +182,10 @@ async def bg_populate_tracker(tracker_id: str, labels: list[list[int]] | None = 
 
 
 @router.get('/quality/load/{assignment_scope_id}', response_model=list[AnnotationQualityModel])
-async def get_irr(assignment_scope_id: str,
-                  permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AnnotationQualityModel]:
+async def get_irr(
+        assignment_scope_id: str,
+        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> list[AnnotationQualityModel]:
     async with db_engine.session() as session:  # type: AsyncSession
         results = (
             await session.execute(select(AnnotationQuality)
@@ -195,10 +196,11 @@ async def get_irr(assignment_scope_id: str,
 
 
 @router.get('/quality/compute', response_model=list[AnnotationQualityModel])
-async def recompute_irr(assignment_scope_id: str,
-                        bot_annotation_metadata_id: str | None = None,
-                        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))) \
-        -> list[AnnotationQualityModel]:
+async def recompute_irr(
+        assignment_scope_id: str,
+        bot_annotation_metadata_id: str | None = None,
+        permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> list[AnnotationQualityModel]:
     async with db_engine.session() as session:  # type: AsyncSession
         # Delete existing metrics
         await session.execute(delete(AnnotationQuality)

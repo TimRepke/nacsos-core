@@ -21,7 +21,7 @@ from server.util.config import settings, conf_file
 from server.pipelines.actor import NacsosActor
 
 
-def prefix_sources(sources: list[Path]):
+def prefix_sources(sources: list[Path]) -> list[Path]:
     return [settings.PIPES.user_data_dir / path for path in sources]
 
 
@@ -80,14 +80,13 @@ async def import_task(import_id: str | None = None) -> None:
         elif config.kind == 'oa-solr':
             logger.info('Proceeding with OpenAlex solr import...')
             await import_openalex(query=config.query,
-                                  openalex_url=str(settings.OA_SOLR),
+                                  nacsos_config=Path(conf_file),
                                   def_type=config.def_type,
                                   field=config.field,
                                   op=config.op,
                                   project_id=project_id,
                                   import_id=import_id,
                                   pipeline_task_id=task_id,
-                                  db_config=Path(conf_file),
                                   logger=logger.getChild('oa-solr'))
 
         logger.info('Done, yo!')

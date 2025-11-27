@@ -7,8 +7,7 @@ import os
 
 from nacsos_data.util.conf import DatabaseConfig, OpenAlexConfig
 from pydantic_settings import SettingsConfigDict, BaseSettings
-from pydantic.networks import PostgresDsn
-from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel, model_validator
+from pydantic import field_validator, ValidationInfo, BaseModel, model_validator
 
 
 # For more information how BaseSettings work, check the documentation:

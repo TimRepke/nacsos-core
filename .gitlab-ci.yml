@@ -28,7 +28,7 @@ cache:
   tags:
     - se164-docker
   before_script:
-    #- git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
     - pip install uv
     - python -V
     - pwd

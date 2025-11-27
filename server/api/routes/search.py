@@ -5,7 +5,7 @@ from sqlalchemy import text
 import sqlalchemy.sql.functions as func
 
 from nacsos_data.util.nql import NQLQuery, NQLFilter
-from nacsos_data.util.academic.readers.openalex import openalex_query, SearchResult
+from nacsos_data.util.academic.apis.openalex import SearchResult, OpenAlexSolrAPI
 from nacsos_data.models.items import AcademicItemModel, FullLexisNexisItemModel, GenericItemModel
 from nacsos_data.models.openalex import SearchField, DefType, OpType
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: F401
@@ -41,15 +41,16 @@ class SearchPayload(BaseModel):
 
 @router.post('/openalex/select', response_model=SearchResult)
 async def search_openalex(search: SearchPayload, permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> SearchResult:
-    return openalex_query(
-        query=search.query,
-        openalex_endpoint=str(settings.OA_SOLR),
-        histogram=search.histogram,
+    return OpenAlexSolrAPI(
+        openalex_conf=settings.OPENALEX,
+        include_histogram=search.histogram,
         histogram_to=search.histogram_to,
         histogram_from=search.histogram_from,
         op=search.op,
         def_type=search.def_type,
         field=search.field,
+    ).query(
+        query=search.query,
         offset=search.offset,
         limit=search.limit,
     )

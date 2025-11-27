@@ -33,7 +33,7 @@ cache:
     - python -V
     - pwd
     - ls -lisah
-    - uv sync --group dev
+    - uv sync --extra light --group dev
   after_script:
     - uv cache prune --ci
 

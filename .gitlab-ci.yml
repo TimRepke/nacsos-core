@@ -33,6 +33,7 @@ cache:
     - python -V
     - pwd
     - ls -lisah
+    - uv sync --group dev
   after_script:
     - uv cache prune --ci
 
@@ -40,7 +41,7 @@ build-job:
   extends: .uv
   stage: build
   script:
-    - uv sync --extra light --group dev
+    - uv pip freeze
 
 test-ruff:
   extends: .uv

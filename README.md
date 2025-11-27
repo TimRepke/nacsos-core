@@ -20,7 +20,8 @@ pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```bash
 python3.13 -m venv .venv
 
-uv sync --extra remote --no-dev
+uv sync
+uv pip install -e ".[utils,scripts]"
 
 # Development setup with editable nacsos-data lib
 uv sync --extra local

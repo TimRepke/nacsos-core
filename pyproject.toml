@@ -18,21 +18,20 @@ dependencies = [
     "python-multipart==0.0.20",
     "toml==0.10.2",
     "uvicorn==0.38.0",
-    "systemd-python==235",
+    #    "systemd-python==235",
 ]
 
 [project.optional-dependencies]
-remote = [
-    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.23.0"
+light = [
+    "nacsos_data[utils]"
 ]
-local = [
-    "nacsos_data[utils,scripts]"
+full = [
+    "nacsos_data[utils,scripts,priority]"
 ]
 
 [tool.uv.sources]
 nacsos_data = [
-    { path = "../nacsos_data", editable = true },
-    #    { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.23.0" },
+    { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.23.0" },
 ]
 
 [dependency-groups]

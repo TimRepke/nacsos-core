@@ -3,7 +3,7 @@ image: python:3.13
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   UV_LINK_MODE: copy
-  UV_PROJECT_ENVIRONMENT: "venv"
+  UV_PROJECT_ENVIRONMENT: ".venv"
   UV_CACHE_DIR: .uv-cache
 
 before_script:
@@ -40,7 +40,7 @@ build-job:
   extends: .uv
   stage: build
   script:
-    - uv sync --group dev --extra remote
+    - uv sync --extra light --group dev
 
 test-ruff:
   extends: .uv
@@ -73,18 +73,18 @@ deploy-to-production:
     - echo "Stopping NACSOS-core service"
     - sudo systemctl stop nacsos-core.service
     - echo "Dropping virtual environment"
-    - rm -rf venv
+    - rm -rf .venv
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
-    - uv sync --extra remote --no-dev --no-editable --cache-dir ..
+    - uv sync --extra full --cache-dir ../.cache
     - source venv/bin/activate
     - which python
     - python -V
     - pip freeze
     - echo "Handling migrations"
-    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/venv/lib/python/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
+    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/.venv/lib/python/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
     - sudo chown -R nacsos:nacsos /data/nacsos2/nacsos-core
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service

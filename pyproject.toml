@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 remote = [
-    "nacsos_data[utils,scripts,priority]"
+    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.23.0"
 ]
 local = [
     "nacsos_data[utils,scripts]"
@@ -31,8 +31,8 @@ local = [
 
 [tool.uv.sources]
 nacsos_data = [
-    { extra = "local", path = "../nacsos_data", editable = true },
-    { extra = "remote", git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.23.0" },
+    { path = "../nacsos_data", editable = true },
+    #    { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.23.0" },
 ]
 
 [dependency-groups]

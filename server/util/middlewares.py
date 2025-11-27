@@ -82,8 +82,9 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                         message=error_str,
                         args=self._resolve_args(ew),
                     ).model_dump(),
-                    headers=headers
-                ))
+                    headers=headers,
+                ),
+            )
 
 
 class TimingMiddleware(BaseHTTPMiddleware):

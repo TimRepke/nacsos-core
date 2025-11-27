@@ -59,7 +59,7 @@ async def search_openalex(search: SearchPayload, permissions: UserPermissions = 
 @router.get('/openalex/terms', response_model=list[TermStats])
 async def term_expansion(term_prefix: str, limit: int = 20, permissions: UserPermissions = Depends(UserPermissionChecker('search_oa'))) -> list[TermStats]:
     url = (
-        f'{settings.OA_SOLR}/terms'
+        f'{settings.OPENALEX.SOLR_URL}/terms'
         f'?facet=true'
         f'&indent=true'
         f'&q.op=OR'

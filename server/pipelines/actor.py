@@ -71,7 +71,7 @@ class NacsosActor(Actor[P, R]):
             args=args, kwargs=kwargs, nacsos_actor_name=self.actor_name, nacsos_task_id=self.task_id, max_retries=0, time_limit=129600000
         )  # 24h in ms => 24*60*60*1000
 
-        db_engine = get_engine(settings=settings.DB)  # type: ignore[arg-type]
+        db_engine = get_engine(settings=settings.DB)
         with db_engine.session() as session:  # type: Session
             task = Task(
                 task_id=self.task_id,
@@ -98,7 +98,7 @@ class NacsosActor(Actor[P, R]):
 
         from nacsos_data.db import get_engine_async
 
-        db_engine = get_engine_async(settings=settings.DB)  # type: ignore[arg-type]
+        db_engine = get_engine_async(settings=settings.DB)
 
         actor_name: str = 'anonymous_actor'
         task_id: str | None = None

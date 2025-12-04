@@ -13,9 +13,9 @@ dramatiq.set_broker(broker)
 
 event_backend = backends.RedisBackend.from_url(settings.PIPES.REDIS_URL)
 abortable = Abortable(backend=event_backend)
-broker.add_middleware(abortable)  # type: ignore [no-untyped-call]
-broker.add_middleware(CurrentMessage())  # type: ignore [no-untyped-call]
-broker.add_middleware(AsyncIO())  # type: ignore [no-untyped-call]
+broker.add_middleware(abortable)
+broker.add_middleware(CurrentMessage())
+broker.add_middleware(AsyncIO())
 
 # # Import the module
 # module = importlib.import_module(exec_info.module, package=exec_info.package_path)

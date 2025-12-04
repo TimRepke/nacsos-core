@@ -1,7 +1,7 @@
 import re
 import unicodedata
 from shutil import rmtree
-from typing import AsyncGenerator, Annotated, Any
+from typing import AsyncGenerator, Annotated
 from uuid import uuid4
 from pathlib import Path
 
@@ -19,7 +19,6 @@ from nacsos_data.util.auth import UserPermissions
 from pydantic import StringConstraints
 from tempfile import TemporaryDirectory
 
-from server.pipelines.tasks import broker
 from server.util.files import delete_directory, zip_folder, get_outputs_flat
 from server.util.security import UserPermissionChecker, get_current_active_superuser
 from server.util.logging import get_logger
@@ -201,19 +200,21 @@ async def terminate_task(
     abort(message_id)
 
 
-@router.get('/dramatiq/workers')
-async def get_d_workers() -> list[Any]:
-    from dramatiq_dashboard.interface import RedisInterface
-
-    inter = RedisInterface(broker=broker)
-    return inter.workers  # type: ignore[no-any-return]
-
-
-@router.get('/dramatiq/tasks')
-async def get_d_tasks() -> list[Any]:
-    from dramatiq_dashboard.interface import RedisInterface
-
-    inter = RedisInterface(broker=broker)
-    print(inter.get_jobs('nacsos-pipes'))
-    print(inter.get_queue('nacsos-pipes'))
-    return inter.queues  # type: ignore[no-any-return]
+# @router.get('/dramatiq/workers')
+# async def get_d_workers() -> list[Any]:
+#     from server.pipelines.tasks import broker
+#     from dramatiq_dashboard.interface import RedisInterface
+#
+#     inter = RedisInterface(broker=broker)
+#     return inter.workers  # type: ignore[no-any-return]
+#
+#
+# @router.get('/dramatiq/tasks')
+# async def get_d_tasks() -> list[Any]:
+#     from server.pipelines.tasks import broker
+#     from dramatiq_dashboard.interface import RedisInterface
+#
+#     inter = RedisInterface(broker=broker)
+#     print(inter.get_jobs('nacsos-pipes'))
+#     print(inter.get_queue('nacsos-pipes'))
+#     return inter.queues  # type: ignore[no-any-return]

@@ -20,13 +20,9 @@ pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 ```bash
 python3.13 -m venv .venv
 
-uv sync --dev
-uv pip install -e "../nacsos_data/[utils,scripts]"
-
-# Development setup with editable nacsos-data lib
-uv sync --extra local
-# Development setup with nacsos-data lib from git (not advised)
-uv sync --extra remote
+uv sync --dev --extra light
+# or
+uv sync --dev --extra full
 
 uv run mypy
 uv run ruff check

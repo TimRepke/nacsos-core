@@ -80,7 +80,7 @@ deploy-to-production:
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
-    - uv sync --extra full --cache-dir ../.cache
+    - uv sync --extra full --no-sources --cache-dir ../.cache
     - source venv/bin/activate
     - which python
     - python -V

@@ -23,6 +23,8 @@ python3.13 -m venv .venv
 uv sync --dev --extra light
 # or
 uv sync --dev --extra full
+# to install nacsos-data from remote
+uv sync --no-sources --dev --extra ??
 
 uv run mypy
 uv run ruff check

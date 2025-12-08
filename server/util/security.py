@@ -45,6 +45,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserModel:
         raise NotAuthenticated(str(e))
     except InsufficientPermissionError as e:
         raise InsufficientPermissions(str(e))
+    except Exception as e:
+        raise NotAuthenticated(str(e))
 
 
 async def get_current_active_user(current_user: UserModel = Depends(get_current_user)) -> UserModel:
@@ -61,19 +63,20 @@ def get_current_active_superuser(current_user: UserModel = Depends(get_current_a
 
 class UserPermissionChecker:
     def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None, fulfill_all: bool = True):
-        self.permissions = permissions
+        if type(permissions) is str:
+            # convert singular permission to list for unified processing later
+            self.permissions = [permissions]
+        else:
+            self.permissions = permissions
         self.fulfill_all = fulfill_all
 
-        # convert singular permission to list for unified processing later
-        if type(self.permissions) is str:
-            self.permissions = [self.permissions]
 
     async def __call__(self, x_project_id: str = Header(), current_user: UserModel = Depends(get_current_active_user)) -> UserPermissions:
         """
-        This function checks the whether a set of required permissions is fulfilled
+        This function checks that a set of required permissions is fulfilled
         for the given project for the currently active user.
         The list of `permissions` corresponds to boolean fields in the respective `ProjectPermissions` instance.
-        If left empty, only the existence of such an instance is checked – meaning whether or not the user
+        If left empty, only the existence of such an instance is checked—meaning that the user
         is allowed to see or access the project in one way or another.
 
         If at least one permission is not fulfilled or no instance exists, this function raises a 403 HTTPException

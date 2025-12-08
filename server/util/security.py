@@ -63,13 +63,13 @@ def get_current_active_superuser(current_user: UserModel = Depends(get_current_a
 
 class UserPermissionChecker:
     def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None, fulfill_all: bool = True):
+        self.permissions: list[ProjectPermission] | None
         if type(permissions) is str:
             # convert singular permission to list for unified processing later
             self.permissions = [permissions]
-        else:
+        elif type(permissions) is list:
             self.permissions = permissions
         self.fulfill_all = fulfill_all
-
 
     async def __call__(self, x_project_id: str = Header(), current_user: UserModel = Depends(get_current_active_user)) -> UserPermissions:
         """

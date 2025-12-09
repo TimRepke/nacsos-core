@@ -14,9 +14,9 @@ before_script:
   - echo "  password ${CI_JOB_TOKEN}" >> ~/.netrc
 
 stages:
+  - deploy
   - build
   - test
-  - deploy
 
 cache:
   - key:
@@ -43,8 +43,6 @@ build-job:
   stage: build
   script:
     - uv pip freeze
-  only:
-    - production
 
 test-ruff:
   extends: .uv
@@ -52,16 +50,12 @@ test-ruff:
   script:
     - uv run ruff check
     - uv run ruff format --check
-  only:
-    - production
 
 test-mypy:
   extends: .uv
   stage: test
   script:
     - uv run mypy
-  only:
-    - production
 
 deploy-to-production:
   stage: deploy

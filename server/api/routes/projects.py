@@ -36,20 +36,14 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
     :return: List of projects
     """
     stmt_owners = (
-        select(
-            ProjectPermissions.project_id,
-            func.array_agg(
-                func.row_to_json(text('"user".*'))
-            ).label('owners')
-        )
+        select(ProjectPermissions.project_id, func.array_agg(func.row_to_json(text('"user".*'))).label('owners'))
         .join(User, ProjectPermissions.user_id == User.user_id)
         .where(ProjectPermissions.owner == True)  # noqa: E712
         .group_by(ProjectPermissions.project_id)
         .cte()
     )
 
-    stmt_projects = select(Project, stmt_owners.c.owners) \
-        .join(stmt_owners, Project.project_id == stmt_owners.c.project_id, isouter=True)
+    stmt_projects = select(Project, stmt_owners.c.owners).join(stmt_owners, Project.project_id == stmt_owners.c.project_id, isouter=True)
 
     if current_user.is_superuser:
         # superuser needs no filtering, sees all projects
@@ -57,29 +51,23 @@ async def get_all_projects(current_user: UserModel = Depends(get_current_active_
     else:
         if current_user.user_id is not None:
             # regular users only see their own projects
-            stmt_projects = stmt_projects \
-                .join(ProjectPermissions, Project.project_id == ProjectPermissions.project_id) \
-                .where(ProjectPermissions.user_id == current_user.user_id)
+            stmt_projects = stmt_projects.join(ProjectPermissions, Project.project_id == ProjectPermissions.project_id).where(
+                ProjectPermissions.user_id == current_user.user_id
+            )
         else:
-            raise MissingInformationError(
-                '`current_user` has no `user_id`, which points to a serious issue in the system!')
+            raise MissingInformationError('`current_user` has no `user_id`, which points to a serious issue in the system!')
 
     async with db_engine.session() as session:  # type: AsyncSession
         result = await session.execute(stmt_projects)
 
         return [
-            ProjectInfo(owners=[
-                UserBaseModel.model_validate(owner)
-                for owner in (row['owners'] or [])
-            ],
-                **row['Project'].__dict__)
+            ProjectInfo(owners=[UserBaseModel.model_validate(owner) for owner in (row['owners'] or [])], **row['Project'].__dict__)
             for row in result.mappings().all()
         ]
 
 
 @router.put('/create', response_model=str)
-async def create_project(project: ProjectModel,
-                         superuser: UserModel = Depends(get_current_active_superuser)) -> str:
+async def create_project(project: ProjectModel, superuser: UserModel = Depends(get_current_active_superuser)) -> str:
     async with db_engine.session() as session:  # type: AsyncSession
         if project.project_id is None:
             project.project_id = str(uuid.uuid4())

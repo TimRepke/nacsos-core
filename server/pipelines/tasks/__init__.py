@@ -8,7 +8,7 @@ from dramatiq_abort import Abortable, backends
 from server.util.config import settings
 
 logger = logging.getLogger('nacsos.pipelines.task')
-broker = RedisBroker(url=settings.PIPES.REDIS_URL)
+broker = RedisBroker(url=settings.PIPES.REDIS_URL)  # type: ignore [no-untyped-call]
 dramatiq.set_broker(broker)
 
 event_backend = backends.RedisBackend.from_url(settings.PIPES.REDIS_URL)
@@ -34,5 +34,5 @@ broker.add_middleware(AsyncIO())
 #     result = func(*args, ctx=ctx, **kwargs)
 
 
-from . import imports
-from . import sleepy
+from . import imports  # noqa: F401, E402
+from . import sleepy  # noqa: F401, E402

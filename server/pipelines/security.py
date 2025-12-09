@@ -17,14 +17,15 @@ class UserTaskProjectPermissions(UserPermissions):
 
 
 class UserTaskPermissionChecker(UserPermissionChecker):
-    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None,
-                 fulfill_all: bool = True):
+    def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None, fulfill_all: bool = True):
         super().__init__(permissions, fulfill_all)
 
-    async def __call__(self,  # type: ignore[override]
-                       x_task_id: str = Header(),
-                       x_project_id: str = Header(),
-                       current_user: UserModel = Depends(get_current_active_user)) -> UserTaskProjectPermissions:
+    async def __call__(  # type: ignore[override]
+        self,
+        x_task_id: str = Header(),
+        x_project_id: str = Header(),
+        current_user: UserModel = Depends(get_current_active_user),
+    ) -> UserTaskProjectPermissions:
         permissions = await super().__call__(x_project_id=x_project_id, current_user=current_user)
         try:
             task: TaskModel | None = await read_task_by_id(task_id=x_task_id, db_engine=db_engine)
@@ -36,9 +37,7 @@ class UserTaskPermissionChecker(UserPermissionChecker):
                 # TODO: do we also want to check if the user_id overlaps?
                 raise InsufficientPermissionError('Invalid task or project permissions.')
 
-            return UserTaskProjectPermissions(user=permissions.user,
-                                              permissions=permissions.permissions,
-                                              task=task)
+            return UserTaskProjectPermissions(user=permissions.user, permissions=permissions.permissions, task=task)
 
         except (InvalidCredentialsError, InsufficientPermissionError) as e:
             raise InsufficientPermissions(repr(e))

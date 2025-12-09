@@ -14,7 +14,7 @@ from nacsos_data.util.annotations.export import (
     get_project_scopes,
     get_project_bot_scopes,
     get_project_users,
-    LabelOptions
+    LabelOptions,
 )
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-def cleanup(file):
+def cleanup(file: str) -> None:
     os.remove(file)
 
 
@@ -51,29 +51,28 @@ class ExportRequest(BaseModel):
 
 
 @router.post('/annotations/csv', response_class=CFR)
-async def get_annotations_csv(query: ExportRequest,
-                              permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))):
-    result = await prepare_export_table(bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
-                                        assignment_scope_ids=query.assignment_scope_ids,
-                                        user_ids=query.user_ids,
-                                        project_id=permissions.permissions.project_id,
-                                        labels=query.labels,
-                                        nql_filter=query.nql_filter,
-                                        ignore_repeat=query.ignore_repeat,
-                                        ignore_hierarchy=query.ignore_hierarchy,
-                                        db_engine=db_engine)
+async def get_annotations_csv(
+    query: ExportRequest,
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> FileResponse:
+    result = await prepare_export_table(
+        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
+        assignment_scope_ids=query.assignment_scope_ids,
+        user_ids=query.user_ids,
+        project_id=permissions.permissions.project_id,
+        labels=query.labels,
+        nql_filter=query.nql_filter,
+        ignore_repeat=query.ignore_repeat,
+        ignore_hierarchy=query.ignore_hierarchy,
+        db_engine=db_engine,
+    )
 
     with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
         writer = csv.DictWriter(fp, fieldnames=list(result[0].keys()))
         writer.writeheader()
-        [
-            writer.writerow(lab)
-            for lab in result
-        ]
+        [writer.writerow(lab) for lab in result]
 
-        return FileResponse(fp.name,
-                            background=BackgroundTask(cleanup, fp.name),
-                            media_type='application/csv')
+        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
 
 
 class ProjectBaseInfoEntry(BaseModel):
@@ -94,21 +93,21 @@ class ProjectBaseInfo(BaseModel):
 
 
 @router.get('/project/baseinfo', response_model=ProjectBaseInfo)
-async def get_export_baseinfo(permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read'))):
-    project_users = await get_project_users(project_id=permissions.permissions.project_id,
-                                            db_engine=db_engine)
-    project_scopes = await get_project_scopes(project_id=permissions.permissions.project_id,
-                                              db_engine=db_engine)
-    project_bot_scopes = await get_project_bot_scopes(project_id=permissions.permissions.project_id,
-                                                      db_engine=db_engine)
-    project_labels = await get_project_labels(project_id=permissions.permissions.project_id,
-                                              db_engine=db_engine)
+async def get_export_baseinfo(
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> ProjectBaseInfo:
+    project_users = await get_project_users(project_id=permissions.permissions.project_id, db_engine=db_engine)
+    project_scopes = await get_project_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine)
+    project_bot_scopes = await get_project_bot_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine)
+    project_labels = await get_project_labels(project_id=permissions.permissions.project_id, db_engine=db_engine)
     project = await read_project_by_id(project_id=permissions.permissions.project_id, engine=db_engine)
 
     if project is None:
         raise RuntimeError('Invalid state!')
 
-    return ProjectBaseInfo(users=[ProjectBaseInfoEntry.model_validate(pu) for pu in project_users],
-                           scopes=[ProjectBaseInfoScopeEntry.model_validate(ps) for ps in project_scopes],
-                           bot_scopes=[ProjectBaseInfoEntry.model_validate(pbs) for pbs in project_bot_scopes],
-                           labels=project_labels)
+    return ProjectBaseInfo(
+        users=[ProjectBaseInfoEntry.model_validate(pu) for pu in project_users],
+        scopes=[ProjectBaseInfoScopeEntry.model_validate(ps) for ps in project_scopes],
+        bot_scopes=[ProjectBaseInfoEntry.model_validate(pbs) for pbs in project_bot_scopes],
+        labels=project_labels,
+    )

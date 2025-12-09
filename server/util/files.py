@@ -7,6 +7,7 @@ class MissingFileError(FileNotFoundError):
     """
     Essentially just a wrapper for FileNotFoundError
     """
+
     pass
 
 
@@ -18,13 +19,12 @@ def get_outputs_flat(root: Path, base: Path, include_fsize: bool = True) -> list
     if not root.exists():
         raise MissingFileError(f'No outputs yet at {root}')
     ret: list[tuple[str, int] | str] = []
-    for walk_root, dirs, files in os.walk(str(root)):
+    for walk_root, _dirs, files in os.walk(str(root)):
         for file in files:
             if include_fsize:
-                ret.append((f'{walk_root[len(str(base)) + 1:]}/{file}',
-                            os.path.getsize(f'{walk_root}/{file}')))
+                ret.append((f'{walk_root[len(str(base)) + 1 :]}/{file}', os.path.getsize(f'{walk_root}/{file}')))
             else:
-                ret.append(f'{walk_root[len(str(base)) + 1:]}/{file}')
+                ret.append(f'{walk_root[len(str(base)) + 1 :]}/{file}')
     return ret
 
 
@@ -37,7 +37,7 @@ def delete_files(base: Path, files: list[str]) -> None:
         if fp.is_file():
             fp.unlink()
         else:
-            raise MissingFileError(f'Can\'t delete missing file: {fp}')
+            raise MissingFileError(f"Can't delete missing file: {fp}")
 
 
 def delete_directory(path: Path) -> None:
@@ -48,7 +48,7 @@ def delete_directory(path: Path) -> None:
     if fp.is_dir():
         fp.rmdir()
     else:
-        raise MissingFileError(f'Can\'t delete missing folder: {fp}')
+        raise MissingFileError(f"Can't delete missing folder: {fp}")
 
 
 def zip_files(abs_filenames: list[str], target_file: str | Path) -> None:
@@ -66,7 +66,7 @@ def zip_folder(path: Path, target_file: str) -> None:
     """
     files_ = []
     base = path.resolve()
-    for root, dirs, files in os.walk(base):
+    for root, _dirs, files in os.walk(base):
         for file in files:
             files_.append(f'{root}/{file}')
     zip_files(files_, target_file=target_file)

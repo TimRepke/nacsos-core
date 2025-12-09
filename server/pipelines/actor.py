@@ -21,16 +21,14 @@ from server.util.logging import get_file_logger, LogRedirector
 
 logger = logging.getLogger('nacsos.pipelines.actor')
 
-R = TypeVar("R")
-P = ParamSpec("P")
+R = TypeVar('R')
+P = ParamSpec('P')
 
 
 class NacsosActor(Actor[P, R]):
-    def __init__(self, fn: Callable[P, R | Awaitable[R]], *, broker: Broker, actor_name: str, queue_name: str,
-                 priority: int, options: dict[str, Any]):
-        actor_name = f'{fn.__module__[len("server."):]}.{fn.__name__}'
-        super().__init__(fn, broker=broker, actor_name=actor_name, queue_name=queue_name, priority=priority,
-                         options=options)
+    def __init__(self, fn: Callable[P, R | Awaitable[R]], *, broker: Broker, actor_name: str, queue_name: str, priority: int, options: dict[str, Any]):
+        actor_name = f'{fn.__module__[len("server.") :]}.{fn.__name__}'
+        super().__init__(fn, broker=broker, actor_name=actor_name, queue_name=queue_name, priority=priority, options=options)
 
         self.message_id: str | None = None
         self.task_id: str | None = None
@@ -51,33 +49,42 @@ class NacsosActor(Actor[P, R]):
         """
         return datetime.datetime.now() + datetime.timedelta(days=self.options.get('keep_days', 14))
 
-    def send(self,  # type: ignore[valid-type, override]
-             project_id: str,
-             *args: P.args,
-             user_id: str | None = None,
-             comment: str | None = None,
-             **kwargs: P.kwargs) -> Message[R]:
+    def send(  # type: ignore[valid-type, override]
+        self,
+        project_id: str,
+        *args: P.args,
+        user_id: str | None = None,
+        comment: str | None = None,
+        **kwargs: P.kwargs,
+    ) -> Message[R]:
         from nacsos_data.db import get_engine
 
         self.task_id = str(uuid.uuid4())
 
         params = {**kwargs}
         for i, arg in enumerate(args):
-            params[self.fn.__code__.co_varnames[i]] = arg  # type: ignore[attr-defined]
+            params[self.fn.__code__.co_varnames[i]] = arg
 
         fingerprint = compute_fingerprint(full_name=self.actor_name, params=params)
 
-        message = super().send_with_options(args=args, kwargs=kwargs,
-                                            nacsos_actor_name=self.actor_name,
-                                            nacsos_task_id=self.task_id,
-                                            max_retries=0,
-                                            time_limit=129600000)  # 24h in ms => 24*60*60*1000
+        message = super().send_with_options(
+            args=args, kwargs=kwargs, nacsos_actor_name=self.actor_name, nacsos_task_id=self.task_id, max_retries=0, time_limit=129600000
+        )  # 24h in ms => 24*60*60*1000
 
-        db_engine = get_engine(settings=settings.DB)  # type: ignore[arg-type]
+        db_engine = get_engine(settings=settings.DB)
         with db_engine.session() as session:  # type: Session
-            task = Task(task_id=self.task_id, user_id=user_id, project_id=project_id, function_name=self.actor_name,
-                        params=params, fingerprint=fingerprint, comment=comment, message_id=message.message_id,
-                        rec_expunge=self.rec_expunge, status=TaskStatus.PENDING)
+            task = Task(
+                task_id=self.task_id,
+                user_id=user_id,
+                project_id=project_id,
+                function_name=self.actor_name,
+                params=params,
+                fingerprint=fingerprint,
+                comment=comment,
+                message_id=message.message_id,
+                rec_expunge=self.rec_expunge,
+                status=TaskStatus.PENDING,
+            )
             session.add(task)
             session.commit()
             self.logger.info('Wrote task info to database.')
@@ -86,17 +93,17 @@ class NacsosActor(Actor[P, R]):
 
     @classmethod
     @asynccontextmanager
-    async def exec_context(cls) \
-            -> AsyncIterator[tuple[DatabaseConfig, logging.Logger, Path, str, str | None, str | None]]:
+    async def exec_context(cls) -> AsyncIterator[tuple[DatabaseConfig, logging.Logger, Path, str, str | None, str | None]]:
         logger.info('Opening execution context')
 
         from nacsos_data.db import get_engine_async
-        db_engine = get_engine_async(settings=settings.DB)  # type: ignore[arg-type]
+
+        db_engine = get_engine_async(settings=settings.DB)
 
         actor_name: str = 'anonymous_actor'
         task_id: str | None = None
         message_id: str | None = None
-        message: Message[R] = CurrentMessage.get_current_message()  # type: ignore[type-arg,assignment]
+        message: Message[R] = CurrentMessage.get_current_message()  # type: ignore[assignment]
         if message:
             message_id = message.message_id
             actor_name = message.options.get('nacsos_actor_name')  # type: ignore[assignment]
@@ -106,8 +113,7 @@ class NacsosActor(Actor[P, R]):
         target_dir = settings.PIPES.target_dir / str(task_id)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        task_logger_ = get_file_logger(name=actor_name, out_file=target_dir / 'progress.log',
-                                       level='DEBUG', stdio=False)
+        task_logger_ = get_file_logger(name=actor_name, out_file=target_dir / 'progress.log', level='DEBUG', stdio=False)
         task_logger = task_logger_.getChild(task_id or 'child')
 
         async with db_engine.session() as session:  # type: AsyncSession
@@ -122,9 +128,11 @@ class NacsosActor(Actor[P, R]):
                 task_logger.warning(f'Task {task_id} not found in database.')
 
         status: TaskStatus | None = None
-        with TemporaryDirectory(dir=settings.PIPES.WORKING_DIR) as work_dir, \
-                LogRedirector(task_logger, level='INFO', stream='stdout'), \
-                LogRedirector(task_logger, level='ERROR', stream='stderr'):
+        with (
+            TemporaryDirectory(dir=settings.PIPES.WORKING_DIR) as work_dir,
+            LogRedirector(task_logger, level='INFO', stream='stdout'),
+            LogRedirector(task_logger, level='ERROR', stream='stderr'),
+        ):
             try:
                 # Yielding this info implicitly executes everything in the `with:` context.
                 yield settings.DB, task_logger, target_dir, work_dir, task_id, message_id
@@ -148,7 +156,7 @@ class NacsosActor(Actor[P, R]):
                         await session.commit()
                         task_logger.info(f'Wrote task finish info ({status}) to database.')
                     else:
-                        task_logger.warning(f'Task {task_id} not found in database; '
-                                            f'failed to write finish info ({status}).')
+                        task_logger.warning(f'Task {task_id} not found in database; failed to write finish info ({status}).')
+
 
 # TODO: Handle `abort()` in task update

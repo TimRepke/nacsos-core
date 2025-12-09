@@ -12,7 +12,7 @@ async def tracked_sleep_task(sleep_time: int = 10) -> None:
     message = CurrentMessage.get_current_message()
     print('message')
     print(message)
-    log = get_logger('mod', __name__)
+    log = get_logger('mod', __name__)  # type: ignore[no-untyped-call]
     log.info('message')
     log.info(message)
     async with NacsosActor.exec_context() as (session, logger, target_dir, work_dir, task_id, message_id):

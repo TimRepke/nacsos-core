@@ -16,26 +16,28 @@ logger.debug('Setup nacsos.api.route.ping router')
 
 
 @router.get('/tracked-sleep-task')
-async def tracked_task(sleep_time: int = 10):
-    tasks.sleepy.tracked_sleep_task.send(sleep_time=sleep_time,  # type: ignore[call-arg]
-                                         project_id='86a4d535-0311-41f7-a934-e4ab0a465a68',
-                                         comment='Pinged sleeping task')
+async def tracked_task(sleep_time: int = 10) -> None:
+    tasks.sleepy.tracked_sleep_task.send(
+        sleep_time=sleep_time,  # type: ignore[call-arg]
+        project_id='86a4d535-0311-41f7-a934-e4ab0a465a68',
+        comment='Pinged sleeping task',
+    )
 
 
 @router.get('/sleep-task')
-async def task(sleep_time: int = 10):
-    tasks.sleepy.sleep_task.send(sleep_time=sleep_time)  # type: ignore[call-arg]
+async def task(sleep_time: int = 10) -> None:
+    tasks.sleepy.sleep_task.send(sleep_time=sleep_time)
 
 
 @router.get('/', response_class=PlainTextResponse)
-async def _pong():
+async def _pong() -> PlainTextResponse:
     print('test')
     logger.debug('ping test DEBUG log')
     logger.info('ping test INFO log')
     logger.warning('ping test WARNING log')
     logger.error('ping test ERROR log')
     logger.fatal('ping test FATAL log')
-    return 'pong'
+    return PlainTextResponse('pong')
 
 
 class ExampleError(Exception):
@@ -57,12 +59,12 @@ async def _warn() -> str:
 
 
 @router.get('/permission')
-async def perm():
+async def perm() -> None:
     raise InsufficientPermissions('You do not have permission to edit this data import.')
 
 
 @router.get('/database')
-async def db_test():
+async def db_test() -> int | None:
     async with db_engine.engine.connect() as session:
         rslt = (await session.execute(select(F.count(Project.project_id)))).scalar()
         logger.debug(f'There are {rslt:,} projects on the platform')

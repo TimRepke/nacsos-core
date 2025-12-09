@@ -1,104 +1,93 @@
-# Change pip's cache directory to be inside the project directory since we can
-# only cache local items.
+image: python:3.13
+
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-# Pip's cache doesn't store the python packages
-# https://pip.pypa.io/en/stable/reference/pip_install/#caching
-#
-# If you want to also cache the installed packages, you have to install
-# them in a virtualenv and cache it as well.
-cache:
-  paths:
-    - .cache/pip
-    - venv/
+  UV_LINK_MODE: copy
+  UV_PROJECT_ENVIRONMENT: ".venv"
+  UV_CACHE_DIR: .uv-cache
+  UV_NO_SOURCES: true
 
 before_script:
   # Provides credentials to pip to access private GitLab PyPi index.
   - echo "machine gitlab.pik-potsdam.de" > ~/.netrc
-  - echo "login gitlab-ci-token" >> ~/.netrc
-  - echo "password ${CI_JOB_TOKEN}" >> ~/.netrc
+  - echo "  login gitlab-ci-token" >> ~/.netrc
+  - echo "  password ${CI_JOB_TOKEN}" >> ~/.netrc
 
 stages:
   - build
   - test
   - deploy
 
-image: python:3.12
+cache:
+  - key:
+      files:
+        - uv.lock
+    paths:
+      - $UV_CACHE_DIR
 
-build-job:
-  stage: build
+.uv:
   tags:
-    - vm,docker
-  script:
+    - se164-docker
+  before_script:
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - pip install uv
     - python -V
-    - pip install virtualenv
-    - virtualenv venv
-    - source venv/bin/activate
     - pwd
     - ls -lisah
-    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
-    - pip install setuptools
-    - pip install -r requirements.txt
-    - pip install -r requirements_dev.txt
+    - uv sync --extra light --group dev
+  after_script:
+    - uv cache prune --ci
 
-test-job1:
-  stage: test
-  tags:
-    - vm,docker
+build-job:
+  extends: .uv
+  stage: build
   script:
-    - source venv/bin/activate
-    - flake8 --config .flake8
+    - uv pip freeze
 
-test-job2:
+test-ruff:
+  extends: .uv
   stage: test
-  tags:
-    - vm,docker
   script:
-    - source venv/bin/activate
-    - which python
-    - pip freeze
-    - python -m mypy --config-file=pyproject.toml server --show-traceback --no-incremental
+    - uv run ruff check
+    - uv run ruff format --check
+
+test-mypy:
+  extends: .uv
+  stage: test
+  script:
+    - uv run mypy
 
 deploy-to-production:
   stage: deploy
   tags:
-    - vm,bare-metal
+    - se164-bare
   script:
     - echo "Current working directory and user"
     - pwd
     - whoami
     - groups
     - echo $HOME
-    - echo "Reset git config"
-    - rm -f /home/gitlab-runner/.gitconfig
-    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
-    - git config --global user.name gitlab-runner
-    - git config --global user.email gitlab-runner@gitlab.pik-potsdam.de
-    - git config --global -l --show-origin
     - echo "Go to deployment location"
-    - cd /var/www/nacsos2/nacsos-core
+    - cd /data/nacsos2/nacsos-core
     - ls -lisah
-    - sudo chown -R gitlab-runner:gitlab-runner /var/www/nacsos2/nacsos-core
+    - sudo chown -R gitlab-runner:gitlab-runner /data/nacsos2/nacsos-core
     - ls -lisah
     - echo "Stopping NACSOS-core service"
     - sudo systemctl stop nacsos-core.service
     - echo "Dropping virtual environment"
-    - rm -rf venv
+    - rm -rf .venv
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
-    - python3.12 -m venv venv
+    - uv sync --extra full --no-sources --cache-dir ../.cache
     - source venv/bin/activate
     - which python
     - python -V
-    - echo "Installing requirements"
-    - pip install -r requirements.txt
-    - pip install systemd-python
+    - pip freeze
     - echo "Handling migrations"
-    - nacsos_migrate upgrade --revision head --root-path=/var/www/nacsos2/nacsos-core/venv/lib/python3.12/site-packages/nacsos_data --ini-file=/var/www/nacsos2/nacsos-core/config/alembic.ini
-    - sudo chown -R nacsos:nacsos /var/www/nacsos2/nacsos-core
+    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/.venv/lib/python/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
+    - sudo chown -R nacsos:nacsos /data/nacsos2/nacsos-core
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
   when: manual
@@ -109,7 +98,7 @@ deploy-to-production:
 restart-workers:
   stage: deploy
   tags:
-    - vm,bare-metal
+    - se164-bare
   script:
     - sudo systemctl stop nacsos-dramatiq.service
     - sleep 10

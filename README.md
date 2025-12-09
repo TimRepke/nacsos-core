@@ -18,17 +18,18 @@ pg_dump -d nacsos_core -h localhost -U root -W -p 5432 > dump.sql
 - Assumes nacsos_data to be cloned in sibling folder
 
 ```bash
-virtualenv venv
-source venv/bin/activate
-pip install -r requirements_dev.txt
-```
+python3.13 -m venv .venv
 
-For development, it is advised to install `nacsos-data` locally (not from git) via
-```bash
-pip install -e  "../nacsos_data[utils,scripts]"
+uv sync --dev --extra light
+# or
+uv sync --dev --extra full
+# to install nacsos-data from remote
+uv sync --no-sources --dev --extra ??
+
+uv run mypy
+uv run ruff check
+uv run ruff format
 ```
-(assuming both projects reside side-by-side, otherwise adapt path accordingly)
-If you do so, please keep in mind to update the requirements and temporarily commenting out the respective line in `requirements.txt` when installing the other requirements!
 
 ## Running the database with docker
 Start up the database by running docker (or use your local instance)

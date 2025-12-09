@@ -5,16 +5,9 @@ import json
 import toml
 import os
 
+from nacsos_data.util.conf import DatabaseConfig, OpenAlexConfig
 from pydantic_settings import SettingsConfigDict, BaseSettings
-from pydantic.networks import PostgresDsn
-from pydantic import field_validator, ValidationInfo, AnyHttpUrl, BaseModel, model_validator
-
-
-# For more information how BaseSettings work, check the documentation:
-# https://pydantic-docs.helpmanual.io/usage/settings/
-
-# This is inspired by
-# https://github.com/tiangolo/full-stack-fastapi-postgresql/blob/490c554e23343eec0736b06e59b2108fdd057fdc/%7B%7Bcookiecutter.project_slug%7D%7D/backend/app/app/core/config.py
+from pydantic import field_validator, ValidationInfo, BaseModel, model_validator
 
 
 class ServerConfig(BaseModel):
@@ -48,34 +41,6 @@ class ServerConfig(BaseModel):
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
-
-
-class DatabaseConfig(BaseModel):
-    SCHEME: str = 'postgresql'
-    SCHEMA: str = 'public'
-    HOST: str = 'localhost'  # host of the db server
-    PORT: int = 5432  # port of the db server
-    USER: str = 'nacsos'  # username for the database
-    PASSWORD: str = 'secr€t_passvvord'  # password for the database user
-    DATABASE: str = 'nacsos_core'  # name of the database
-
-    CONNECTION_STR: PostgresDsn | None = None
-
-    @field_validator('CONNECTION_STR', mode='before')
-    def build_connection_string(cls, v: str | None, info: ValidationInfo) -> PostgresDsn:
-        assert info.config is not None
-
-        if isinstance(v, str):
-            raise ValueError('This field will be generated automatically, please do not use it.')
-
-        return PostgresDsn.build(
-            scheme=info.data.get('SCHEME', 'postgresql'),
-            username=info.data.get('USER'),
-            password=info.data.get('PASSWORD'),
-            host=info.data.get('HOST'),
-            port=info.data.get('PORT'),
-            path=f'/{info.data.get("DATABASE", "")}',
-        )
 
 
 class EmailConfig(BaseModel):
@@ -129,7 +94,7 @@ class PipelinesConfig(BaseModel):
             elif isinstance(v, Path) and v.is_absolute():
                 path = v
             elif isinstance(v, Path):
-                path = (Path.cwd() / Path(v))
+                path = Path.cwd() / Path(v)
             else:
                 raise ValueError(f'Invalid path for {key}: {v}')
             path = path.resolve()
@@ -151,10 +116,7 @@ class Settings(BaseSettings):
     # Settings for the nacsos-pipelines API
     PIPES: PipelinesConfig
 
-    # OpenAlex in PostgreSQL
-    OA_DB: DatabaseConfig
-    # URL including path to OpenAlex collection
-    OA_SOLR: AnyHttpUrl = 'http://localhost:8983/solr/openalex'  # type: ignore[assignment]
+    OPENALEX: OpenAlexConfig = OpenAlexConfig()
 
     EMAIL: EmailConfig
 
@@ -177,10 +139,24 @@ class Settings(BaseSettings):
                     return ret
         raise ValueError('Logging config invalid!')
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_prefix='NACSOS_', env_nested_delimiter='__')
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_prefix='NACSOS_',
+        env_nested_delimiter='__',
+        extra='allow',
+    )
 
 
 conf_file = os.environ.get('NACSOS_CONFIG', 'config/default.env')
-settings = Settings(_env_file=conf_file, _env_file_encoding='utf-8')  # type: ignore[call-arg]  # FIXME
+settings = Settings(_env_file=conf_file, _env_file_encoding='utf-8')
 
-__all__ = ['settings', 'conf_file']
+__all__ = [
+    'settings',
+    'conf_file',
+    #
+    'DatabaseConfig',
+    'OpenAlexConfig',
+    'ServerConfig',
+    'EmailConfig',
+    'PipelinesConfig',
+]

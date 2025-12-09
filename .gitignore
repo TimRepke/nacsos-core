@@ -1,6 +1,7 @@
-.idea
+.idea/
 config/
 venv/
+.venv/
 p.py
 __pycache__
 /hypercorn.access
@@ -10,4 +11,6 @@ server.md
 dumps/
 scratch/
 .tasks/
-volumes
+volumes/
+.uv.lock
+uv.lock

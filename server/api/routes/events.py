@@ -40,6 +40,7 @@ async def emit(event: Event) -> None:
     logger.debug(f'Going to emit {emit_event} ({emit_event})')
     await eventbus.emit_async(emit_event.name, emit_event)  # noqa PyProtectedMember
 
+
 # TODO user-configurable triggers (e.g. trigger on event or cron-like)
 #      - create schema, model, crud in nacsos-data (probably could just be a JSONB field in `Project`
 #      - create @startup function that sets up all listeners

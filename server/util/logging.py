@@ -12,14 +12,14 @@ from uvicorn.logging import DefaultFormatter
 from server.util.config import settings
 
 
-def get_logger(name: str | None = None):
+def get_logger(name: str | None = None) -> logging.Logger:
     if settings.LOGGING_CONF is not None:
         logging.config.dictConfig(settings.LOGGING_CONF)
     return logging.getLogger(name)
 
 
 class ColourFormatter(DefaultFormatter):
-    def formatMessage(self, record):
+    def formatMessage(self, record: logging.LogRecord) -> str:
         pad = (8 - len(record.levelname)) / 2
         levelname = ' ' * math.ceil(pad) + record.levelname + ' ' * math.floor(pad)
         if self.use_colors:
@@ -30,7 +30,7 @@ class ColourFormatter(DefaultFormatter):
         return super().formatMessage(record)
 
 
-def except2str(e, logger=None):
+def except2str(e: Exception, logger: logging.Logger | None = None) -> str:
     if settings.SERVER.DEBUG_MODE:
         tb = traceback.format_exc()
         if logger:
@@ -53,9 +53,7 @@ def get_file_logger(out_file: str | Path, name: str, level: str = 'DEBUG', stdio
 
 
 class LogRedirector:
-    def __init__(self, logger: logging.Logger,
-                 level: Literal['INFO', 'ERROR'] = 'INFO',
-                 stream: Literal['stdout', 'stderr'] = 'stdout') -> None:
+    def __init__(self, logger: logging.Logger, level: Literal['INFO', 'ERROR'] = 'INFO', stream: Literal['stdout', 'stderr'] = 'stdout') -> None:
         self.logger = logger
         self.level = getattr(logging, level)
         if stream == 'stdout':
@@ -74,8 +72,6 @@ class LogRedirector:
         self._redirector.__enter__()
         return self
 
-    def __exit__(self, exc_type: Type[BaseException] | None,
-                 exc_value: BaseException | None,
-                 trace: TracebackType | None) -> None:
+    def __exit__(self, exc_type: Type[BaseException] | None, exc_value: BaseException | None, trace: TracebackType | None) -> None:
         # let contextlib do any exception handling here
         self._redirector.__exit__(exc_type, exc_value, trace)

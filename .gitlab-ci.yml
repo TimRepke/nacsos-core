@@ -93,7 +93,7 @@ deploy-to-production:
     - python -V
     - pip freeze
     - echo "Handling migrations"
-    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/$UV_PROJECT_ENVIRONMENT/lib/python/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
+    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/$UV_PROJECT_ENVIRONMENT/lib/python3.13/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
     - sudo chown -R nacsos /data/nacsos2/nacsos-core
     - sudo chgrp -R nacsos /data/nacsos2/nacsos-core
     - echo "Starting NACSOS-core service"

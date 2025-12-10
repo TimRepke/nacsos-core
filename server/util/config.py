@@ -50,7 +50,8 @@ class EmailConfig(BaseModel):
     SMTP_CHECK_CERT: bool = True
     SMTP_PORT: int | None = None
     SMTP_HOST: str | None = None
-    SMTP_USER: str | None = None
+    SMTP_REMOTE_HOST: str | None = None
+    SMTP_USERNAME: str | None = None
     SMTP_PASSWORD: str | None = None
     SENDER: str | None = 'NACSOS <noreply@mcc-berlin.net>'
     ADMINS: list[str] | None = None

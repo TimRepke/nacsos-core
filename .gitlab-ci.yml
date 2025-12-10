@@ -14,9 +14,9 @@ before_script:
   - echo "  password ${CI_JOB_TOKEN}" >> ~/.netrc
 
 stages:
+  - deploy
   - build
   - test
-  - deploy
 
 cache:
   - key:
@@ -70,29 +70,31 @@ deploy-to-production:
     - echo "Go to deployment location"
     - cd /data/nacsos2/nacsos-core
     - ls -lisah
-    - sudo chown -R gitlab-runner:gitlab-runner /data/nacsos2/nacsos-core
+    - sudo chown -R gitlab-runner /data/nacsos2/nacsos-core
+    - sudo chgrp -R gitlab-runner /data/nacsos2/nacsos-core
     - ls -lisah
     - echo "Stopping NACSOS-core service"
     - sudo systemctl stop nacsos-core.service
     - echo "Dropping virtual environment"
-    - rm -rf .venv
+    - rm -rf $UV_PROJECT_ENVIRONMENT
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
     - echo "Creating new virtual environment"
     - uv sync --extra full --no-sources --cache-dir ../.cache
-    - source venv/bin/activate
+    - source $UV_PROJECT_ENVIRONMENT/bin/activate
     - which python
     - python -V
     - pip freeze
     - echo "Handling migrations"
-    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/.venv/lib/python/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
-    - sudo chown -R nacsos:nacsos /data/nacsos2/nacsos-core
+    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/$UV_PROJECT_ENVIRONMENT/lib/python3.13/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
+    - sudo chown -R nacsos /data/nacsos2/nacsos-core
+    - sudo chgrp -R nacsos /data/nacsos2/nacsos-core
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
   when: manual
-  only:
-    - production
+#  only:
+#    - production
 
 
 restart-workers:

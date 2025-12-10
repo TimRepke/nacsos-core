@@ -29,7 +29,7 @@ logger = logging.getLogger('server.util.email')
 
 # This is just a hot-fix patch to allow us to set an alternative server hostname;
 # on port forwarding, hosts between cert and localhost would mismatch
-async def _create_connection(self, timeout: float | None) -> SMTPResponse:
+async def _create_connection(self: SMTP, timeout: float | None) -> SMTPResponse:
     if self.loop is None:
         raise RuntimeError('No event loop set')
 
@@ -87,7 +87,7 @@ async def _create_connection(self, timeout: float | None) -> SMTPResponse:
     return response
 
 
-SMTP._create_connection = _create_connection
+SMTP._create_connection = _create_connection  # type: ignore[method-assign]
 
 
 class EmailNotSentError(Exception):

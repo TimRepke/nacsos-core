@@ -14,9 +14,9 @@ before_script:
   - echo "  password ${CI_JOB_TOKEN}" >> ~/.netrc
 
 stages:
-  - deploy
   - build
   - test
+  - deploy
 
 cache:
   - key:
@@ -106,5 +106,5 @@ restart-workers:
     - sleep 10
     - sudo systemctl start nacsos-dramatiq.service
   when: manual
-  only:
-    - production
+#  only:
+#    - production

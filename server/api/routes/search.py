@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Body
@@ -37,6 +39,7 @@ class SearchPayload(BaseModel):
     op: OpType = 'AND'
     histogram_from: int = 1990
     histogram_to: int = 2024
+    params: dict[str, Any] | None = None
 
 
 @router.post('/openalex/select', response_model=SearchResult)
@@ -53,6 +56,7 @@ async def search_openalex(search: SearchPayload, permissions: UserPermissions = 
         query=search.query,
         offset=search.offset,
         limit=search.limit,
+        params=search.params,
     )
 
 

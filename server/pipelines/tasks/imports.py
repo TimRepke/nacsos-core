@@ -86,6 +86,7 @@ async def import_task(import_id: str | None = None) -> None:
                 def_type=config.def_type,
                 field=config.field,
                 op=config.op,
+                params=config.params,
                 project_id=project_id,
                 import_id=import_id,
                 pipeline_task_id=task_id,

@@ -1,6 +1,6 @@
 [project]
 name = "nacsos-core"
-version = "0.24.7"
+version = "0.24.8"
 description = "NACSOS REST API"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -23,10 +23,10 @@ dependencies = [
 
 [project.optional-dependencies]
 light = [
-    "nacsos_data[utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.7"
+    "nacsos_data[utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.8"
 ]
 full = [
-    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.7"
+    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.8"
 ]
 
 [tool.uv.sources]
@@ -34,7 +34,7 @@ nacsos_data = { path = "../nacsos_data", editable = true }
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.10",
+    "ruff>=0.14.11",
     "mypy==1.19.1",
     "types-toml==0.10.8.20240310",
     "types-PyYAML==6.0.12.20250915",

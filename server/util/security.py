@@ -40,7 +40,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/login/token', auto_error=Fals
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserModel:
     try:
-        return await auth_helper.get_current_user(token_id=token)
+        return await auth_helper.get_user(token_id=token)
     except InvalidCredentialsError as e:
         raise NotAuthenticated(str(e))
     except InsufficientPermissionError as e:

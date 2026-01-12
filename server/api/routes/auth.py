@@ -24,7 +24,7 @@ logger.info('Setting up login route')
 @router.post('/token', response_model=AuthTokenModel)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -> AuthTokenModel:
     try:
-        user = await auth_helper.check_username_password(username=form_data.username, plain_password=form_data.password)
+        user = await auth_helper.check_password(username=form_data.username, plain_password=form_data.password)
         token = await auth_helper.refresh_or_create_token(username=user.username)
         return token
     except InvalidCredentialsError as e:

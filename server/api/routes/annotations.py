@@ -254,7 +254,7 @@ async def get_assignment_scopes_for_user(
 
 @router.get('/assignments/scopes/', response_model=list[AssignmentScopeModel])
 async def get_assignment_scopes_for_project(
-    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_edit')),
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
 ) -> list[AssignmentScopeModel]:
     scopes = await read_assignment_scopes_for_project(project_id=permissions.permissions.project_id, db_engine=db_engine)
 

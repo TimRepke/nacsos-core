@@ -6,27 +6,27 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiofiles==25.1.0",
-    "aiosmtplib==5.0.0",
+    "aiosmtplib==5.1.0",
     "dramatiq-abort==1.2.1",
     #"dramatiq-dashboard==0.4.0",
-    "dramatiq[redis,watch]==2.0.0",
+    "dramatiq[redis,watch]==2.0.1",
     "email-validator==2.3.0",
-    "fastapi==0.128.0",
+    "fastapi==0.129.0",
     "hypercorn==0.18.0",
     "passlib[bcrypt]==1.7.4",
     "pymitter==1.1.3",
     "python-multipart==0.0.22",
     "toml==0.10.2",
-    "uvicorn==0.40.0",
+    "uvicorn==0.41.0",
     #    "systemd-python==235",
 ]
 
 [project.optional-dependencies]
 light = [
-    "nacsos_data[utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.25"
+    "nacsos_data[utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.26"
 ]
 full = [
-    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.25"
+    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.26"
 ]
 
 [tool.uv.sources]
@@ -34,7 +34,7 @@ nacsos_data = { path = "../nacsos_data", editable = true }
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.11",
+    "ruff>=0.15.1",
     "mypy==1.19.1",
     "types-toml==0.10.8.20240310",
     "types-PyYAML==6.0.12.20250915",

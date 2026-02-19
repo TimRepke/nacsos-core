@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import cast
 
@@ -19,8 +20,9 @@ def prefix_sources(sources: list[Path]) -> list[Path]:
     return [settings.PIPES.user_data_dir / path for path in sources]
 
 
-@dramatiq.actor(actor_class=NacsosActor, max_retries=0)  # type: ignore[arg-type]
+@dramatiq.actor(actor_class=NacsosActor, max_retries=0)
 async def import_task(import_id: str | None = None) -> None:
+    logging.info('Received import task')
     async with NacsosActor.exec_context() as (db_settings, logger, target_dir, work_dir, task_id, message_id):
         logger.info('Preparing import task!')
         db_engine = get_engine_async(settings=db_settings)
@@ -80,6 +82,12 @@ async def import_task(import_id: str | None = None) -> None:
             )
         elif config.kind == 'oa-solr':
             logger.info('Proceeding with OpenAlex solr import...')
+
+            import httpx
+
+            logger.warning('Checking connection to solr')
+            logger.warning(httpx.get(f'{settings.OPENALEX.solr_url}/select').json())
+
             await import_openalex(
                 query=config.query,
                 nacsos_config=Path(conf_file),

@@ -28,7 +28,7 @@ P = ParamSpec('P')
 class NacsosActor(Actor[P, R]):
     def __init__(self, fn: Callable[P, R | Awaitable[R]], *, broker: Broker, actor_name: str, queue_name: str, priority: int, options: dict[str, Any]):
         actor_name = f'{fn.__module__[len("server.") :]}.{fn.__name__}'
-        super().__init__(fn, broker=broker, actor_name=actor_name, queue_name=queue_name, priority=priority, options=options)
+        super().__init__(fn, broker=broker, actor_name=actor_name, queue_name=queue_name, priority=priority, options=options)  # type: ignore[arg-type]
 
         self.message_id: str | None = None
         self.task_id: str | None = None
@@ -113,8 +113,10 @@ class NacsosActor(Actor[P, R]):
         target_dir = settings.PIPES.target_dir / str(task_id)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        task_logger_ = get_file_logger(name=actor_name, out_file=target_dir / 'progress.log', level='DEBUG', stdio=False)
+        task_logger_ = get_file_logger(name=actor_name, out_file=target_dir / 'progress.log', level='DEBUG', stdio=True)
+        task_logger_.warning('warn')
         task_logger = task_logger_.getChild(task_id or 'child')
+        task_logger.warning('warn')
 
         async with db_engine.session() as session:  # type: AsyncSession
             task = await session.get(Task, task_id)

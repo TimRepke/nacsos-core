@@ -20,7 +20,7 @@ def prefix_sources(sources: list[Path]) -> list[Path]:
     return [settings.PIPES.user_data_dir / path for path in sources]
 
 
-@dramatiq.actor(actor_class=NacsosActor, max_retries=0)  # type: ignore[arg-type]
+@dramatiq.actor(actor_class=NacsosActor, max_retries=0)
 async def import_task(import_id: str | None = None) -> None:
     logging.info('Received import task')
     async with NacsosActor.exec_context() as (db_settings, logger, target_dir, work_dir, task_id, message_id):
@@ -84,6 +84,7 @@ async def import_task(import_id: str | None = None) -> None:
             logger.info('Proceeding with OpenAlex solr import...')
 
             import httpx
+
             logger.warning('Checking connection to solr')
             logger.warning(httpx.get(f'{settings.OPENALEX.solr_url}/select').json())
 

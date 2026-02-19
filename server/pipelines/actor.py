@@ -28,7 +28,7 @@ P = ParamSpec('P')
 class NacsosActor(Actor[P, R]):
     def __init__(self, fn: Callable[P, R | Awaitable[R]], *, broker: Broker, actor_name: str, queue_name: str, priority: int, options: dict[str, Any]):
         actor_name = f'{fn.__module__[len("server.") :]}.{fn.__name__}'
-        super().__init__(fn, broker=broker, actor_name=actor_name, queue_name=queue_name, priority=priority, options=options)
+        super().__init__(fn, broker=broker, actor_name=actor_name, queue_name=queue_name, priority=priority, options=options)  # type: ignore[arg-type]
 
         self.message_id: str | None = None
         self.task_id: str | None = None

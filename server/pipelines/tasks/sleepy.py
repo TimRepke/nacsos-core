@@ -7,7 +7,7 @@ from dramatiq.middleware import CurrentMessage
 from ..actor import NacsosActor
 
 
-@dramatiq.actor(actor_class=NacsosActor)  # type: ignore[arg-type]
+@dramatiq.actor(actor_class=NacsosActor)
 async def tracked_sleep_task(sleep_time: int = 10) -> None:
     message = CurrentMessage.get_current_message()
     print('message')
@@ -21,7 +21,7 @@ async def tracked_sleep_task(sleep_time: int = 10) -> None:
         logger.info('Done, yo!')
 
 
-@dramatiq.actor(queue_name='nacsos-pipes')  # type: ignore[arg-type]
+@dramatiq.actor(queue_name='nacsos-pipes')
 async def sleep_task(sleep_time: int = 10) -> None:
     cm = CurrentMessage.get_current_message()
     logger = logging.getLogger('sleepy')

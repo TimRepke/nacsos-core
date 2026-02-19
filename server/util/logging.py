@@ -45,10 +45,19 @@ def get_file_logger(out_file: str | Path, name: str, level: str = 'DEBUG', stdio
 
     formatter = logging.Formatter(fmt='%(asctime)s (%(process)d) [%(levelname)s] %(name)s: %(message)s')
     handler.setFormatter(formatter)
+    handler.setLevel(level)
 
     logger = logging.getLogger(name)
     logger.setLevel(level)  # logger.setLevel(level if stdio else 100)
     logger.addHandler(handler)
+
+    if stdio:
+        handler_console = logging.StreamHandler()
+        handler_console.setFormatter(formatter)
+        handler_console.setLevel(level)
+
+        logger.addHandler(handler_console)
+
     return logger
 
 

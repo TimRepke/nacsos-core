@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import cast
 
@@ -21,6 +22,7 @@ def prefix_sources(sources: list[Path]) -> list[Path]:
 
 @dramatiq.actor(actor_class=NacsosActor, max_retries=0)  # type: ignore[arg-type]
 async def import_task(import_id: str | None = None) -> None:
+    logging.info('Received import task')
     async with NacsosActor.exec_context() as (db_settings, logger, target_dir, work_dir, task_id, message_id):
         logger.info('Preparing import task!')
         db_engine = get_engine_async(settings=db_settings)

@@ -70,8 +70,8 @@ class LogRedirector:
         else:
             self._redirector = redirect_stderr(self)  # type: ignore
 
-    def write(self, msg: str) -> None:
-        if msg and not msg.isspace():
+    def write(self, msg: object) -> None:
+        if msg:
             self.logger.log(self.level, msg)
 
     def flush(self) -> None:

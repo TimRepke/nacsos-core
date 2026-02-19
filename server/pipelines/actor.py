@@ -114,7 +114,9 @@ class NacsosActor(Actor[P, R]):
         target_dir.mkdir(parents=True, exist_ok=True)
 
         task_logger_ = get_file_logger(name=actor_name, out_file=target_dir / 'progress.log', level='DEBUG', stdio=True)
+        task_logger_.warning('warn')
         task_logger = task_logger_.getChild(task_id or 'child')
+        task_logger.warning('warn')
 
         async with db_engine.session() as session:  # type: AsyncSession
             task = await session.get(Task, task_id)

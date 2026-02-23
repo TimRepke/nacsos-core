@@ -70,27 +70,23 @@ deploy-to-production:
     - echo "Go to deployment location"
     - echo "Stopping NACSOS-core service"
     - sudo systemctl stop nacsos-core.service
-    - sudo chown -R nacsos /data/nacsos2/nacsos-core
-    - sudo chgrp -R nacsos /data/nacsos2/nacsos-core
-    # Run update steps as `nacsos` user
-    - sudo su nacsos
-    - whoami
-    - pwd
+    - sudo chown -R gitlab-runner /data/nacsos2/nacsos-core
+    - sudo chgrp -R gitlab-runner /data/nacsos2/nacsos-core
     - cd /data/nacsos2/nacsos-core
     - ls -lisah
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin production  # pull from origin (production branch)
+    - sudo chown -R nacsos /data/nacsos2/nacsos-core
+    - sudo chgrp -R nacsos /data/nacsos2/nacsos-core
     - echo "Creating new virtual environment"
-    - uv sync --reinstall --extra full --no-sources --cache-dir ../.cache
+    - sudo -u nacsos /usr/bin/bash -c 'uv sync --reinstall --extra full --no-sources --cache-dir /data/nacsos2/.cache'
     - source $UV_PROJECT_ENVIRONMENT/bin/activate
     - which python
     - python -V
     - pip freeze
     - echo "Handling migrations"
     - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/$UV_PROJECT_ENVIRONMENT/lib/python3.13/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
-    # continue as `gitlab-runner` user
-    - exit
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
   when: manual

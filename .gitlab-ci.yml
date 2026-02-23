@@ -91,7 +91,7 @@ deploy-to-production:
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
   when: manual
-  #only:
+  #only: # FIXME
   #  - production
 
 
@@ -104,5 +104,5 @@ restart-workers:
     - sleep 10
     - sudo systemctl start nacsos-dramatiq.service
   when: manual
-  only:
-    - production
+  #only: # FIXME
+  #  - production

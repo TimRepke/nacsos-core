@@ -74,6 +74,8 @@ deploy-to-production:
     - sudo chgrp -R nacsos /data/nacsos2/nacsos-core
     # Run update steps as `nacsos` user
     - sudo su nacsos
+    - whoami
+    - pwd
     - cd /data/nacsos2/nacsos-core
     - ls -lisah
     - echo "Fetching updated source"

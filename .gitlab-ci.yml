@@ -76,8 +76,7 @@ deploy-to-production:
     - ls -lisah
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
-    #- git pull origin production  # pull from origin (production branch) # FIXME
-    - git pull origin main # FIXME
+    - git pull origin production  # pull from origin (production branch)
     - sudo chown -R nacsos /data/nacsos2/nacsos-core
     - sudo chgrp -R nacsos /data/nacsos2/nacsos-core
     - echo "Creating new virtual environment"
@@ -91,8 +90,8 @@ deploy-to-production:
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
   when: manual
-  #only: # FIXME
-  #  - production
+  only:
+    - production
 
 
 restart-workers:
@@ -104,5 +103,5 @@ restart-workers:
     - sleep 10
     - sudo systemctl start nacsos-dramatiq.service
   when: manual
-  #only: # FIXME
-  #  - production
+  only:
+    - production

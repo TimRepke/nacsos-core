@@ -8,7 +8,7 @@ from nacsos_data.db.schemas import AcademicItemVariant, AcademicItem, Annotation
 from nacsos_data.models.annotations import AnnotationModel
 from nacsos_data.models.bot_annotations import BotAnnotationModel
 from nacsos_data.models.items import AcademicItemVariantModel, AcademicItemModel
-from nacsos_data.util.academic.duplicate import str_to_title_slug
+from nacsos_data.util.academic.util import str_to_title_slug
 from nacsos_data.util.errors import MissingIdError
 from nacsos_data.util.auth import UserPermissions
 

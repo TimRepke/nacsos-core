@@ -64,9 +64,9 @@ def get_current_active_superuser(current_user: UserModel = Depends(get_current_a
 class UserPermissionChecker:
     def __init__(self, permissions: list[ProjectPermission] | ProjectPermission | None = None, fulfill_all: bool = True):
         self.permissions: list[ProjectPermission] | None = None
-        if type(permissions) is str and permissions is not None:
+        if type(permissions) is str and permissions is not None:  # type: ignore[unreachable]
             # convert singular permission to list for unified processing later
-            self.permissions = [permissions]
+            self.permissions = [permissions]  # type: ignore[unreachable]
         elif type(permissions) is list and permissions is not None:
             self.permissions = permissions
 

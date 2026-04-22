@@ -1,6 +1,4 @@
-import asyncio
 import logging
-import ssl
 from email.message import EmailMessage
 
 from aiosmtplib import (
@@ -18,76 +16,11 @@ from aiosmtplib import (
     SMTPHeloError,
     SMTPTimeoutError,
     SMTPResponse,
-    SMTPStatus,
 )
-from aiosmtplib.protocol import SMTPProtocol
 
 from server.util.config import settings
 
 logger = logging.getLogger('server.util.email')
-
-
-# This is just a hot-fix patch to allow us to set an alternative server hostname;
-# on port forwarding, hosts between cert and localhost would mismatch
-async def _create_connection(self: SMTP, timeout: float | None) -> SMTPResponse:
-    if self.loop is None:
-        raise RuntimeError('No event loop set')
-
-    protocol = SMTPProtocol(loop=self.loop, connection_lost_callback=self.close)
-
-    tls_context: ssl.SSLContext | None = None
-    ssl_handshake_timeout: float | None = None
-    if self.use_tls:
-        tls_context = self._get_tls_context()
-        ssl_handshake_timeout = timeout
-
-    if self.hostname is None:
-        raise RuntimeError('No hostname provided; default should have been set')
-    if self.port is None:
-        raise RuntimeError('No port provided; default should have been set')
-
-    connect_coro = self.loop.create_connection(
-        lambda: protocol,
-        host=self.hostname,
-        port=self.port,
-        ssl=tls_context,
-        ssl_handshake_timeout=ssl_handshake_timeout,
-        local_addr=self.source_address,
-        server_hostname=settings.EMAIL.SMTP_REMOTE_HOST,
-    )
-
-    try:
-        transport, _ = await asyncio.wait_for(connect_coro, timeout=timeout)
-    except (TimeoutError, asyncio.TimeoutError) as exc:
-        raise SMTPConnectTimeoutError(
-            f'Timed out connecting to {self.hostname} on port {self.port}',
-        ) from exc
-    except OSError as exc:
-        raise SMTPConnectError(
-            f'Error connecting to {self.hostname} on port {self.port}: {exc}',
-        ) from exc
-
-    self.protocol = protocol
-    self.transport = transport
-
-    try:
-        response = await protocol.read_response(timeout=timeout)
-    except SMTPServerDisconnected as exc:
-        raise SMTPConnectError(
-            f'Error connecting to {self.hostname} on port {self.port}: {exc}',
-        ) from exc
-    except SMTPTimeoutError as exc:
-        raise SMTPConnectTimeoutError(
-            'Timed out waiting for server ready message',
-        ) from exc
-
-    if response.code != SMTPStatus.ready:
-        raise SMTPConnectResponseError(response.code, response.message)
-
-    return response
-
-
-SMTP._create_connection = _create_connection  # type: ignore[method-assign]
 
 
 class EmailNotSentError(Exception):

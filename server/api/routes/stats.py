@@ -179,6 +179,7 @@ async def get_publication_year_histogram(
 
 
 class LabelCount(BaseModel):
+    scheme: uuid.UUID | str
     num_items: int
     key: str
     value_bool: bool | None = None
@@ -198,18 +199,21 @@ async def label_stats(
 
         stmt = (
             sa.select(
+                Annotation.annotation_scheme_id,
                 Annotation.key,
                 Annotation.value_bool,
                 Annotation.value_int,
                 Annotation.value_float,
-                Annotation.value_str,
+                # Annotation.value_str,
                 # sa.text('unnest(COALESCE(multi_int, ARRAY[NULL]::integer[]))'),
                 sa.func.unnest(sa.func.coalesce(Annotation.multi_int, [None])).label('multi'),
                 sa.func.count(sa.distinct(Annotation.item_id)).label('num_items'),
             )
             .join(stmt_items, Annotation.item_id == stmt_items.c.item_id)
             .where(stmt_items.c.item_id.is_not(None), Annotation.item_id.is_not(None))
-            .group_by(Annotation.key, Annotation.value_bool, Annotation.value_int, Annotation.value_float, Annotation.value_str, sa.text('multi'))
+            .group_by(
+                Annotation.annotation_scheme_id, Annotation.key, Annotation.value_bool, Annotation.value_int, Annotation.value_float, sa.text('multi')
+            )  # , Annotation.value_str
         )
 
         rslt = (await session.execute(stmt)).mappings().all()

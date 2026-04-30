@@ -199,7 +199,7 @@ async def label_stats(
 
         stmt = (
             sa.select(
-                Annotation.annotation_scheme_id,
+                Annotation.annotation_scheme_id.label('scheme'),
                 Annotation.key,
                 Annotation.value_bool,
                 Annotation.value_int,
@@ -217,4 +217,5 @@ async def label_stats(
         )
 
         rslt = (await session.execute(stmt)).mappings().all()
+        print(rslt)
         return [LabelCount(**r) for r in rslt]

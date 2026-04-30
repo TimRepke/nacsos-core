@@ -20,7 +20,9 @@ from nacsos_data.db.schemas import (
     AcademicItem,
     TwitterItem,
     LexisNexisItemSource,
-    LexisNexisItem, BotAnnotation, BotAnnotationMetaData,
+    LexisNexisItem,
+    BotAnnotation,
+    BotAnnotationMetaData,
 )
 from nacsos_data.util.auth import UserPermissions
 
@@ -190,7 +192,7 @@ class LabelCount(BaseModel):
 
 
 @router.post('/labels/human', response_model=list[LabelCount])
-async def label_stats(
+async def label_stats_raw(
     query: NQLFilter | None = Body(default=None), permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))
 ) -> list[LabelCount]:
     async with db_engine.session() as session:  # type: AsyncSession
@@ -219,8 +221,9 @@ async def label_stats(
         rslt = (await session.execute(stmt)).mappings().all()
         return [LabelCount(**r) for r in rslt]
 
+
 @router.post('/labels/resolved', response_model=list[LabelCount])
-async def label_stats(
+async def label_stats_res(
     query: NQLFilter | None = Body(default=None), permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))
 ) -> list[LabelCount]:
     async with db_engine.session() as session:  # type: AsyncSession
@@ -243,7 +246,12 @@ async def label_stats(
             .join(BotAnnotationMetaData, BotAnnotation.bot_annotation_metadata_id == BotAnnotationMetaData.bot_annotation_metadata_id)
             .where(stmt_items.c.item_id.is_not(None), BotAnnotation.item_id.is_not(None))
             .group_by(
-                BotAnnotationMetaData.annotation_scheme_id, BotAnnotation.key, BotAnnotation.value_bool, BotAnnotation.value_int, BotAnnotation.value_float, sa.text('multi')
+                BotAnnotationMetaData.annotation_scheme_id,
+                BotAnnotation.key,
+                BotAnnotation.value_bool,
+                BotAnnotation.value_int,
+                BotAnnotation.value_float,
+                sa.text('multi'),
             )  # , Annotation.value_str
         )
 

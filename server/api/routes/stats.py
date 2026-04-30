@@ -20,7 +20,7 @@ from nacsos_data.db.schemas import (
     AcademicItem,
     TwitterItem,
     LexisNexisItemSource,
-    LexisNexisItem,
+    LexisNexisItem, BotAnnotation, BotAnnotationMetaData,
 )
 from nacsos_data.util.auth import UserPermissions
 
@@ -189,7 +189,7 @@ class LabelCount(BaseModel):
     multi: int | None = None
 
 
-@router.post('/labels', response_model=list[LabelCount])
+@router.post('/labels/human', response_model=list[LabelCount])
 async def label_stats(
     query: NQLFilter | None = Body(default=None), permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))
 ) -> list[LabelCount]:
@@ -217,5 +217,35 @@ async def label_stats(
         )
 
         rslt = (await session.execute(stmt)).mappings().all()
-        print(rslt)
+        return [LabelCount(**r) for r in rslt]
+
+@router.post('/labels/resolved', response_model=list[LabelCount])
+async def label_stats(
+    query: NQLFilter | None = Body(default=None), permissions: UserPermissions = Depends(UserPermissionChecker('dataset_read'))
+) -> list[LabelCount]:
+    async with db_engine.session() as session:  # type: AsyncSession
+        nql = await NQLQuery.get_query(session=session, query=query, project_id=str(permissions.permissions.project_id))
+        stmt_items = nql.stmt.subquery()
+
+        stmt = (
+            sa.select(
+                BotAnnotationMetaData.annotation_scheme_id.label('scheme'),
+                BotAnnotation.key,
+                BotAnnotation.value_bool,
+                BotAnnotation.value_int,
+                BotAnnotation.value_float,
+                # Annotation.value_str,
+                # sa.text('unnest(COALESCE(multi_int, ARRAY[NULL]::integer[]))'),
+                sa.func.unnest(sa.func.coalesce(BotAnnotation.multi_int, [None])).label('multi'),
+                sa.func.count(sa.distinct(BotAnnotation.item_id)).label('num_items'),
+            )
+            .join(stmt_items, BotAnnotation.item_id == stmt_items.c.item_id)
+            .join(BotAnnotationMetaData, BotAnnotation.bot_annotation_metadata_id == BotAnnotationMetaData.bot_annotation_metadata_id)
+            .where(stmt_items.c.item_id.is_not(None), BotAnnotation.item_id.is_not(None))
+            .group_by(
+                BotAnnotationMetaData.annotation_scheme_id, BotAnnotation.key, BotAnnotation.value_bool, BotAnnotation.value_int, BotAnnotation.value_float, sa.text('multi')
+            )  # , Annotation.value_str
+        )
+
+        rslt = (await session.execute(stmt)).mappings().all()
         return [LabelCount(**r) for r in rslt]

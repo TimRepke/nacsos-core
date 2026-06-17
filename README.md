@@ -38,6 +38,12 @@ sudo systemctl start docker
 docker-compose up -d
 ```
 
+### Load test data to DB from a sql dump file
+Install `psql` to your machine if you don't have it.
+```
+psql -h localhost -p 5432 -U root -d nacsos_core -f /path/to/dump.sql
+```
+
 ## Starting the server
 ```bash
 # set this in case you want to use a different config (optional)

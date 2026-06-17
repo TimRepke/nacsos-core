@@ -1,4 +1,4 @@
-image: python:3.13
+image: python:3.14
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -86,7 +86,7 @@ deploy-to-production:
     - python -V
     - pip freeze
     - echo "Handling migrations"
-    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/$UV_PROJECT_ENVIRONMENT/lib/python3.13/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
+    - nacsos_migrate upgrade --revision head --root-path=/data/nacsos2/nacsos-core/$UV_PROJECT_ENVIRONMENT/lib/python3.14/site-packages/nacsos_data --ini-file=/data/nacsos2/nacsos-core/config/alembic.ini
     - echo "Starting NACSOS-core service"
     - sudo systemctl start nacsos-core.service
   when: manual

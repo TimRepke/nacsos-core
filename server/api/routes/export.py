@@ -53,6 +53,7 @@ class ExportRequest(BaseModel):
 @router.post('/annotations/csv', response_class=CFR)
 async def get_annotations_csv(
     query: ExportRequest,
+    max_results: int = 15000,
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
 ) -> FileResponse:
     result = await prepare_export_table(
@@ -65,6 +66,7 @@ async def get_annotations_csv(
         ignore_repeat=query.ignore_repeat,
         ignore_hierarchy=query.ignore_hierarchy,
         db_engine=db_engine,
+        max_results=max_results,
     )
 
     with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:

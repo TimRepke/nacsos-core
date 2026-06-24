@@ -6,7 +6,7 @@ from ..util.config import settings
 kw_engine: dict[str, Any] | None = None
 
 if settings.DB.STMT_TIMEOUT > 0:
-    kw_engine = {'connect_args': {'options': '-c statement_timeout=1000'}}
+    kw_engine = {'connect_args': {'options': f'-c statement_timeout={settings.DB.STMT_TIMEOUT}'}}
 
 db_engine = DatabaseEngineAsync(
     host=settings.DB.HOST,

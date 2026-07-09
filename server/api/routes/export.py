@@ -1,8 +1,14 @@
 import csv
 import os
 import tempfile
+import xlsxwriter
+import json
 import uuid
-from typing import TYPE_CHECKING
+import enum
+import datetime as dt 
+from typing import TYPE_CHECKING, Callable
+
+from memory_profiler import profile
 
 from nacsos_data.db.crud.projects import read_project_by_id
 
@@ -67,6 +73,224 @@ async def get_annotations_csv(
         ignore_hierarchy=query.ignore_hierarchy,
         db_engine=db_engine,
         max_results=max_results,
+    )
+
+    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
+        writer = csv.DictWriter(fp, fieldnames=list(result[0].keys()))
+        writer.writeheader()
+        [writer.writerow(lab) for lab in result]
+
+        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
+
+
+@router.post('/annotations/csv/v2', response_class=CFR)
+async def get_annotations_csv_v2(
+    query: ExportRequest,
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> FileResponse:
+    result = await prepare_export_table(
+        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
+        assignment_scope_ids=query.assignment_scope_ids,
+        user_ids=query.user_ids,
+        project_id=permissions.permissions.project_id,
+        labels=query.labels,
+        nql_filter=query.nql_filter,
+        ignore_repeat=query.ignore_repeat,
+        ignore_hierarchy=query.ignore_hierarchy,
+        db_engine=db_engine,
+    )
+
+    drop_cols = set(
+        # 'item_id_1',
+        'type',
+        'time_edited',
+        'project_id',
+        # 'project_id_1',
+        'title_slug',
+        'keywords',
+        # 'authors',
+        'meta',
+    )
+
+    # todo: handle authors
+
+    headers = [k for k in result[0].keys() if k not in drop_cols]
+
+
+        # data = data.drop(
+        #         columns=[
+        #             'item_id_1',
+        #             'type',
+        #             'time_edited',
+        #             'project_id',
+        #             'project_id_1',
+        #             'title_slug',
+        #             'keywords',
+        #             'authors',
+        #             'meta',
+        #         ],
+        #     ).astype(
+        #         {
+        #             'publication_year': 'Int32',
+        #             'incl|0': 'Int8',
+        #             'incl|1': 'Int8',
+        #             'reason|0': 'Int8',
+        #             'reason|1': 'Int8',
+        #             'reason|2': 'Int8',
+        #         },
+        #     )
+
+    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
+        writer = csv.DictWriter(fp, fieldnames=headers)
+        writer.writeheader()
+        [writer.writerow(lab) for lab in result]
+
+        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
+
+
+# measure time, can you used vectorized functions?
+def build_converters(column_types: dict[str, type]) -> dict[str, Callable]:
+    """
+    Build conversion functions for each column type.
+    
+    Args:
+        column_types: Dict mapping column names to their types
+                     e.g., {'id': UUID, 'status': MyEnum, 'created': datetime}
+    
+    Returns:
+        Dict mapping column names to conversion functions that handle None values
+    """
+    converters = {}
+    
+    for col, col_type in column_types.items():
+        base_converter = _get_base_converter(col_type)
+        # Wrap converter to handle None values
+        converters[col] = lambda v, bc=base_converter: bc(v) if v is not None else None
+    
+    return converters
+
+
+def _get_base_converter(col_type: type) -> Callable:
+    """Get the base conversion function for a type."""
+    if col_type is uuid.UUID:
+        return str
+    elif issubclass(col_type, enum.Enum):
+        return lambda v: v.value
+    elif col_type in (dt.datetime, dt.time, dt.date):
+        return lambda v: v.isoformat()
+    elif col_type in (list, dict): #dict:
+        return lambda v: json.dumps(v)
+    else:
+        return lambda v: v
+
+
+def convert_types_inplace(data: list[dict], converters: dict[str, Callable]) -> None:
+    """
+    Convert types in place, filtering converters to only present columns.
+    
+    Args:
+        data: List of dictionaries from database query
+        converters: Pre-built converters dict from build_converters()
+    
+    Time Complexity: O(n × m) where n = rows, m = columns needing conversion
+    Space Complexity: O(m) for filtered converters dict
+    """
+    if not data:
+        return
+    
+    # Filter converters to only columns present in this request (one-time check)
+    present_converters = {col: converter for col, converter in converters.items() 
+                          if col in data[0]}
+    
+    # Apply converters to each row
+    for row in data:
+        for col, converter in present_converters.items():
+            row[col] = converter(row[col])
+
+def present_count(d):
+    # counts keys whose value is not None (adjust if you consider "" empty too)
+    return sum(v is not None for v in d.values())
+
+
+@profile
+@router.post('/annotations/excel/xlsxwriter', response_class=CFR)
+async def get_annotations_excel(
+    query: ExportRequest,
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> FileResponse:
+    result = await prepare_export_table(
+        # this function should do the removal of duplicate columns? with/out pandas? 
+        # also should i avoid pandas here or use it if it's being used elsewhere..?
+        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
+        assignment_scope_ids=query.assignment_scope_ids,
+        user_ids=query.user_ids,
+        project_id=permissions.permissions.project_id,
+        labels=query.labels,
+        nql_filter=query.nql_filter,
+        ignore_repeat=query.ignore_repeat,
+        ignore_hierarchy=query.ignore_hierarchy,
+        db_engine=db_engine,
+    )
+
+    best_row = max(result, key=present_count)
+    column_types = {key: type(value) for (key, value) in best_row.items()}
+    if column_types.get('time_edited'):
+        column_types['time_edited'] = dt.datetime
+    converters = build_converters(column_types)
+    convert_types_inplace(result, converters)
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(suffix='.xlsx', mode='wb', delete=False) as fp:
+        temp_path = fp.name
+
+    # Create a workbook and worksheet
+    wb = xlsxwriter.Workbook(temp_path)
+    ws = wb.add_worksheet("NACSOS Annotations Export")
+
+    # Write header row
+    headers = list(result[0].keys())
+
+    ws.write_row(0, 0, headers)
+
+    # Write data rows
+    for row_idx, row in enumerate(result, start=1):
+        try:
+            ws.write_row(row_idx, 0, [row.get(h) for h in headers])
+        except Exception as e:
+            print(row)
+            raise Exception(e)
+    
+    # Set column widths
+    for col_idx, header in enumerate(headers):
+        ws.set_column(col_idx, col_idx, max(20, len(str(header)) + 2))
+    
+    # Freeze header row
+    ws.freeze_panes(1, 0)
+    # Close the workbook to flush all data
+    wb.close()
+
+    # Return the file
+    return FileResponse(
+        temp_path,
+        background=BackgroundTask(cleanup, temp_path),
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+@router.post('/annotations/ris', response_class=CFR)
+async def get_annotations_ris(
+    query: ExportRequest,
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> FileResponse:
+    result = await prepare_export_table(
+        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
+        assignment_scope_ids=query.assignment_scope_ids,
+        user_ids=query.user_ids,
+        project_id=permissions.permissions.project_id,
+        labels=query.labels,
+        nql_filter=query.nql_filter,
+        ignore_repeat=query.ignore_repeat,
+        ignore_hierarchy=query.ignore_hierarchy,
+        db_engine=db_engine,
     )
 
     with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:

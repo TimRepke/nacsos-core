@@ -1248,6 +1248,7 @@ dependencies = [
     { name = "passlib", extra = ["bcrypt"] },
     { name = "pymitter" },
     { name = "python-multipart" },
+    { name = "rispy" },
     { name = "toml" },
     { name = "uvicorn" },
     { name = "xlsxwriter" },
@@ -1284,6 +1285,7 @@ requires-dist = [
     { name = "passlib", extras = ["bcrypt"], specifier = "==1.7.4" },
     { name = "pymitter", specifier = "==1.1.3" },
     { name = "python-multipart", specifier = "==0.0.32" },
+    { name = "rispy", specifier = ">=0.10.0" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "uvicorn", specifier = "==0.49.0" },
     { name = "xlsxwriter", specifier = ">=3.2.9" },
@@ -1375,6 +1377,7 @@ provides-extras = ["utils", "priority", "scripts"]
 dev = [
     { name = "mypy", extras = ["faster-cache"], specifier = "==2.1.0" },
     { name = "nacsos-data", extras = ["utils", "scripts"], editable = "../nacsos-data" },
+    { name = "pre-commit", specifier = ">=4.6.0" },
     { name = "ruff", specifier = ">=0.15.20" },
     { name = "types-passlib", specifier = "==1.7.7.20260211" },
     { name = "types-requests", specifier = ">=2.33.0.20260518" },

@@ -16,6 +16,7 @@ dependencies = [
     "passlib[bcrypt]==1.7.4",
     "pymitter==1.1.3",
     "python-multipart==0.0.32",
+    "rispy>=0.10.0",
     "toml==0.10.2",
     "uvicorn==0.49.0",
     #    "systemd-python==235",

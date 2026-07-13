@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Callable, Any
 
 from nacsos_data.db.crud.projects import read_project_by_id
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from nacsos_data.models.nql import NQLFilter
 from nacsos_data.util.annotations.export import (
     prepare_export_table,
@@ -38,11 +38,14 @@ if TYPE_CHECKING:
 
 router = APIRouter()
 
+Converter = Callable[[Any], Any | None]
+
 
 def cleanup(file: str) -> None:
     os.remove(file)
 
 
+# todo what does this do, how to use it?
 class CFR(FileResponse):  # custom file response to set the media type
     media_type = 'application/csv'
 
@@ -57,103 +60,8 @@ class ExportRequest(BaseModel):
     ignore_repeat: bool = True
 
 
-@router.post('/annotations/csv', response_class=CFR)
-async def get_annotations_csv(
-    query: ExportRequest,
-    max_results: int = 15000,
-    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
-) -> FileResponse:
-    result = await prepare_export_table(
-        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
-        assignment_scope_ids=query.assignment_scope_ids,
-        user_ids=query.user_ids,
-        project_id=permissions.permissions.project_id,
-        labels=query.labels,
-        nql_filter=query.nql_filter,
-        ignore_repeat=query.ignore_repeat,
-        ignore_hierarchy=query.ignore_hierarchy,
-        db_engine=db_engine,
-        max_results=max_results,
-    )
-
-    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
-        writer = csv.DictWriter(fp, fieldnames=list(result[0].keys()))
-        writer.writeheader()
-        [writer.writerow(lab) for lab in result]
-
-        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
-
-
-@router.post('/annotations/csv/v2', response_class=CFR)
-async def get_annotations_csv_v2(
-    query: ExportRequest,
-    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
-) -> FileResponse:
-    result = await prepare_export_table(
-        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
-        assignment_scope_ids=query.assignment_scope_ids,
-        user_ids=query.user_ids,
-        project_id=permissions.permissions.project_id,
-        labels=query.labels,
-        nql_filter=query.nql_filter,
-        ignore_repeat=query.ignore_repeat,
-        ignore_hierarchy=query.ignore_hierarchy,
-        db_engine=db_engine,
-    )
-
-    drop_cols: set[str] = {
-        # 'item_id_1',
-        'type',
-        'time_edited',
-        'project_id',
-        # 'project_id_1',
-        'title_slug',
-        'keywords',
-        # 'authors',
-        'meta',
-    }
-
-    # todo: handle authors
-
-    result = [{k: v for k, v in lab.items() if k not in drop_cols} for lab in result]
-    headers = result[0].keys()
-
-    # data = data.drop(
-    #         columns=[
-    #             'item_id_1',
-    #             'type',
-    #             'time_edited',
-    #             'project_id',
-    #             'project_id_1',
-    #             'title_slug',
-    #             'keywords',
-    #             'authors',
-    #             'meta',
-    #         ],
-    #     ).astype(
-    #         {
-    #             'publication_year': 'Int32',
-    #             'incl|0': 'Int8',
-    #             'incl|1': 'Int8',
-    #             'reason|0': 'Int8',
-    #             'reason|1': 'Int8',
-    #             'reason|2': 'Int8',
-    #         },
-    #     )
-
-    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
-        writer = csv.DictWriter(fp, fieldnames=headers)
-        writer.writeheader()
-        [writer.writerow(lab) for lab in result]
-
-        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
-
-
-Converter = Callable[[Any], Any | None]
-
-
 # measure time, can you used vectorized functions?
-def build_converters(column_types: dict[str, type]) -> dict[str, Converter]:
+def build_converters(column_types: dict[str, type], format: str) -> dict[str, Converter]:
     """
     Build conversion functions for each column type.
 
@@ -166,27 +74,47 @@ def build_converters(column_types: dict[str, type]) -> dict[str, Converter]:
     """
     converters: dict[str, Converter] = {}
 
-    for col, col_type in column_types.items():
-        base_converter = _get_base_converter(col_type)
-        # Wrap converter to handle None values
-        converter = None
-        if col_type is not None:
-            converter = base_converter(col_type)
-        converters[col] = converter
+    match format:
+        case 'excel':
+            for col, col_type in column_types.items():
+                # Wrap converter to handle None values
+                converter = None
+                if col_type is not None:
+                    converter = _get_base_converter_excel(col_type)
+                converters[col] = converter
+        case 'json':
+            for col, col_type in column_types.items():
+                # Wrap converter to handle None values
+                converter = None
+                if col_type is not None:
+                    converter = _get_base_converter_json(col_type)
+                converters[col] = converter
 
     return converters
 
 
-def _get_base_converter(col_type: type[Any]) -> Callable[[Any], Any]:
+def _get_base_converter_excel(col_type: type[Any]) -> Callable[[Any], Any]:
     """Get the base conversion function for a type."""
     if col_type is uuid.UUID:
         return str
     elif issubclass(col_type, enum.Enum):
         return lambda v: v.value
     elif col_type in (dt.datetime, dt.time, dt.date):
-        return lambda v: v.isoformat()
+        return lambda v: v.isoformat() if v else None
     elif col_type in (list, dict):
         return lambda v: json.dumps(v)
+    else:
+        return lambda v: v
+
+
+def _get_base_converter_json(col_type: type[Any]) -> Callable[[Any], Any]:
+    """Get the base conversion function for a type."""
+    if col_type is uuid.UUID:
+        return str
+    elif issubclass(col_type, enum.Enum):
+        return lambda v: v.value
+    elif col_type in (dt.datetime, dt.time, dt.date):
+        return lambda v: v.isoformat() if v else None
     else:
         return lambda v: v
 
@@ -218,15 +146,29 @@ def present_count(d: dict[str, Any]) -> int:
     return sum(v is not None for v in d.values())
 
 
+def get_author_names(authors: Any) -> list[str]:
+    if not isinstance(authors, list) or not authors:
+        return []
+
+    first = authors[0]
+    # academic item
+    if isinstance(first, dict) and 'name' in first.keys():
+        return [a.get('name') for a in authors]
+    # lexis item
+    if isinstance(first, str):
+        return authors
+    return []
+
+
 # @profile
-@router.post('/annotations/excel', response_class=CFR)
-async def get_annotations_excel(
+@router.post('/annotations/{export_format}', response_class=CFR)
+async def export_annotations(
+    export_format: str,
     query: ExportRequest,
+    max_results: int = 15000,
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
 ) -> FileResponse:
-    result = await prepare_export_table(
-        # this function should do the removal of duplicate columns? with/out pandas?
-        # also should i avoid pandas here or use it if it's being used elsewhere..?
+    result: list[dict[str, Any]] = await prepare_export_table(
         bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
         assignment_scope_ids=query.assignment_scope_ids,
         user_ids=query.user_ids,
@@ -236,13 +178,58 @@ async def get_annotations_excel(
         ignore_repeat=query.ignore_repeat,
         ignore_hierarchy=query.ignore_hierarchy,
         db_engine=db_engine,
+        max_results=max_results,
     )
 
+    # todo: get default config from request
+    drop_cols: set[str] = {
+        # 'item_id_1',
+        'type',
+        'text',
+        # 'time_edited',
+        'project_id',
+        # 'project_id_1',
+        'title_slug',
+        'keywords',
+        # 'authors',
+        'meta',
+    }
+
+    result = [{k: (v if k != 'authors' else get_author_names(v)) for k, v in lab.items() if k not in drop_cols} for lab in result]
+
+    match export_format:
+        case 'csv':
+            response = write_csv(result)
+        case 'excel':
+            response = write_excel(result)
+        case 'ris':
+            response = write_ris(result, query.labels)
+        case 'jsonl':
+            response = write_jsonl(result)
+        case _:
+            raise HTTPException(
+                status_code=400, detail=f"Requested export format '{export_format}' is not one of the recognized formats: ['csv', 'excel', 'ris', 'jsonl']"
+            )
+    return response
+
+
+def write_csv(result: list[dict[str, Any]]) -> FileResponse:
+    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
+        writer = csv.DictWriter(fp, fieldnames=list(result[0].keys()))
+        writer.writeheader()
+        [writer.writerow(lab) for lab in result]
+
+        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
+
+
+def write_excel(result: list[dict[str, Any]]) -> FileResponse:
+    # find the row with least null values to use in inferring column types
     best_row = max(result, key=present_count)
     column_types: dict[str, type[Any]] = {key: type(value) for (key, value) in best_row.items()}
+    # even with best_row, time_edited column often comes empty, so we enforce its data type
     if column_types.get('time_edited'):
         column_types['time_edited'] = dt.datetime
-    converters = build_converters(column_types)
+    converters = build_converters(column_types, 'excel')
     convert_types_inplace(result, converters)
 
     # Create a temporary file
@@ -281,38 +268,7 @@ async def get_annotations_excel(
     )
 
 
-def get_author_names(authors: Any) -> list[str]:
-    if not isinstance(authors, list) or not authors:
-        return []
-    
-    first = authors[0]
-    # academic item
-    if isinstance(first, dict) and 'name' in first.keys():
-        return [a.get('name') for a in authors]
-    # lexis item
-    if isinstance(first, str):
-        return authors
-    return []
-
-
-@router.post('/annotations/ris', response_class=CFR)
-async def get_annotations_ris(
-    query: ExportRequest,
-    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
-) -> FileResponse:
-    labels = query.labels
-    result = await prepare_export_table(
-        bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
-        assignment_scope_ids=query.assignment_scope_ids,
-        user_ids=query.user_ids,
-        project_id=permissions.permissions.project_id,
-        labels=labels,
-        nql_filter=query.nql_filter,
-        ignore_repeat=query.ignore_repeat,
-        ignore_hierarchy=query.ignore_hierarchy,
-        db_engine=db_engine,
-    )
-
+def write_ris(result: list[dict[str, Any]], labels: list[LabelOptions]) -> FileResponse:
     with tempfile.NamedTemporaryFile(suffix='.ris', mode='w', delete=False) as bibliography_file:
         rispy.dump(
             [
@@ -324,7 +280,7 @@ async def get_annotations_ris(
                     'custom2': str(row.get('item_id')),
                     'year': row.get('publication_year'),
                     'journal_name': row.get('source'),
-                    'authors': get_author_names(row.get('authors', [])),
+                    'authors': row.get('authors', []),
                     'keywords': row.get('keywords')
                     if row.get('keywords')
                     else []
@@ -354,6 +310,22 @@ async def get_annotations_ris(
         return FileResponse(
             bibliography_file.name, background=BackgroundTask(cleanup, bibliography_file.name), media_type='application/x-research-info-systems'
         )
+
+
+def write_jsonl(result: list[dict[str, Any]]) -> FileResponse:
+    # find the row with least null values to use in inferring column types
+    best_row = max(result, key=present_count)
+    column_types: dict[str, type[Any]] = {key: type(value) for (key, value) in best_row.items()}
+    # even with best_row, time_edited column often comes empty, so we enforce its data type
+    if column_types.get('time_edited'):
+        column_types['time_edited'] = dt.datetime
+    converters = build_converters(column_types, 'json')
+    convert_types_inplace(result, converters)
+
+    with tempfile.NamedTemporaryFile(suffix='.jsonl', mode='w', delete=False) as file:
+        [file.write(json.dumps(row) + '\n') for row in result]
+    # todo: standard media_type?
+    return FileResponse(file.name, background=BackgroundTask(cleanup, file.name), media_type='application/jsonl')
 
 
 class ProjectBaseInfoEntry(BaseModel):

@@ -3,10 +3,7 @@ import os
 import tempfile
 import rispy
 import xlsxwriter
-import json
 import uuid
-import enum
-import datetime as dt
 from typing import TYPE_CHECKING, Callable, Any
 
 # from memory_profiler import profile
@@ -15,6 +12,7 @@ from nacsos_data.db.crud.projects import read_project_by_id
 
 from fastapi import APIRouter, Depends, HTTPException
 from nacsos_data.models.nql import NQLFilter
+from nacsos_data.db.engine import DictLikeEncoder
 from nacsos_data.util.annotations.export import (
     prepare_export_table,
     get_project_labels,
@@ -58,92 +56,6 @@ class ExportRequest(BaseModel):
     user_ids: list[str] | None = None
     ignore_hierarchy: bool = True
     ignore_repeat: bool = True
-
-
-# measure time, can you used vectorized functions?
-def build_converters(column_types: dict[str, type], format: str) -> dict[str, Converter]:
-    """
-    Build conversion functions for each column type.
-
-    Args:
-        column_types: Dict mapping column names to their types
-                     e.g., {'id': UUID, 'status': MyEnum, 'created': datetime}
-
-    Returns:
-        Dict mapping column names to conversion functions that handle None values
-    """
-    converters: dict[str, Converter] = {}
-
-    match format:
-        case 'excel':
-            for col, col_type in column_types.items():
-                # Wrap converter to handle None values
-                converter = None
-                if col_type is not None:
-                    converter = _get_base_converter_excel(col_type)
-                converters[col] = converter
-        case 'json':
-            for col, col_type in column_types.items():
-                # Wrap converter to handle None values
-                converter = None
-                if col_type is not None:
-                    converter = _get_base_converter_json(col_type)
-                converters[col] = converter
-
-    return converters
-
-
-def _get_base_converter_excel(col_type: type[Any]) -> Callable[[Any], Any]:
-    """Get the base conversion function for a type."""
-    if col_type is uuid.UUID:
-        return str
-    elif issubclass(col_type, enum.Enum):
-        return lambda v: v.value
-    elif col_type in (dt.datetime, dt.time, dt.date):
-        return lambda v: v.isoformat() if v else None
-    elif col_type in (list, dict):
-        return lambda v: json.dumps(v)
-    else:
-        return lambda v: v
-
-
-def _get_base_converter_json(col_type: type[Any]) -> Callable[[Any], Any]:
-    """Get the base conversion function for a type."""
-    if col_type is uuid.UUID:
-        return str
-    elif issubclass(col_type, enum.Enum):
-        return lambda v: v.value
-    elif col_type in (dt.datetime, dt.time, dt.date):
-        return lambda v: v.isoformat() if v else None
-    else:
-        return lambda v: v
-
-
-def convert_types_inplace(data: list[dict[str, Any]], converters: dict[str, Converter]) -> None:
-    """
-    Convert types in place, filtering converters to only present columns.
-
-    Args:
-        data: List of dictionaries from database query
-        converters: Pre-built converters dict from build_converters()
-    Time Complexity: O(n × m) where n = rows, m = columns needing conversion
-    Space Complexity: O(m) for filtered converters dict
-    """
-    if not data:
-        return
-
-    # Filter converters to only columns present in this request (one-time check)
-    present_converters = {col: converter for col, converter in converters.items() if col in data[0]}
-
-    # Apply converters to each row
-    for row in data:
-        for col, converter in present_converters.items():
-            row[col] = converter(row[col])
-
-
-def present_count(d: dict[str, Any]) -> int:
-    # counts keys whose value is not None (adjust if you consider "" empty too)
-    return sum(v is not None for v in d.values())
 
 
 def get_author_names(authors: Any) -> list[str]:
@@ -223,14 +135,8 @@ def write_csv(result: list[dict[str, Any]]) -> FileResponse:
 
 
 def write_excel(result: list[dict[str, Any]]) -> FileResponse:
-    # find the row with least null values to use in inferring column types
-    best_row = max(result, key=present_count)
-    column_types: dict[str, type[Any]] = {key: type(value) for (key, value) in best_row.items()}
-    # even with best_row, time_edited column often comes empty, so we enforce its data type
-    if column_types.get('time_edited'):
-        column_types['time_edited'] = dt.datetime
-    converters = build_converters(column_types, 'excel')
-    convert_types_inplace(result, converters)
+    # encoder for type conversions required for excel
+    encoder = DictLikeEncoder()
 
     # Create a temporary file
     with tempfile.NamedTemporaryFile(suffix='.xlsx', mode='wb', delete=False) as fp:
@@ -247,11 +153,7 @@ def write_excel(result: list[dict[str, Any]]) -> FileResponse:
 
     # Write data rows
     for row_idx, row in enumerate(result, start=1):
-        try:
-            ws.write_row(row_idx, 0, [row.get(h) for h in headers])
-        except Exception as e:
-            print(row)
-            raise Exception(e)
+        ws.write_row(row_idx, 0, [encoder.excel_encode(row.get(h)) for h in headers])
 
     # Set column widths
     for col_idx, header in enumerate(headers):
@@ -313,19 +215,13 @@ def write_ris(result: list[dict[str, Any]], labels: list[LabelOptions]) -> FileR
 
 
 def write_jsonl(result: list[dict[str, Any]]) -> FileResponse:
-    # find the row with least null values to use in inferring column types
-    best_row = max(result, key=present_count)
-    column_types: dict[str, type[Any]] = {key: type(value) for (key, value) in best_row.items()}
-    # even with best_row, time_edited column often comes empty, so we enforce its data type
-    if column_types.get('time_edited'):
-        column_types['time_edited'] = dt.datetime
-    converters = build_converters(column_types, 'json')
-    convert_types_inplace(result, converters)
+    encoder = DictLikeEncoder()
+    encoded_result = [encoder.encode(row) for row in result]
 
     with tempfile.NamedTemporaryFile(suffix='.jsonl', mode='w', delete=False) as file:
-        [file.write(json.dumps(row) + '\n') for row in result]
-    # todo: standard media_type?
-    return FileResponse(file.name, background=BackgroundTask(cleanup, file.name), media_type='application/jsonl')
+        [file.write(row + '\n') for row in encoded_result]
+
+    return FileResponse(file.name, background=BackgroundTask(cleanup, file.name), media_type='text/plain')
 
 
 class ProjectBaseInfoEntry(BaseModel):

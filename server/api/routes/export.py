@@ -38,6 +38,8 @@ router = APIRouter()
 
 Converter = Callable[[Any], Any | None]
 
+DEFAULT_COLUMNS_TO_DROP = ['type', 'time_edited', 'project_id', 'title_slug', 'keywords', 'meta']
+
 
 def cleanup(file: str) -> None:
     os.remove(file)
@@ -56,6 +58,7 @@ class ExportRequest(BaseModel):
     user_ids: list[str] | None = None
     ignore_hierarchy: bool = True
     ignore_repeat: bool = True
+    columns_to_drop: list[str] = DEFAULT_COLUMNS_TO_DROP
 
 
 def get_author_names(authors: Any) -> list[str]:
@@ -93,48 +96,39 @@ async def export_annotations(
         max_results=max_results,
     )
 
-    # todo: get default config from request
-    drop_cols: set[str] = {
-        # 'item_id_1',
-        'type',
-        'text',
-        # 'time_edited',
-        'project_id',
-        # 'project_id_1',
-        'title_slug',
-        'keywords',
-        # 'authors',
-        'meta',
-    }
-
-    result = [{k: (v if k != 'authors' else get_author_names(v)) for k, v in lab.items() if k not in drop_cols} for lab in result]
+    # dropping columns and author name transformation is required for all export formats, so it's done here
+    cols_to_drop = query.columns_to_drop
+    result = [{k: (v if k != 'authors' else get_author_names(v)) for k, v in row.items() if k not in cols_to_drop} for row in result]
 
     match export_format:
         case 'csv':
-            response = write_csv(result)
+            fp = write_csv(result)
+            return FileResponse(fp, background=BackgroundTask(cleanup, fp), media_type='application/csv')
         case 'excel':
-            response = write_excel(result)
+            fp = write_excel(result)
+            return FileResponse(fp, background=BackgroundTask(cleanup, fp), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         case 'ris':
-            response = write_ris(result, query.labels)
+            fp = write_ris(result, query.labels)
+            return FileResponse(fp, background=BackgroundTask(cleanup, fp), media_type='application/x-research-info-systems')
         case 'jsonl':
-            response = write_jsonl(result)
+            fp = write_jsonl(result)
+            return FileResponse(fp, background=BackgroundTask(cleanup, fp), media_type='text/plain')
         case _:
             raise HTTPException(
                 status_code=400, detail=f"Requested export format '{export_format}' is not one of the recognized formats: ['csv', 'excel', 'ris', 'jsonl']"
             )
-    return response
 
 
-def write_csv(result: list[dict[str, Any]]) -> FileResponse:
+def write_csv(result: list[dict[str, Any]]) -> str:
     with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
         writer = csv.DictWriter(fp, fieldnames=list(result[0].keys()))
         writer.writeheader()
         [writer.writerow(lab) for lab in result]
 
-        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
+    return fp.name
 
 
-def write_excel(result: list[dict[str, Any]]) -> FileResponse:
+def write_excel(result: list[dict[str, Any]]) -> str:
     # encoder for type conversions required for excel
     encoder = DictLikeEncoder()
 
@@ -164,14 +158,11 @@ def write_excel(result: list[dict[str, Any]]) -> FileResponse:
     # Close the workbook to flush all data
     wb.close()
 
-    # Return the file
-    return FileResponse(
-        temp_path, background=BackgroundTask(cleanup, temp_path), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+    return temp_path
 
 
-def write_ris(result: list[dict[str, Any]], labels: list[LabelOptions]) -> FileResponse:
-    with tempfile.NamedTemporaryFile(suffix='.ris', mode='w', delete=False) as bibliography_file:
+def write_ris(result: list[dict[str, Any]], labels: list[LabelOptions]) -> str:
+    with tempfile.NamedTemporaryFile(suffix='.ris', mode='w', delete=False) as fp:
         rispy.dump(
             [
                 {  # In prod academic_items; up to 2.5M out of 8M missing for these columns; so to make it error prone, default to empty string
@@ -206,22 +197,20 @@ def write_ris(result: list[dict[str, Any]], labels: list[LabelOptions]) -> FileR
                 }
                 for row in result
             ],
-            bibliography_file,
+            fp,
         )
 
-        return FileResponse(
-            bibliography_file.name, background=BackgroundTask(cleanup, bibliography_file.name), media_type='application/x-research-info-systems'
-        )
+        return fp.name
 
 
-def write_jsonl(result: list[dict[str, Any]]) -> FileResponse:
+def write_jsonl(result: list[dict[str, Any]]) -> str:
     encoder = DictLikeEncoder()
     encoded_result = [encoder.encode(row) for row in result]
 
-    with tempfile.NamedTemporaryFile(suffix='.jsonl', mode='w', delete=False) as file:
-        [file.write(row + '\n') for row in encoded_result]
+    with tempfile.NamedTemporaryFile(suffix='.jsonl', mode='w', delete=False) as fp:
+        [fp.write(row + '\n') for row in encoded_result]
 
-    return FileResponse(file.name, background=BackgroundTask(cleanup, file.name), media_type='text/plain')
+    return fp.name
 
 
 class ProjectBaseInfoEntry(BaseModel):

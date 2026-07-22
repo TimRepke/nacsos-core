@@ -1338,9 +1338,11 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "rispy" },
     { name = "sqlalchemy" },
     { name = "sqlalchemy-json" },
     { name = "typer" },
+    { name = "xlsxwriter" },
 ]
 
 [package.optional-dependencies]
@@ -1387,6 +1389,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = "==2.14.2" },
     { name = "pymilvus", marker = "extra == 'utils'", specifier = "==2.6.12" },
     { name = "python-dotenv", specifier = "==1.2.2" },
+    { name = "rispy", specifier = ">=0.10.0" },
     { name = "rispy", marker = "extra == 'utils'", specifier = "==0.10.0" },
     { name = "scikit-learn", marker = "extra == 'utils'", specifier = "==1.9.0" },
     { name = "scipy", marker = "extra == 'utils'", specifier = "==1.18.0" },
@@ -1395,6 +1398,7 @@ requires-dist = [
     { name = "tqdm", marker = "extra == 'scripts'", specifier = "==4.68.3" },
     { name = "transformers", extras = ["torch"], marker = "extra == 'priority'", specifier = "==5.2.0" },
     { name = "typer", specifier = "==0.26.8" },
+    { name = "xlsxwriter", specifier = ">=3.2.9" },
 ]
 provides-extras = ["utils", "priority", "scripts"]
 

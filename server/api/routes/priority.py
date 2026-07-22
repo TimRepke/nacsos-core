@@ -7,7 +7,7 @@ import numpy as np
 
 from nacsos_data.db.schemas.priority import Priority
 from nacsos_data.models.priority import PriorityModel, DehydratedPriorityModel
-from nacsos_data.util.annotations.export import wide_export_table
+from nacsos_data.util.export.pandas import wide_export_table
 from nacsos_data.util.priority.mask import get_inclusion_mask
 
 from fastapi.responses import FileResponse

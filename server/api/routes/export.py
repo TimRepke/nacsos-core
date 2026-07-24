@@ -1,25 +1,26 @@
-import csv
 import os
-import tempfile
-import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from nacsos_data.db.crud.annotations import read_annotation_scheme
 from nacsos_data.db.crud.projects import read_project_by_id
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from nacsos_data.models.nql import NQLFilter
-from nacsos_data.util.annotations.export import (
+from nacsos_data.util.export.dict import (
     prepare_export_table,
-    get_project_labels,
     get_project_scopes,
     get_project_bot_scopes,
     get_project_users,
-    LabelOptions,
+    BaseInfoWithScheme,
+    BaseInfo,
 )
+from nacsos_data.util.export.util import LabelOptions, scheme_to_label_options
+from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
+from server.api.errors import AnnotationSchemeNotFoundError
 from server.util.security import UserPermissionChecker
 
 from nacsos_data.util.auth import UserPermissions
@@ -31,13 +32,11 @@ if TYPE_CHECKING:
 
 router = APIRouter()
 
+DEFAULT_COLUMNS_TO_DROP = ['type', 'time_edited', 'project_id', 'title_slug', 'keywords', 'meta']
+
 
 def cleanup(file: str) -> None:
     os.remove(file)
-
-
-class CFR(FileResponse):  # custom file response to set the media type
-    media_type = 'application/csv'
 
 
 class ExportRequest(BaseModel):
@@ -48,15 +47,46 @@ class ExportRequest(BaseModel):
     user_ids: list[str] | None = None
     ignore_hierarchy: bool = True
     ignore_repeat: bool = True
+    columns_to_drop: list[str] = DEFAULT_COLUMNS_TO_DROP
 
 
-@router.post('/annotations/csv', response_class=CFR)
-async def get_annotations_csv(
+class CSVResponse(FileResponse):  # custom file response to set the media type
+    media_type = 'application/csv'
+
+
+class ExcelResponse(FileResponse):
+    media_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+
+class RISResponse(FileResponse):
+    media_type = 'application/x-research-info-systems'
+
+
+class JSONLResponse(FileResponse):
+    media_type = 'text/plain'
+
+
+@router.post(
+    '/annotations/{export_format}',
+    response_model=None,
+    responses={
+        200: {
+            'content': {
+                'application/csv': {},
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {},
+                'application/x-research-info-systems': {},
+                'text/plain': {},
+            }
+        }
+    },
+)
+async def export_annotations(
+    export_format: str,
     query: ExportRequest,
     max_results: int = 15000,
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
-) -> FileResponse:
-    result = await prepare_export_table(
+) -> CSVResponse | ExcelResponse | RISResponse | JSONLResponse:
+    result: list[dict[str, Any]] = await prepare_export_table(
         bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
         assignment_scope_ids=query.assignment_scope_ids,
         user_ids=query.user_ids,
@@ -69,47 +99,56 @@ async def get_annotations_csv(
         max_results=max_results,
     )
 
-    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w', newline='', delete=False) as fp:
-        writer = csv.DictWriter(fp, fieldnames=list(result[0].keys()))
-        writer.writeheader()
-        [writer.writerow(lab) for lab in result]
+    # dropping columns and author name transformation is required for all export formats, so it's done here
+    cols_to_drop = query.columns_to_drop
+    result = [{k: (v if k != 'authors' else get_author_names(v)) for k, v in row.items() if k not in cols_to_drop} for row in result]
 
-        return FileResponse(fp.name, background=BackgroundTask(cleanup, fp.name), media_type='application/csv')
-
-
-class ProjectBaseInfoEntry(BaseModel):
-    id: str | uuid.UUID
-    name: str
-
-
-class ProjectBaseInfoScopeEntry(ProjectBaseInfoEntry):
-    scheme_id: str | uuid.UUID
-    scheme_name: str
+    match export_format:
+        case 'csv':
+            fp = write_csv(result)
+            return CSVResponse(fp, background=BackgroundTask(cleanup, fp))
+        case 'excel':
+            fp = write_excel(result)
+            return ExcelResponse(fp, background=BackgroundTask(cleanup, fp))
+        case 'ris':
+            fp = write_ris(result, query.labels)
+            return RISResponse(fp, background=BackgroundTask(cleanup, fp))
+        case 'jsonl':
+            fp = write_jsonl(result)
+            return JSONLResponse(fp, background=BackgroundTask(cleanup, fp))
+        case _:
+            raise HTTPException(
+                status_code=400, detail=f"Requested export format '{export_format}' is not one of the recognized formats: ['csv', 'excel', 'ris', 'jsonl']"
+            )
 
 
 class ProjectBaseInfo(BaseModel):
-    users: list[ProjectBaseInfoEntry]
-    scopes: list[ProjectBaseInfoScopeEntry]
-    bot_scopes: list[ProjectBaseInfoEntry]
-    labels: dict[str, LabelOptions]
+    users: list[BaseInfo]
+    scopes: list[BaseInfoWithScheme]
+    bot_scopes: list[BaseInfoWithScheme]
 
 
 @router.get('/project/baseinfo', response_model=ProjectBaseInfo)
 async def get_export_baseinfo(
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
 ) -> ProjectBaseInfo:
-    project_users = await get_project_users(project_id=permissions.permissions.project_id, db_engine=db_engine)
-    project_scopes = await get_project_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine)
-    project_bot_scopes = await get_project_bot_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine)
-    project_labels = await get_project_labels(project_id=permissions.permissions.project_id, db_engine=db_engine)
     project = await read_project_by_id(project_id=permissions.permissions.project_id, engine=db_engine)
-
     if project is None:
         raise RuntimeError('Invalid state!')
 
     return ProjectBaseInfo(
-        users=[ProjectBaseInfoEntry.model_validate(pu) for pu in project_users],
-        scopes=[ProjectBaseInfoScopeEntry.model_validate(ps) for ps in project_scopes],
-        bot_scopes=[ProjectBaseInfoEntry.model_validate(pbs) for pbs in project_bot_scopes],
-        labels=project_labels,
+        users=await get_project_users(project_id=permissions.permissions.project_id, db_engine=db_engine),
+        scopes=await get_project_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine),
+        bot_scopes=await get_project_bot_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine),
     )
+
+
+@router.get('/project/label_options/{scheme_id}')
+async def get_export_label_options(
+    scheme_id: str,
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> dict[str, LabelOptions]:
+    scheme = await read_annotation_scheme(annotation_scheme_id=scheme_id, engine=db_engine)
+    if scheme is None:
+        raise AnnotationSchemeNotFoundError(f'No annotation scheme found with id {scheme_id}')
+    return scheme_to_label_options(scheme)

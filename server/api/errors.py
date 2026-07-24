@@ -26,7 +26,7 @@ class UserNotFoundError(Exception):
 
 
 class AnnotationSchemeNotFoundError(Exception):
-    pass
+    status = http_status.HTTP_404_NOT_FOUND
 
 
 class NoNextAssignmentWarning(Warning):

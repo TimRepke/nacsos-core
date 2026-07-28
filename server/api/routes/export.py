@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 router = APIRouter()
 
-DEFAULT_COLUMNS_TO_DROP = ['type', 'time_edited', 'project_id', 'title_slug', 'keywords', 'meta']
+DEFAULT_COLUMNS_TO_DROP = ['type', 'time_edited', 'project_id', 'title_slug', 'keywords', 'meta', 'authors_raw']
 
 
 def cleanup(file: str) -> None:
@@ -101,7 +101,10 @@ async def export_annotations(
 
     # dropping columns and author name transformation is required for all export formats, so it's done here
     cols_to_drop = query.columns_to_drop
-    result = [{k: (v if k != 'authors' else get_author_names(v)) for k, v in row.items() if k not in cols_to_drop} for row in result]
+    result = [
+        {k: v for k, v in (row | {'authors': get_author_names(row.get('authors')), 'authors_raw': row.get('authors')}).items() if k not in cols_to_drop}
+        for row in result
+    ]
 
     match export_format:
         case 'csv':

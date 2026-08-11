@@ -15,7 +15,7 @@ from nacsos_data.util.export.dict import (
     BaseInfo,
 )
 from nacsos_data.util.export.util import LabelOptions, scheme_to_label_options
-from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris
+from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris, DEFAULT_COLUMNS_TO_DROP
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
@@ -31,8 +31,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession  # noqa F401
 
 router = APIRouter()
-
-DEFAULT_COLUMNS_TO_DROP = ['type', 'time_edited', 'project_id', 'title_slug', 'keywords', 'meta', 'authors_raw']
 
 
 def cleanup(file: str) -> None:

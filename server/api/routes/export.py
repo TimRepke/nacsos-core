@@ -16,6 +16,7 @@ from nacsos_data.util.export.dict import (
 )
 from nacsos_data.util.export.util import LabelOptions, scheme_to_label_options
 from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris, DEFAULT_COLUMNS_TO_DROP
+from nacsos_data.scripts.exporter import ExportTypeEnum
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
@@ -79,7 +80,7 @@ class JSONLResponse(FileResponse):
     },
 )
 async def export_annotations(
-    export_format: str,
+    export_format: ExportTypeEnum,
     query: ExportRequest,
     max_results: int = 15000,
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),

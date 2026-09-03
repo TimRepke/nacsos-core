@@ -7,11 +7,10 @@ from nacsos_data.db.crud.projects import read_project_by_id
 from fastapi import APIRouter, Depends, HTTPException
 from nacsos_data.db.crud.users import read_users
 from nacsos_data.models.nql import NQLFilter
-from nacsos_data.models.users import DehydratedUser
 from nacsos_data.scripts.exporter import ExportTypeEnum
+from nacsos_data.models.users import DehydratedUser
 from nacsos_data.util.export.dict import (
     prepare_export_table,
-<<<<<<< HEAD
     get_labels_with_names,
 )
 from nacsos_data.util.export.util import (
@@ -27,17 +26,11 @@ from nacsos_data.util.export.file import (
     write_ris,
     DEFAULT_COLUMNS_TO_DROP,
 )
-=======
-    get_project_scopes,
-    get_project_bot_scopes,
-    get_project_users,
-    BaseInfoWithScheme,
-    BaseInfo,
-    get_labels_with_names,
+from nacsos_data.util.export.util import (
+    LabelOptions,
+    RISLabelFormat,
+    scheme_to_label_options,
 )
-from nacsos_data.util.export.util import LabelOptions, RISLabelFormat, scheme_to_label_options
-from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris
->>>>>>> 2f85e89 (Improve ris export)
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse

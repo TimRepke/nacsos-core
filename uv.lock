@@ -1389,6 +1389,7 @@ provides-extras = ["utils", "priority", "scripts"]
 dev = [
     { name = "mypy", extras = ["faster-cache"], specifier = "==2.3.0" },
     { name = "nacsos-data", extras = ["utils", "scripts"], editable = "../nacsos-data" },
+    { name = "pre-commit", specifier = ">=4.6.1" },
     { name = "ruff", specifier = ">=0.16.0" },
     { name = "types-passlib", specifier = "==1.7.7.20260211" },
     { name = "types-requests", specifier = ">=2.33.0.20260712" },

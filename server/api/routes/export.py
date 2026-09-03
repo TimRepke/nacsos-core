@@ -1,19 +1,17 @@
 import os
 from typing import TYPE_CHECKING, Any
 
-from nacsos_data.db.crud.annotations import read_annotation_scheme
+from nacsos_data.db.crud.annotations import read_annotation_scheme, read_resolution_scopes_for_project_info, read_assignment_scopes_for_project_info
 from nacsos_data.db.crud.projects import read_project_by_id
 
 from fastapi import APIRouter, Depends, HTTPException
+from nacsos_data.db.crud.users import read_users
+from nacsos_data.models import ScopeInfo
 from nacsos_data.models.nql import NQLFilter
+from nacsos_data.models.users import DehydratedUser
 from nacsos_data.scripts.exporter import ExportTypeEnum
 from nacsos_data.util.export.dict import (
     prepare_export_table,
-    get_project_scopes,
-    get_project_bot_scopes,
-    get_project_users,
-    BaseInfoWithScheme,
-    BaseInfo,
     get_labels_with_names,
 )
 from nacsos_data.util.export.util import (
@@ -139,9 +137,9 @@ async def export_annotations(
 
 
 class ProjectBaseInfo(BaseModel):
-    users: list[BaseInfo]
-    scopes: list[BaseInfoWithScheme]
-    bot_scopes: list[BaseInfoWithScheme]
+    users: list[DehydratedUser]
+    scopes: list[ScopeInfo]
+    bot_scopes: list[ScopeInfo]
 
 
 @router.get('/project/baseinfo', response_model=ProjectBaseInfo)
@@ -151,11 +149,13 @@ async def get_export_baseinfo(
     project = await read_project_by_id(project_id=permissions.permissions.project_id, engine=db_engine)
     if project is None:
         raise RuntimeError('Invalid state!')
-
     return ProjectBaseInfo(
-        users=await get_project_users(project_id=permissions.permissions.project_id, db_engine=db_engine),
-        scopes=await get_project_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine),
-        bot_scopes=await get_project_bot_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine),
+        users=[
+            DehydratedUser.model_validate(user)
+            for user in (await read_users(project_id=str(permissions.permissions.project_id), order_by_username=True, engine=db_engine) or [])
+        ],
+        bot_scopes=await read_resolution_scopes_for_project_info(project_id=permissions.permissions.project_id, db_engine=db_engine),
+        scopes=await read_assignment_scopes_for_project_info(project_id=permissions.permissions.project_id, db_engine=db_engine),
     )
 
 

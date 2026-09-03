@@ -13,10 +13,10 @@ from nacsos_data.util.export.dict import (
     get_project_users,
     BaseInfoWithScheme,
     BaseInfo,
+    get_labels_with_names,
 )
-from nacsos_data.util.export.util import LabelOptions, scheme_to_label_options
-from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris, DEFAULT_COLUMNS_TO_DROP
-from nacsos_data.scripts.exporter import ExportTypeEnum
+from nacsos_data.util.export.util import LabelOptions, RISLabelFormat, scheme_to_label_options
+from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
@@ -47,6 +47,7 @@ class ExportRequest(BaseModel):
     ignore_hierarchy: bool = True
     ignore_repeat: bool = True
     columns_to_drop: list[str] = DEFAULT_COLUMNS_TO_DROP
+    ris_label_format: RISLabelFormat = RISLabelFormat.RAW_TAGS
 
 
 class CSVResponse(FileResponse):  # custom file response to set the media type
@@ -113,7 +114,8 @@ async def export_annotations(
             fp = write_excel(result)
             return ExcelResponse(fp, background=BackgroundTask(cleanup, fp))
         case 'ris':
-            fp = write_ris(result, query.labels)
+            label_mappings = await get_labels_with_names(scopes=query.assignment_scope_ids, db_engine=db_engine)
+            fp = write_ris(result, query.labels, label_mappings, query.ris_label_format)
             return RISResponse(fp, background=BackgroundTask(cleanup, fp))
         case 'jsonl':
             fp = write_jsonl(result)

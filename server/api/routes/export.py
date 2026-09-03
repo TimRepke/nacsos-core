@@ -1,21 +1,32 @@
 import os
 from typing import TYPE_CHECKING, Any
 
-from nacsos_data.db.crud.annotations import read_annotation_scheme
+from nacsos_data.db.crud.annotations import read_annotation_scheme, read_resolution_scopes_for_project_info, read_assignment_scopes_for_project_info
 from nacsos_data.db.crud.projects import read_project_by_id
 
 from fastapi import APIRouter, Depends, HTTPException
+from nacsos_data.db.crud.users import read_users
+from nacsos_data.models import ScopeInfo
 from nacsos_data.models.nql import NQLFilter
+from nacsos_data.models.users import DehydratedUser
+from nacsos_data.scripts.exporter import ExportTypeEnum
 from nacsos_data.util.export.dict import (
     prepare_export_table,
-    get_project_scopes,
-    get_project_bot_scopes,
-    get_project_users,
-    BaseInfoWithScheme,
-    BaseInfo,
+    get_labels_with_names,
 )
-from nacsos_data.util.export.util import LabelOptions, scheme_to_label_options
-from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris
+from nacsos_data.util.export.util import (
+    LabelOptions,
+    RISLabelFormat,
+    scheme_to_label_options,
+)
+from nacsos_data.util.export.file import (
+    get_author_names,
+    write_csv,
+    write_excel,
+    write_jsonl,
+    write_ris,
+    DEFAULT_COLUMNS_TO_DROP,
+)
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
@@ -32,8 +43,6 @@ if TYPE_CHECKING:
 
 router = APIRouter()
 
-DEFAULT_COLUMNS_TO_DROP = ['type', 'time_edited', 'project_id', 'title_slug', 'keywords', 'meta', 'authors_raw']
-
 
 def cleanup(file: str) -> None:
     os.remove(file)
@@ -48,6 +57,7 @@ class ExportRequest(BaseModel):
     ignore_hierarchy: bool = True
     ignore_repeat: bool = True
     columns_to_drop: list[str] = DEFAULT_COLUMNS_TO_DROP
+    ris_label_format: RISLabelFormat = RISLabelFormat.RAW_TAGS
 
 
 class CSVResponse(FileResponse):  # custom file response to set the media type
@@ -81,7 +91,7 @@ class JSONLResponse(FileResponse):
     },
 )
 async def export_annotations(
-    export_format: str,
+    export_format: ExportTypeEnum,
     query: ExportRequest,
     max_results: int = 15000,
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
@@ -114,7 +124,8 @@ async def export_annotations(
             fp = write_excel(result)
             return ExcelResponse(fp, background=BackgroundTask(cleanup, fp))
         case 'ris':
-            fp = write_ris(result, query.labels)
+            label_mappings = await get_labels_with_names(scopes=query.assignment_scope_ids, db_engine=db_engine)
+            fp = write_ris(result, query.labels, label_mappings, query.ris_label_format)
             return RISResponse(fp, background=BackgroundTask(cleanup, fp))
         case 'jsonl':
             fp = write_jsonl(result)
@@ -126,9 +137,9 @@ async def export_annotations(
 
 
 class ProjectBaseInfo(BaseModel):
-    users: list[BaseInfo]
-    scopes: list[BaseInfoWithScheme]
-    bot_scopes: list[BaseInfoWithScheme]
+    users: list[DehydratedUser]
+    scopes: list[ScopeInfo]
+    bot_scopes: list[ScopeInfo]
 
 
 @router.get('/project/baseinfo', response_model=ProjectBaseInfo)
@@ -138,11 +149,13 @@ async def get_export_baseinfo(
     project = await read_project_by_id(project_id=permissions.permissions.project_id, engine=db_engine)
     if project is None:
         raise RuntimeError('Invalid state!')
-
     return ProjectBaseInfo(
-        users=await get_project_users(project_id=permissions.permissions.project_id, db_engine=db_engine),
-        scopes=await get_project_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine),
-        bot_scopes=await get_project_bot_scopes(project_id=permissions.permissions.project_id, db_engine=db_engine),
+        users=[
+            DehydratedUser.model_validate(user)
+            for user in (await read_users(project_id=str(permissions.permissions.project_id), order_by_username=True, engine=db_engine) or [])
+        ],
+        bot_scopes=await read_resolution_scopes_for_project_info(project_id=permissions.permissions.project_id, db_engine=db_engine),
+        scopes=await read_assignment_scopes_for_project_info(project_id=permissions.permissions.project_id, db_engine=db_engine),
     )
 
 

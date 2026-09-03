@@ -4,7 +4,7 @@ repos:
         - id: ruff-check
           name: ruff check
           description: "Run 'ruff check' for Python linting"
-          entry: uv run ruff check --fix
+          entry: uv run --frozen ruff check --fix
           language: python
           types_or: [python, pyi, jupyter]
           args: []
@@ -15,7 +15,7 @@ repos:
         - id: ruff-format
           name: ruff format
           description: "Run 'ruff format' for Python formatting"
-          entry: uv run ruff format
+          entry: uv run --frozen ruff format
           language: python
           types_or: [python, pyi, jupyter]
           args: []
@@ -26,7 +26,7 @@ repos:
         - id: mypy
           name: mypy
           description: ''
-          entry: uv run mypy
+          entry: uv run --frozen mypy
           language: python
           types_or: [python, pyi]
           args: []

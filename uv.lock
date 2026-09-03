@@ -1311,7 +1311,7 @@ dev = [
 
 [[package]]
 name = "nacsos-data"
-version = "0.24.54"
+version = "0.24.57"
 source = { editable = "../nacsos-data" }
 dependencies = [
     { name = "email-validator" },

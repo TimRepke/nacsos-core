@@ -6,6 +6,7 @@ from nacsos_data.db.crud.projects import read_project_by_id
 
 from fastapi import APIRouter, Depends, HTTPException
 from nacsos_data.models.nql import NQLFilter
+from nacsos_data.scripts.exporter import ExportTypeEnum
 from nacsos_data.util.export.dict import (
     prepare_export_table,
     get_project_scopes,
@@ -15,8 +16,19 @@ from nacsos_data.util.export.dict import (
     BaseInfo,
     get_labels_with_names,
 )
-from nacsos_data.util.export.util import LabelOptions, RISLabelFormat, scheme_to_label_options
-from nacsos_data.util.export.file import get_author_names, write_csv, write_excel, write_jsonl, write_ris
+from nacsos_data.util.export.util import (
+    LabelOptions,
+    RISLabelFormat,
+    scheme_to_label_options,
+)
+from nacsos_data.util.export.file import (
+    get_author_names,
+    write_csv,
+    write_excel,
+    write_jsonl,
+    write_ris,
+    DEFAULT_COLUMNS_TO_DROP,
+)
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse

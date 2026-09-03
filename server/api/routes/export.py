@@ -1,12 +1,11 @@
 import os
 from typing import TYPE_CHECKING, Any
 
-from nacsos_data.db.crud.annotations import read_annotation_scheme, read_resolution_scopes_for_project_info, read_assignment_scopes_for_project_info
+from nacsos_data.db.crud.annotations import read_annotation_scheme
 from nacsos_data.db.crud.projects import read_project_by_id
 
 from fastapi import APIRouter, Depends, HTTPException
 from nacsos_data.db.crud.users import read_users
-from nacsos_data.models import ScopeInfo
 from nacsos_data.models.nql import NQLFilter
 from nacsos_data.models.users import DehydratedUser
 from nacsos_data.scripts.exporter import ExportTypeEnum

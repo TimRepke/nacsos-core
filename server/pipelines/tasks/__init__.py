@@ -35,4 +35,5 @@ broker.add_middleware(AsyncIO())
 
 
 from . import imports  # noqa: F401, E402
+from . import exports  # noqa: F401, E402
 from . import sleepy  # noqa: F401, E402

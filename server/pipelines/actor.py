@@ -61,6 +61,8 @@ class NacsosActor(Actor[P, R]):
 
         self.task_id = str(uuid.uuid4())
 
+        kwargs['project_id'] = project_id
+
         params = {**kwargs}
         for i, arg in enumerate(args):
             params[self.fn.__code__.co_varnames[i]] = arg

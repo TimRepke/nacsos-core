@@ -1,6 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Any
-
+from datetime import datetime as dt
+from fastapi.responses import JSONResponse
 from nacsos_data.db.crud.annotations import read_annotation_scheme
 from nacsos_data.db.crud.projects import read_project_by_id
 
@@ -123,6 +124,38 @@ async def export_annotations(
             raise HTTPException(
                 status_code=400, detail=f"Requested export format '{export_format}' is not one of the recognized formats: ['csv', 'excel', 'ris', 'jsonl']"
             )
+
+
+@router.post('/annotations/{export_format}/v2', response_class=CSVResponse)
+async def export_annotations_v2(
+    export_format: str,
+    query: ExportRequest,
+    max_results: int = 15000,
+    permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
+) -> JSONResponse:
+    from server.pipelines import tasks
+
+    # make query json serializable so it can be sent as task
+    query_json = query.model_dump(mode='json')  # mode='json'
+    now = dt.now().strftime('%Y%m%d_%H%M')
+    # TODO: fix excel extension
+    export_path = f'.data/exports/{permissions.permissions.project_id}/{permissions.user.username}/{now}.{export_format}'
+    task = tasks.exports.export_task.send(
+        project_id=permissions.permissions.project_id,
+        user_id=permissions.user.user_id,
+        comment=f'Output file: {export_path}',
+        export_format=export_format,
+        query_json=query_json,
+        max_results=max_results,
+        export_path=export_path,
+    )
+    return JSONResponse(
+        status_code=202,
+        content={
+            'status': 'queued',
+            'task_id': str(task.message_id),
+        },
+    )
 
 
 class ProjectBaseInfo(BaseModel):

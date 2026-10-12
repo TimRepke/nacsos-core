@@ -128,7 +128,10 @@ async def export_annotations(
             fp = write_excel(result)
             return ExcelResponse(fp, background=BackgroundTask(cleanup, fp))
         case 'ris':
-            label_mappings = await get_labels_with_names(scopes=query.assignment_scope_ids, db_engine=db_engine)
+            label_mappings = await get_labels_with_names(
+                scopes=(query.assignment_scope_ids or []) + (query.bot_annotation_metadata_ids or []),
+                db_engine=db_engine,
+            )
             fp = write_ris(result, query.labels, label_mappings, query.ris_label_format)
             return RISResponse(fp, background=BackgroundTask(cleanup, fp))
         case 'jsonl':

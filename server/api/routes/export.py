@@ -1,7 +1,6 @@
 import os
 from typing import TYPE_CHECKING, Any
 
-from nacsos_data.db.crud.annotations import read_annotation_scheme
 from nacsos_data.db.crud.projects import read_project_by_id
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,6 +8,7 @@ from nacsos_data.db.crud.users import read_users
 from nacsos_data.db.crud.annotations import (
     read_assignment_scopes_for_project_info,
     read_resolution_scopes_for_project_info,
+    read_annotation_scheme,
 )
 from nacsos_data.models import ScopeInfo
 from nacsos_data.models.nql import NQLFilter

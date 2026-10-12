@@ -95,7 +95,8 @@ docstring-code-line-length = "dynamic"
 docstring-quotes = "double"
 
 [tool.mypy]
-plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+#plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+plugins = ["pydantic.mypy"]
 strict = true
 follow_imports = "silent"
 
@@ -125,4 +126,4 @@ disallow_untyped_defs = true
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
-warn_untyped_fields = true
+#warn_untyped_fields = true

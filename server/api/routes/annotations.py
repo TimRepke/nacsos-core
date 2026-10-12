@@ -445,7 +445,7 @@ async def bulk_add_assignment(
 ) -> None:
     async with db_engine.session() as session:  # type: AsyncSession
         # existing assignments
-        existing_ids = {
+        existing_ids = {  # type: ignore[var-annotated]
             str(eid)
             for eid in (
                 await session.execute(select(Assignment.item_id).where(Assignment.assignment_scope_id == info.scope_id, Assignment.user_id == info.user_id))

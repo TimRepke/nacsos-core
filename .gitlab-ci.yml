@@ -57,6 +57,13 @@ test-mypy:
   script:
     - uv run mypy
 
+test-pytest:
+  extends: .uv
+  stage: test
+  allow_failure: true
+  script:
+    - uv run pytest
+
 deploy-to-production:
   stage: deploy
   tags:

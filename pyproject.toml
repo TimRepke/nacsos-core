@@ -40,13 +40,17 @@ dev = [
     "types-PyYAML==6.0.12.20260724",
     "types-aiofiles==25.1.0.20260518",
     "pre-commit>=4.6.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "httpx>=0.28.1",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.ruff]
 line-length = 160
 indent-width = 4
 target-version = "py314"
-include = ["pyproject.toml", "server/**/*.py"]
+include = ["pyproject.toml", "server/**/*.py", "tests/**/*.py"]
 exclude = []
 
 [tool.ruff.lint]
@@ -93,6 +97,16 @@ docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = '-ra --strict-markers --strict-config'
+asyncio_mode = 'auto'
+asyncio_default_fixture_loop_scope = 'function'
+markers = [
+    'integration: tests that require a live PostgreSQL database (deselected by default)',
+]
 
 [tool.mypy]
 #plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]

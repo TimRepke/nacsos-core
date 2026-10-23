@@ -62,7 +62,7 @@ test-pytest:
   stage: test
   allow_failure: true
   variables:
-    - NACSOS_CONFIG: "config/default.env"
+    NACSOS_CONFIG: "config/default.env"
   script:
     # override so we don't get interference
     - unset $(env | grep -o '^NACSOS_[^=]*') || true

@@ -66,6 +66,7 @@ test-pytest:
   script:
     # override so we don't get interference
     - unset $(env | grep -o '^NACSOS_[^=]*') || true
+    - mkdir -p frontend/dist/
     - uv run pytest
 
 deploy-to-production:

@@ -33,6 +33,7 @@ from nacsos_data.util.export.file import (
 )
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
 
 from server.api.errors import AnnotationSchemeNotFoundError
@@ -80,6 +81,38 @@ class JSONLResponse(FileResponse):
     media_type = 'text/plain'
 
 
+def build_export_file(
+    export_format: ExportTypeEnum,
+    result: list[dict[str, Any]],
+    query: ExportRequest,
+    label_mappings: dict[str, tuple[str, str]],
+) -> str:
+    """Transforms the export rows and writes them to a temporary file, returning the path of that file.
+
+    Rendering up to `max_results` rows and writing them to disk is cpu and io bound, therefore this is never
+    called from the event loop itself but always via `run_in_threadpool`.
+    """
+    # dropping columns and author name transformation is required for all export formats, so it's done here
+    rows = [
+        {
+            k: v
+            for k, v in (row | {'authors': get_author_names(row.get('authors')), 'authors_raw': row.get('authors')}).items()
+            if k not in query.columns_to_drop
+        }
+        for row in result
+    ]
+
+    match export_format:
+        case 'csv':
+            return write_csv(rows)
+        case 'excel':
+            return write_excel(rows)
+        case 'ris':
+            return write_ris(rows, query.labels, label_mappings, query.ris_label_format)
+        case _:
+            return write_jsonl(rows)
+
+
 @router.post(
     '/annotations/{export_format}',
     response_model=None,
@@ -100,6 +133,11 @@ async def export_annotations(
     max_results: int = 15000,
     permissions: UserPermissions = Depends(UserPermissionChecker('annotations_read')),
 ) -> CSVResponse | ExcelResponse | RISResponse | JSONLResponse:
+    if export_format not in (ExportTypeEnum.csv, ExportTypeEnum.excel, ExportTypeEnum.ris, ExportTypeEnum.jsonl):
+        raise HTTPException(
+            status_code=400, detail=f"Requested export format '{export_format}' is not one of the recognized formats: ['csv', 'excel', 'ris', 'jsonl']"
+        )
+
     result: list[dict[str, Any]] = await prepare_export_table(
         bot_annotation_metadata_ids=query.bot_annotation_metadata_ids,
         assignment_scope_ids=query.assignment_scope_ids,
@@ -113,34 +151,24 @@ async def export_annotations(
         max_results=max_results,
     )
 
-    # dropping columns and author name transformation is required for all export formats, so it's done here
-    cols_to_drop = query.columns_to_drop
-    result = [
-        {k: v for k, v in (row | {'authors': get_author_names(row.get('authors')), 'authors_raw': row.get('authors')}).items() if k not in cols_to_drop}
-        for row in result
-    ]
+    label_mappings: dict[str, tuple[str, str]] = {}
+    if export_format == 'ris':
+        label_mappings = await get_labels_with_names(
+            scopes=(query.assignment_scope_ids or []) + (query.bot_annotation_metadata_ids or []),
+            db_engine=db_engine,
+        )
+
+    file_path = await run_in_threadpool(build_export_file, export_format, result, query, label_mappings)
 
     match export_format:
         case 'csv':
-            fp = write_csv(result)
-            return CSVResponse(fp, background=BackgroundTask(cleanup, fp))
+            return CSVResponse(file_path, background=BackgroundTask(cleanup, file_path))
         case 'excel':
-            fp = write_excel(result)
-            return ExcelResponse(fp, background=BackgroundTask(cleanup, fp))
+            return ExcelResponse(file_path, background=BackgroundTask(cleanup, file_path))
         case 'ris':
-            label_mappings = await get_labels_with_names(
-                scopes=(query.assignment_scope_ids or []) + (query.bot_annotation_metadata_ids or []),
-                db_engine=db_engine,
-            )
-            fp = write_ris(result, query.labels, label_mappings, query.ris_label_format)
-            return RISResponse(fp, background=BackgroundTask(cleanup, fp))
-        case 'jsonl':
-            fp = write_jsonl(result)
-            return JSONLResponse(fp, background=BackgroundTask(cleanup, fp))
+            return RISResponse(file_path, background=BackgroundTask(cleanup, file_path))
         case _:
-            raise HTTPException(
-                status_code=400, detail=f"Requested export format '{export_format}' is not one of the recognized formats: ['csv', 'excel', 'ris', 'jsonl']"
-            )
+            return JSONLResponse(file_path, background=BackgroundTask(cleanup, file_path))
 
 
 class ProjectBaseInfo(BaseModel):

@@ -12,3 +12,7 @@ dumps/
 scratch/
 .tasks/
 volumes/
+# test artefacts
+.coverage
+htmlcov/
+.pytest_cache/

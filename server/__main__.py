@@ -36,7 +36,6 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
 app = FastAPI(
     openapi_url=settings.SERVER.OPENAPI_FILE,
-    openapi_prefix=settings.SERVER.OPENAPI_PREFIX,
     root_path=settings.SERVER.ROOT_PATH,
     separate_input_output_schemas=False,
     lifespan=lifespan,

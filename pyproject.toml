@@ -11,7 +11,7 @@ dependencies = [
     #"dramatiq-dashboard==0.4.0",
     "dramatiq[redis,watch]==2.1.0",
     "email-validator==2.3.0",
-    "fastapi==0.143.0",
+    "fastapi==0.161.1",
     "hypercorn==0.18.0",
     "passlib[bcrypt]==1.7.4",
     "pymitter==1.1.1",
@@ -23,10 +23,10 @@ dependencies = [
 
 [project.optional-dependencies]
 light = [
-    "nacsos_data[utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.58"
+    "nacsos_data[utils] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.59"
 ]
 full = [
-    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.58"
+    "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.59"
 ]
 
 [tool.uv.sources]
@@ -39,14 +39,18 @@ dev = [
     "types-toml==0.10.8.20260518",
     "types-PyYAML==6.0.12.20260724",
     "types-aiofiles==25.1.0.20260518",
-    "pre-commit>=4.6.1",
+    "pre-commit==4.7.0",
+    "pytest==9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "httpx==0.28.1",
+    "pytest-cov==7.1.0",
 ]
 
 [tool.ruff]
 line-length = 160
 indent-width = 4
 target-version = "py314"
-include = ["pyproject.toml", "server/**/*.py"]
+include = ["pyproject.toml", "server/**/*.py", "tests/**/*.py"]
 exclude = []
 
 [tool.ruff.lint]
@@ -93,6 +97,16 @@ docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = '-ra --strict-markers --strict-config'
+asyncio_mode = 'auto'
+asyncio_default_fixture_loop_scope = 'function'
+markers = [
+    'integration: tests that require a live PostgreSQL database (deselected by default)',
+]
 
 [tool.mypy]
 #plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]

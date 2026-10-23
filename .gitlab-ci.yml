@@ -63,6 +63,7 @@ test-pytest:
   stage: test
   allow_failure: true
   script:
+    - source config.env
     - uv run pytest
 
 deploy-to-production:

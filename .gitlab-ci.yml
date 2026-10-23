@@ -34,6 +34,7 @@ cache:
     - python -V
     - pwd
     - ls -lisah
+    - cp config.env.example config.env || touch config.env
     - uv sync --extra light --group dev
   after_script:
     - uv cache prune --ci

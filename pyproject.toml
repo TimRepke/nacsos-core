@@ -1,6 +1,6 @@
 [project]
 name = "nacsos-core"
-version = "0.24.60"
+version = "0.24.61"
 description = "NACSOS REST API"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"

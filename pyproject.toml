@@ -1,6 +1,6 @@
 [project]
 name = "nacsos-core"
-version = "0.24.58"
+version = "0.24.60"
 description = "NACSOS REST API"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -10,7 +10,6 @@ dependencies = [
     "dramatiq-abort==1.2.1",
     #"dramatiq-dashboard==0.4.0",
     "dramatiq[redis,watch]==2.1.0",
-    "email-validator==2.3.0",
     "fastapi==0.163.1",
     "hypercorn==0.18.0",
     "passlib[bcrypt]==1.7.4",
@@ -27,6 +26,13 @@ light = [
 ]
 full = [
     "nacsos_data[utils,scripts,priority] @ git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git@v0.24.60"
+]
+
+[tool.uv]
+# Only resolve for platforms we support (avoids uv's win32 resolution split).
+environments = [
+    "sys_platform == 'linux'",
+    "sys_platform == 'darwin'",
 ]
 
 [tool.uv.sources]

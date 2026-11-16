@@ -1318,14 +1318,13 @@ wheels = [
 
 [[package]]
 name = "nacsos-core"
-version = "0.24.58"
+version = "0.24.60"
 source = { virtual = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "aiosmtplib" },
     { name = "dramatiq", extra = ["redis", "watch"] },
     { name = "dramatiq-abort" },
-    { name = "email-validator" },
     { name = "fastapi" },
     { name = "hypercorn" },
     { name = "passlib", extra = ["bcrypt"] },
@@ -1363,7 +1362,6 @@ requires-dist = [
     { name = "aiosmtplib", specifier = "==5.1.2" },
     { name = "dramatiq", extras = ["redis", "watch"], specifier = "==2.1.0" },
     { name = "dramatiq-abort", specifier = "==1.2.1" },
-    { name = "email-validator", specifier = "~=2.4.0" },
     { name = "fastapi", specifier = "==0.163.1" },
     { name = "hypercorn", specifier = "==0.18.0" },
     { name = "nacsos-data", extras = ["utils"], marker = "extra == 'light'", editable = "../nacsos-data" },
